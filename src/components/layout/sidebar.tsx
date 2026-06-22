@@ -18,6 +18,7 @@ import {
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { useLayoutStore } from '@/lib/store'
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -33,21 +34,35 @@ const navItems = [
 export function Sidebar() {
   const pathname = usePathname()
   const router = useRouter()
+  const { sidebarOpen, closeSidebar } = useLayoutStore()
 
   async function handleSignOut() {
     const supabase = createClient()
     await supabase.auth.signOut()
     router.push('/login')
+    closeSidebar()
   }
 
   return (
-    <aside
-      className="fixed left-0 top-0 h-full w-[260px] flex flex-col z-30"
-      style={{
-        background: 'hsl(222, 47%, 7%)',
-        borderRight: '1px solid hsl(222, 47%, 14%)',
-      }}
-    >
+    <>
+      {/* Backdrop for mobile */}
+      {sidebarOpen && (
+        <div
+          onClick={closeSidebar}
+          className="fixed inset-0 z-20 bg-black/60 backdrop-blur-xs lg:hidden"
+        />
+      )}
+
+      <aside
+        className={cn(
+          "fixed left-0 top-0 h-full w-[260px] flex flex-col z-30 transition-transform duration-300",
+          sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+        )}
+        style={{
+          background: 'hsl(222, 47%, 7%)',
+          borderRight: '1px solid hsl(222, 47%, 14%)',
+        }}
+      >
       {/* Logo */}
       <div className="flex items-center gap-3 px-6 py-5 border-b border-white/5">
         <div
@@ -71,6 +86,7 @@ export function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
+              onClick={closeSidebar}
               className={cn(
                 'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group',
                 isActive
@@ -109,6 +125,7 @@ export function Sidebar() {
       <div className="px-3 py-4 border-t border-white/5 space-y-1">
         <Link
           href="/settings"
+          onClick={closeSidebar}
           className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/50 hover:text-white/80 hover:bg-white/5 transition-all"
         >
           <Settings size={17} className="text-white/40" />
@@ -123,5 +140,6 @@ export function Sidebar() {
         </button>
       </div>
     </aside>
+    </>
   )
 }

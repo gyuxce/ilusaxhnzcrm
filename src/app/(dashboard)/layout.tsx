@@ -16,13 +16,7 @@ export default async function DashboardLayout({
   return (
     <div className="min-h-screen">
       <Sidebar />
-      <main
-        className="min-h-screen"
-        style={{
-          marginLeft: '260px',
-          paddingTop: '64px',
-        }}
-      >
+      <main className="min-h-screen lg:pl-[260px] pt-[64px]">
         {children}
       </main>
     </div>
