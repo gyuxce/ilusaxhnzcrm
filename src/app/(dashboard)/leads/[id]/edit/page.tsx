@@ -17,7 +17,7 @@ export default async function EditLeadPage({ params }: { params: Promise<{ id: s
   return (
     <>
       <Header title="Edit Lead" subtitle={lead.full_name || lead.whatsapp_number} />
-      <div className="p-6 max-w-2xl animate-fade-in">
+      <div className="p-6 max-w-2xl animate-fade-in mx-auto">
         <LeadForm
           pics={pics || []}
           leadId={lead.id}
