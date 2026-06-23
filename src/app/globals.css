@@ -2,6 +2,31 @@
 
 @layer base {
   :root {
+    --background: 240 14% 97%; /* #f5f5f7 - Apple light gray */
+    --foreground: 240 3% 12%; /* #1d1d1f - Carbon black */
+    --card: 0 0% 100%; /* #ffffff - Pure white */
+    --card-foreground: 240 3% 12%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 3% 12%;
+    --primary: 250 84% 65%; /* Premium purple */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 5% 96%; /* Light gray accent */
+    --secondary-foreground: 240 3% 12%;
+    --muted: 240 5% 96%;
+    --muted-foreground: 240 2% 54%; /* #86868b - Apple gray */
+    --accent: 250 84% 65%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 240 9% 92%; /* #e8e8ed - Subtle separator */
+    --input: 0 0% 100%;
+    --ring: 250 84% 65%;
+
+    --sidebar-width: 260px;
+    --header-height: 64px;
+  }
+
+  .dark {
     --background: 222 47% 6%;
     --foreground: 213 31% 91%;
     --card: 222 47% 9%;
@@ -21,17 +46,6 @@
     --border: 222 47% 16%;
     --input: 222 47% 14%;
     --ring: 250 84% 65%;
-
-    /* Custom CRM Colors */
-    --stage-new: 215 20% 45%;
-    --stage-probing: 210 100% 56%;
-    --stage-hot: 25 95% 53%;
-    --stage-potential: 48 96% 53%;
-    --stage-converted: 142 71% 45%;
-    --stage-rejected: 0 72% 51%;
-
-    --sidebar-width: 260px;
-    --header-height: 64px;
   }
 }
 
@@ -68,13 +82,28 @@
 @layer utilities {
   /* Glassmorphism card */
   .glass-card {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.02);
+  }
+
+  .dark .glass-card {
     background: rgba(255, 255, 255, 0.03);
     backdrop-filter: blur(12px);
     border: 1px solid rgba(255, 255, 255, 0.06);
+    box-shadow: none;
   }
 
   /* Gradient text */
   .gradient-text {
+    background: linear-gradient(135deg, hsl(250, 84%, 60%), hsl(280, 84%, 50%));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .dark .gradient-text {
     background: linear-gradient(135deg, hsl(250, 84%, 75%), hsl(280, 84%, 65%));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -83,14 +112,26 @@
 
   /* Neon glow effects */
   .glow-purple {
+    box-shadow: 0 4px 20px rgba(139, 92, 246, 0.08);
+  }
+
+  .dark .glow-purple {
     box-shadow: 0 0 20px rgba(139, 92, 246, 0.15), 0 0 40px rgba(139, 92, 246, 0.05);
   }
 
   .glow-green {
+    box-shadow: 0 4px 20px rgba(34, 197, 94, 0.08);
+  }
+
+  .dark .glow-green {
     box-shadow: 0 0 20px rgba(34, 197, 94, 0.15);
   }
 
   .glow-orange {
+    box-shadow: 0 4px 20px rgba(249, 115, 22, 0.08);
+  }
+
+  .dark .glow-orange {
     box-shadow: 0 0 20px rgba(249, 115, 22, 0.15);
   }
 

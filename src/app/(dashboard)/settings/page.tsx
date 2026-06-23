@@ -249,7 +249,7 @@ export default function SettingsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-120px)]">
-        <Loader2 className="animate-spin text-purple-500" size={32} />
+        <Loader2 className="animate-spin text-primary" size={32} />
       </div>
     )
   }
@@ -277,10 +277,10 @@ export default function SettingsPage() {
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
                 className={cn(
-                  "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all text-left cursor-pointer",
+                  "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all text-left cursor-pointer border",
                   activeTab === tab.id 
-                    ? "bg-purple-500/10 text-purple-400 border border-purple-500/20" 
-                    : "text-white/50 hover:text-white/80 hover:bg-white/5 border border-transparent"
+                    ? "bg-primary/10 text-primary border-primary/20" 
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted border-transparent dark:hover:bg-white/5"
                 )}
               >
                 <Icon size={14} />
@@ -295,13 +295,15 @@ export default function SettingsPage() {
           
           {/* Tab 1: Profile */}
           {activeTab === 'profile' && (
-            <form onSubmit={handleSaveProfile} className="glass-card rounded-2xl p-6 border border-white/5 space-y-5">
-              <h2 className="text-sm font-bold text-white uppercase tracking-wider">Profil Saya</h2>
+            <form onSubmit={handleSaveProfile} className="bg-card text-card-foreground rounded-2xl p-6 border border-border dark:border-white/5 space-y-5 shadow-xs">
+              <h2 className="text-sm font-bold text-foreground uppercase tracking-wider">Profil Saya</h2>
 
               {message.text && (
                 <div className={cn(
                   "p-3 rounded-xl text-xs font-bold border",
-                  message.type === 'error' ? "bg-red-500/10 border-red-500/20 text-red-400" : "bg-green-500/10 border-green-500/20 text-green-400"
+                  message.type === 'error' 
+                    ? "bg-red-50 border-red-100 text-red-700 dark:bg-red-500/10 dark:border-red-500/20 dark:text-red-400" 
+                    : "bg-emerald-50 border-emerald-100 text-emerald-700 dark:bg-green-500/10 dark:border-green-500/20 dark:text-green-400"
                 )}>
                   {message.text}
                 </div>
@@ -309,35 +311,32 @@ export default function SettingsPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[10px] text-white/40 font-bold uppercase mb-1.5">Email (Sistem)</label>
+                  <label className="block text-[10px] text-muted-foreground font-bold uppercase mb-1.5">Email (Sistem)</label>
                   <input
                     type="email"
                     disabled
                     value={profile.email}
-                    className="w-full px-3.5 py-2.5 rounded-xl text-xs text-white/40 cursor-not-allowed border border-white/5"
-                    style={{ background: 'hsl(222,47%,9%)' }}
+                    className="w-full px-3.5 py-2.5 rounded-xl text-xs bg-muted text-muted-foreground/60 cursor-not-allowed border border-border dark:border-white/5"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[10px] text-white/40 font-bold uppercase mb-1.5">Role / Hak Akses</label>
+                  <label className="block text-[10px] text-muted-foreground font-bold uppercase mb-1.5">Role / Hak Akses</label>
                   <input
                     type="text"
                     disabled
                     value={profile.role.toUpperCase()}
-                    className="w-full px-3.5 py-2.5 rounded-xl text-xs text-white/40 cursor-not-allowed border border-white/5 font-extrabold"
-                    style={{ background: 'hsl(222,47%,9%)' }}
+                    className="w-full px-3.5 py-2.5 rounded-xl text-xs bg-muted text-muted-foreground/60 cursor-not-allowed border border-border dark:border-white/5 font-extrabold"
                   />
                 </div>
 
                 <div className="md:col-span-2">
-                  <label className="block text-[10px] text-white/40 font-bold uppercase mb-1.5">Nama Lengkap</label>
+                  <label className="block text-[10px] text-muted-foreground font-bold uppercase mb-1.5">Nama Lengkap</label>
                   <input
                     type="text"
                     value={profile.name}
                     onChange={(e) => setProfile(prev => ({ ...prev, name: e.target.value }))}
-                    className="w-full px-3.5 py-2.5 rounded-xl text-xs text-white outline-none"
-                    style={{ background: 'hsl(222,47%,12%)', border: '1px solid hsl(222,47%,20%)' }}
+                    className="w-full px-3.5 py-2.5 rounded-xl text-xs bg-background text-foreground border border-border outline-none focus:ring-1 focus:ring-primary focus:border-primary placeholder:text-muted-foreground/50"
                   />
                 </div>
               </div>
@@ -345,8 +344,7 @@ export default function SettingsPage() {
               <button
                 type="submit"
                 disabled={saving}
-                className="w-full py-2.5 rounded-xl text-xs font-bold text-white hover:glow-purple transition-all duration-300"
-                style={{ background: 'linear-gradient(135deg, hsl(250,84%,60%), hsl(280,60%,55%))' }}
+                className="w-full py-2.5 rounded-xl text-xs font-bold text-primary-foreground bg-primary hover:opacity-90 transition-all duration-300 shadow-sm cursor-pointer"
               >
                 {saving ? 'Menyimpan...' : 'Simpan Perubahan'}
               </button>
@@ -355,38 +353,37 @@ export default function SettingsPage() {
 
           {/* Tab 2: Manage Users (Admin only) */}
           {activeTab === 'users' && isAdmin && (
-            <div className="glass-card rounded-2xl p-6 border border-white/5 space-y-5">
-              <h2 className="text-sm font-bold text-white uppercase tracking-wider">Manage Users</h2>
+            <div className="bg-card text-card-foreground rounded-2xl p-6 border border-border dark:border-white/5 space-y-5 shadow-xs">
+              <h2 className="text-sm font-bold text-foreground uppercase tracking-wider">Manage Users</h2>
               
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
                   <thead>
-                    <tr className="border-b border-white/10 text-white/40">
+                    <tr className="border-b border-border dark:border-white/10 text-muted-foreground">
                       <th className="py-2.5 px-3">Nama</th>
                       <th className="py-2.5 px-3">Email</th>
                       <th className="py-2.5 px-3">Role</th>
                       <th className="py-2.5 px-3">Tanggal Dibuat</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-white/5">
+                  <tbody className="divide-y divide-border dark:divide-white/5">
                     {usersList.map(u => (
-                      <tr key={u.id} className="hover:bg-white/[0.01]">
-                        <td className="py-3 px-3 font-bold text-white">{u.name}</td>
-                        <td className="py-3 px-3 text-white/60">{u.email}</td>
+                       <tr key={u.id} className="hover:bg-muted/40 dark:hover:bg-white/[0.01]">
+                        <td className="py-3 px-3 font-bold text-foreground">{u.name}</td>
+                        <td className="py-3 px-3 text-muted-foreground">{u.email}</td>
                         <td className="py-3 px-3">
                           <select
                             value={u.role}
                             disabled={u.id === currentUser.id} // cannot change own role here
                             onChange={(e) => handleUpdateRole(u.id, e.target.value)}
-                            className="px-2 py-1 rounded-lg text-xs text-white outline-none cursor-pointer disabled:opacity-40"
-                            style={{ background: 'hsl(222,47%,12%)', border: '1px solid hsl(222,47%,20%)' }}
+                            className="px-2 py-1 bg-background text-foreground border border-border rounded-lg text-xs outline-none cursor-pointer disabled:opacity-40 focus:ring-1 focus:ring-primary focus:border-primary"
                           >
-                            <option value="cro">CRO</option>
-                            <option value="owner">OWNER</option>
-                            <option value="admin">ADMIN</option>
+                            <option value="cro" className="bg-card text-foreground">CRO</option>
+                            <option value="owner" className="bg-card text-foreground">OWNER</option>
+                            <option value="admin" className="bg-card text-foreground">ADMIN</option>
                           </select>
                         </td>
-                        <td className="py-3 px-3 text-white/40">
+                        <td className="py-3 px-3 text-muted-foreground/80">
                           {new Date(u.created_at).toLocaleDateString('id-ID')}
                         </td>
                       </tr>
@@ -402,97 +399,91 @@ export default function SettingsPage() {
             <div className="space-y-6">
               
               {/* Add Batch Form */}
-              <form onSubmit={handleAddBatch} className="glass-card rounded-2xl p-6 border border-white/5 space-y-4">
-                <h2 className="text-sm font-bold text-white uppercase tracking-wider">Tambah Target Batch Baru</h2>
+              <form onSubmit={handleAddBatch} className="bg-card text-card-foreground rounded-2xl p-6 border border-border dark:border-white/5 space-y-4 shadow-xs">
+                <h2 className="text-sm font-bold text-foreground uppercase tracking-wider">Tambah Target Batch Baru</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-[10px] text-white/40 font-bold uppercase mb-1.5">Nama Batch</label>
+                    <label className="block text-[10px] text-muted-foreground font-bold uppercase mb-1.5">Nama Batch</label>
                     <input
                       type="text"
                       placeholder="Contoh: Batch 2 Harunokaze"
                       value={batchName}
                       onChange={e => setBatchName(e.target.value)}
                       required
-                      className="w-full px-3.5 py-2 rounded-xl text-xs text-white outline-none"
-                      style={{ background: 'hsl(222,47%,12%)', border: '1px solid hsl(222,47%,20%)' }}
+                      className="w-full px-3.5 py-2 rounded-xl text-xs bg-background text-foreground border border-border outline-none focus:ring-1 focus:ring-primary focus:border-primary placeholder:text-muted-foreground/50"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-[10px] text-white/40 font-bold uppercase mb-1.5">Target Seat Lock</label>
+                    <label className="block text-[10px] text-muted-foreground font-bold uppercase mb-1.5">Target Seat Lock</label>
                     <input
                       type="number"
                       value={targetSeatLock}
                       onChange={e => setTargetSeatLock(Number(e.target.value))}
                       required
-                      className="w-full px-3.5 py-2 rounded-xl text-xs text-white outline-none"
-                      style={{ background: 'hsl(222,47%,12%)', border: '1px solid hsl(222,47%,20%)' }}
+                      className="w-full px-3.5 py-2 rounded-xl text-xs bg-background text-foreground border border-border outline-none focus:ring-1 focus:ring-primary focus:border-primary placeholder:text-muted-foreground/50"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-[10px] text-white/40 font-bold uppercase mb-1.5">Tanggal Mulai</label>
+                    <label className="block text-[10px] text-muted-foreground font-bold uppercase mb-1.5">Tanggal Mulai</label>
                     <input
                       type="date"
                       value={startDate}
                       onChange={e => setStartDate(e.target.value)}
-                      className="w-full px-3.5 py-2 rounded-xl text-xs text-white outline-none"
-                      style={{ background: 'hsl(222,47%,12%)', border: '1px solid hsl(222,47%,20%)' }}
+                      className="w-full px-3.5 py-2 rounded-xl text-xs bg-background text-foreground border border-border outline-none focus:ring-1 focus:ring-primary focus:border-primary"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-[10px] text-white/40 font-bold uppercase mb-1.5">Tanggal Berakhir</label>
+                    <label className="block text-[10px] text-muted-foreground font-bold uppercase mb-1.5">Tanggal Berakhir</label>
                     <input
                       type="date"
                       value={endDate}
                       onChange={e => setEndDate(e.target.value)}
-                      className="w-full px-3.5 py-2 rounded-xl text-xs text-white outline-none"
-                      style={{ background: 'hsl(222,47%,12%)', border: '1px solid hsl(222,47%,20%)' }}
+                      className="w-full px-3.5 py-2 rounded-xl text-xs bg-background text-foreground border border-border outline-none focus:ring-1 focus:ring-primary focus:border-primary"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-[10px] text-white/40 font-bold uppercase mb-1.5">Catatan</label>
+                  <label className="block text-[10px] text-muted-foreground font-bold uppercase mb-1.5">Catatan</label>
                   <input
                     type="text"
                     placeholder="Catatan tambahan target batch..."
                     value={batchNotes}
                     onChange={e => setBatchNotes(e.target.value)}
-                    className="w-full px-3.5 py-2 rounded-xl text-xs text-white outline-none"
-                    style={{ background: 'hsl(222,47%,12%)', border: '1px solid hsl(222,47%,20%)' }}
+                    className="w-full px-3.5 py-2 rounded-xl text-xs bg-background text-foreground border border-border outline-none focus:ring-1 focus:ring-primary focus:border-primary placeholder:text-muted-foreground/50"
                   />
                 </div>
 
                 <button
                   type="submit"
-                  className="w-full py-2 rounded-xl text-xs font-bold text-white hover:glow-purple transition-all duration-300"
-                  style={{ background: 'linear-gradient(135deg, hsl(250,84%,60%), hsl(280,60%,55%))' }}
+                  className="w-full py-2 rounded-xl text-xs font-bold text-primary-foreground bg-primary hover:opacity-90 transition-all duration-300 shadow-sm cursor-pointer"
                 >
                   Tambah Batch Target
                 </button>
               </form>
 
               {/* Batch Targets list */}
-              <div className="glass-card rounded-2xl p-6 border border-white/5 space-y-4">
-                <h2 className="text-sm font-bold text-white uppercase tracking-wider">Daftar Batch Target</h2>
+              <div className="bg-card text-card-foreground rounded-2xl p-6 border border-border dark:border-white/5 space-y-4 shadow-xs">
+                <h2 className="text-sm font-bold text-foreground uppercase tracking-wider">Daftar Batch Target</h2>
                 <div className="space-y-3">
                   {batchesList.map(b => (
-                    <div key={b.id} className="flex items-center justify-between p-4 rounded-xl border border-white/5 bg-white/[0.01]">
+                    <div key={b.id} className="flex items-center justify-between p-4 rounded-xl border border-border dark:border-white/5 bg-muted/20 dark:bg-white/[0.01]">
                       <div className="space-y-1">
-                        <span className="text-xs font-bold text-white">{b.batch_name}</span>
-                        <p className="text-[10px] text-white/40">Periode: {b.start_date} s/d {b.closing_date}</p>
-                        {b.notes && <p className="text-[10px] text-white/50">{b.notes}</p>}
+                        <span className="text-xs font-bold text-foreground">{b.batch_name}</span>
+                        <p className="text-[10px] text-muted-foreground">Periode: {b.start_date} s/d {b.closing_date}</p>
+                        {b.notes && <p className="text-[10px] text-muted-foreground/80">{b.notes}</p>}
                       </div>
                       <div className="flex items-center gap-4">
                         <div className="text-right">
-                          <span className="text-[10px] text-white/30 uppercase font-bold">Target</span>
-                          <p className="text-sm font-extrabold text-purple-400">{b.target_seat_lock} Seat Lock</p>
+                          <span className="text-[10px] text-muted-foreground uppercase font-bold">Target</span>
+                          <p className="text-sm font-extrabold text-primary">{b.target_seat_lock} Seat Lock</p>
                         </div>
                         <button
                           onClick={() => handleDeleteBatch(b.id)}
-                          className="p-1.5 rounded-lg text-red-500/60 hover:text-red-400 hover:bg-red-500/10 transition-all border border-transparent hover:border-red-500/10 cursor-pointer"
+                          className="p-1.5 rounded-lg text-red-600 hover:text-red-700 hover:bg-red-500/10 border border-transparent hover:border-red-500/10 cursor-pointer dark:text-red-500/60 dark:hover:text-red-400 transition-all"
                         >
                           <Trash2 size={13} />
                         </button>
@@ -510,8 +501,8 @@ export default function SettingsPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               
               {/* Lost Reasons options */}
-              <div className="glass-card rounded-2xl p-6 border border-white/5 space-y-4">
-                <h3 className="text-xs font-bold text-white uppercase tracking-wider">Manage Lost Reasons</h3>
+              <div className="bg-card text-card-foreground rounded-2xl p-6 border border-border dark:border-white/5 space-y-4 shadow-xs">
+                <h3 className="text-xs font-bold text-foreground uppercase tracking-wider">Manage Lost Reasons</h3>
                 
                 <div className="flex gap-2">
                   <input
@@ -519,12 +510,11 @@ export default function SettingsPage() {
                     placeholder="Tambah alasan baru..."
                     value={newReason}
                     onChange={e => setNewReason(e.target.value)}
-                    className="flex-1 px-3 py-1.5 rounded-xl text-xs text-white outline-none"
-                    style={{ background: 'hsl(222,47%,12%)', border: '1px solid hsl(222,47%,20%)' }}
+                    className="flex-1 px-3 py-1.5 rounded-xl text-xs bg-background text-foreground border border-border outline-none focus:ring-1 focus:ring-primary focus:border-primary placeholder:text-muted-foreground/50"
                   />
                   <button
                     onClick={handleAddReason}
-                    className="px-3 rounded-xl bg-purple-500 text-white flex items-center justify-center cursor-pointer"
+                    className="px-3 rounded-xl bg-primary text-primary-foreground flex items-center justify-center cursor-pointer hover:opacity-90 transition-all"
                   >
                     <Plus size={14} />
                   </button>
@@ -532,11 +522,11 @@ export default function SettingsPage() {
 
                 <div className="space-y-1.5 max-h-60 overflow-y-auto pr-1">
                   {lostReasons.map((reason, idx) => (
-                    <div key={idx} className="flex items-center justify-between p-2 rounded-lg bg-white/[0.01] border border-white/5 text-[11px] text-white/70">
+                    <div key={idx} className="flex items-center justify-between p-2 rounded-lg bg-muted/30 border border-border dark:bg-white/[0.01] dark:border-white/5 text-[11px] text-muted-foreground">
                       <span>{reason}</span>
                       <button
                         onClick={() => handleDeleteReason(idx)}
-                        className="text-red-500/60 hover:text-red-400 p-0.5"
+                        className="text-red-600 hover:text-red-700 dark:text-red-500/60 dark:hover:text-red-400 p-0.5 cursor-pointer transition-all"
                       >
                         <Trash2 size={12} />
                       </button>
@@ -546,8 +536,8 @@ export default function SettingsPage() {
               </div>
 
               {/* Status options */}
-              <div className="glass-card rounded-2xl p-6 border border-white/5 space-y-4">
-                <h3 className="text-xs font-bold text-white uppercase tracking-wider">Manage Pipeline Status</h3>
+              <div className="bg-card text-card-foreground rounded-2xl p-6 border border-border dark:border-white/5 space-y-4 shadow-xs">
+                <h3 className="text-xs font-bold text-foreground uppercase tracking-wider">Manage Pipeline Status</h3>
                 
                 <div className="flex gap-2">
                   <input
@@ -555,12 +545,11 @@ export default function SettingsPage() {
                     placeholder="Tambah status baru..."
                     value={newStatus}
                     onChange={e => setNewStatus(e.target.value)}
-                    className="flex-1 px-3 py-1.5 rounded-xl text-xs text-white outline-none"
-                    style={{ background: 'hsl(222,47%,12%)', border: '1px solid hsl(222,47%,20%)' }}
+                    className="flex-1 px-3 py-1.5 rounded-xl text-xs bg-background text-foreground border border-border outline-none focus:ring-1 focus:ring-primary focus:border-primary placeholder:text-muted-foreground/50"
                   />
                   <button
                     onClick={handleAddStatus}
-                    className="px-3 rounded-xl bg-purple-500 text-white flex items-center justify-center cursor-pointer"
+                    className="px-3 rounded-xl bg-primary text-primary-foreground flex items-center justify-center cursor-pointer hover:opacity-90 transition-all"
                   >
                     <Plus size={14} />
                   </button>
@@ -568,11 +557,11 @@ export default function SettingsPage() {
 
                 <div className="space-y-1.5 max-h-60 overflow-y-auto pr-1">
                   {statusOptions.map((status, idx) => (
-                    <div key={idx} className="flex items-center justify-between p-2 rounded-lg bg-white/[0.01] border border-white/5 text-[11px] text-white/70">
+                    <div key={idx} className="flex items-center justify-between p-2 rounded-lg bg-muted/30 border border-border dark:bg-white/[0.01] dark:border-white/5 text-[11px] text-muted-foreground">
                       <span>{status}</span>
                       <button
                         onClick={() => handleDeleteStatus(idx)}
-                        className="text-red-500/60 hover:text-red-400 p-0.5"
+                        className="text-red-600 hover:text-red-700 dark:text-red-500/60 dark:hover:text-red-400 p-0.5 cursor-pointer transition-all"
                       >
                         <Trash2 size={12} />
                       </button>

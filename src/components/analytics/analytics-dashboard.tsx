@@ -111,21 +111,21 @@ export function AnalyticsDashboard({ allLeads, payments, users }: AnalyticsDashb
       {/* KPI Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
         {[
-          { label: 'Total Leads', value: stats.total, color: '#a78bfa', icon: Users },
+          { label: 'Total Leads', value: stats.total, color: '#8b5cf6', icon: Users },
           { label: 'Seat Lock Paid', value: stats.seatLockPaid, color: '#22c55e', icon: Award },
           { label: 'Konversi Rate', value: `${stats.convRate}%`, color: '#10b981', icon: Target },
-          { label: 'Rev Pemetaan', value: `Rp ${(stats.revPemetaan / 1e6).toFixed(1)}jt`, color: '#8b5cf6', icon: DollarSign },
+          { label: 'Rev Pemetaan', value: `Rp ${(stats.revPemetaan / 1e6).toFixed(1)}jt`, color: '#6366f1', icon: DollarSign },
           { label: 'Rev Seat Lock', value: `Rp ${(stats.revSeatLock / 1e6).toFixed(1)}jt`, color: '#f59e0b', icon: DollarSign },
-          { label: 'Total Revenue', value: `Rp ${(stats.revTotal / 1e6).toFixed(1)}jt`, color: '#60a5fa', icon: TrendingUp },
+          { label: 'Total Revenue', value: `Rp ${(stats.revTotal / 1e6).toFixed(1)}jt`, color: '#3b82f6', icon: TrendingUp },
         ].map(kpi => (
-          <div key={kpi.label} className="glass-card rounded-2xl p-4 border border-white/5 flex flex-col gap-2">
+          <div key={kpi.label} className="bg-card text-card-foreground rounded-2xl p-4 border border-border dark:border-white/5 flex flex-col gap-2 shadow-xs">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] text-white/35 font-bold uppercase tracking-wide">{kpi.label}</span>
-              <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: `${kpi.color}18` }}>
+              <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wide">{kpi.label}</span>
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: `${kpi.color}15` }}>
                 <kpi.icon size={14} style={{ color: kpi.color }} />
               </div>
             </div>
-            <p className="text-xl font-extrabold text-white">{kpi.value}</p>
+            <p className="text-xl font-extrabold text-foreground">{kpi.value}</p>
           </div>
         ))}
       </div>
@@ -133,9 +133,9 @@ export function AnalyticsDashboard({ allLeads, payments, users }: AnalyticsDashb
       {/* Charts Row 1 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Monthly Trend */}
-        <div className="glass-card rounded-2xl p-5 border border-white/5">
-          <h3 className="text-xs font-extrabold text-white uppercase tracking-wider mb-4 flex items-center gap-2">
-            <BarChart3 size={14} className="text-purple-400" />
+        <div className="bg-card text-card-foreground rounded-2xl p-5 border border-border dark:border-white/5 shadow-xs">
+          <h3 className="text-xs font-extrabold text-foreground uppercase tracking-wider mb-4 flex items-center gap-2">
+            <BarChart3 size={14} className="text-primary" />
             Tren Lead Masuk (6 Bulan)
           </h3>
           <div className="flex items-end gap-2 h-32">
@@ -143,9 +143,9 @@ export function AnalyticsDashboard({ allLeads, payments, users }: AnalyticsDashb
               const pct = (count / maxMonthly) * 100
               return (
                 <div key={month} className="flex-1 flex flex-col items-center gap-1">
-                  <span className="text-[8px] text-white/40 font-bold">{count}</span>
-                  <div className="w-full rounded-t-lg transition-all duration-500" style={{ height: `${Math.max(pct, 4)}%`, background: 'linear-gradient(to top, hsl(250,84%,60%), hsl(280,60%,55%))' }} />
-                  <span className="text-[8px] text-white/30">{month}</span>
+                  <span className="text-[8px] text-muted-foreground font-bold">{count}</span>
+                  <div className="w-full rounded-t-lg transition-all duration-500" style={{ height: `${Math.max(pct, 4)}%`, background: 'linear-gradient(to top, hsl(250,84%,65%), hsl(280,60%,60%))' }} />
+                  <span className="text-[8px] text-muted-foreground/70">{month}</span>
                 </div>
               )
             })}
@@ -153,22 +153,22 @@ export function AnalyticsDashboard({ allLeads, payments, users }: AnalyticsDashb
         </div>
 
         {/* Top Sources */}
-        <div className="glass-card rounded-2xl p-5 border border-white/5">
-          <h3 className="text-xs font-extrabold text-white uppercase tracking-wider mb-4 flex items-center gap-2">
-            <TrendingUp size={14} className="text-blue-400" />
+        <div className="bg-card text-card-foreground rounded-2xl p-5 border border-border dark:border-white/5 shadow-xs">
+          <h3 className="text-xs font-extrabold text-foreground uppercase tracking-wider mb-4 flex items-center gap-2">
+            <TrendingUp size={14} className="text-blue-500" />
             Top Source Campaign
           </h3>
           <div className="space-y-2.5">
             {topSources.slice(0, 5).map(([source, count]) => (
               <div key={source} className="flex items-center gap-3">
-                <span className="text-[10px] text-white/60 truncate w-28 flex-shrink-0">{source || 'Unknown'}</span>
-                <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ background: 'hsl(222,47%,14%)' }}>
+                <span className="text-[10px] text-muted-foreground truncate w-28 flex-shrink-0">{source || 'Unknown'}</span>
+                <div className="flex-1 h-2 rounded-full overflow-hidden bg-muted dark:bg-slate-800">
                   <div
                     className="h-full rounded-full transition-all duration-500"
                     style={{ width: `${(count / maxSource) * 100}%`, background: 'linear-gradient(90deg, hsl(210,100%,56%), hsl(250,84%,65%))' }}
                   />
                 </div>
-                <span className="text-[10px] font-extrabold text-white w-8 text-right">{count}</span>
+                <span className="text-[10px] font-extrabold text-foreground w-8 text-right">{count}</span>
               </div>
             ))}
           </div>
@@ -178,9 +178,9 @@ export function AnalyticsDashboard({ allLeads, payments, users }: AnalyticsDashb
       {/* Charts Row 2 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Pipeline Funnel */}
-        <div className="glass-card rounded-2xl p-5 border border-white/5">
-          <h3 className="text-xs font-extrabold text-white uppercase tracking-wider mb-4 flex items-center gap-2">
-            <Target size={14} className="text-emerald-400" />
+        <div className="bg-card text-card-foreground rounded-2xl p-5 border border-border dark:border-white/5 shadow-xs">
+          <h3 className="text-xs font-extrabold text-foreground uppercase tracking-wider mb-4 flex items-center gap-2">
+            <Target size={14} className="text-emerald-500" />
             Distribusi Pipeline Stage
           </h3>
           <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
@@ -189,11 +189,11 @@ export function AnalyticsDashboard({ allLeads, payments, users }: AnalyticsDashb
               return (
                 <div key={stage} className="flex items-center gap-3">
                   <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: color }} />
-                  <span className="text-[10px] text-white/55 flex-1 truncate">{stage}</span>
-                  <div className="w-24 h-1.5 rounded-full overflow-hidden flex-shrink-0" style={{ background: 'hsl(222,47%,14%)' }}>
+                  <span className="text-[10px] text-muted-foreground flex-1 truncate">{stage}</span>
+                  <div className="w-24 h-1.5 rounded-full overflow-hidden flex-shrink-0 bg-muted dark:bg-slate-800">
                     <div className="h-full rounded-full" style={{ width: `${(count / maxStageCount) * 100}%`, background: color }} />
                   </div>
-                  <span className="text-[10px] font-extrabold text-white w-6 text-right flex-shrink-0">{count}</span>
+                  <span className="text-[10px] font-extrabold text-foreground w-6 text-right flex-shrink-0">{count}</span>
                 </div>
               )
             })}
@@ -201,28 +201,30 @@ export function AnalyticsDashboard({ allLeads, payments, users }: AnalyticsDashb
         </div>
 
         {/* CRO Leaderboard */}
-        <div className="glass-card rounded-2xl p-5 border border-white/5 space-y-4">
-          <h3 className="text-xs font-extrabold text-white uppercase tracking-wider flex items-center gap-2">
-            <Award size={14} className="text-amber-400" />
+        <div className="bg-card text-card-foreground rounded-2xl p-5 border border-border dark:border-white/5 shadow-xs space-y-4">
+          <h3 className="text-xs font-extrabold text-foreground uppercase tracking-wider flex items-center gap-2">
+            <Award size={14} className="text-amber-500" />
             🏆 CRO Leaderboard (Seat Lock)
           </h3>
           {croRanking.length === 0 ? (
-            <p className="text-white/30 text-xs text-center py-8">Belum ada data seat lock.</p>
+            <p className="text-muted-foreground text-xs text-center py-8">Belum ada data seat lock.</p>
           ) : (
             <div className="space-y-3">
               {croRanking.map((cro, idx) => (
                 <div key={cro.name} className="flex items-center gap-3">
                   <span
-                    className="w-6 h-6 flex items-center justify-center rounded-full text-[10px] font-extrabold flex-shrink-0"
-                    style={{
-                      background: idx === 0 ? 'rgba(251,191,36,0.2)' : idx === 1 ? 'rgba(148,163,184,0.15)' : idx === 2 ? 'rgba(180,83,9,0.15)' : 'rgba(255,255,255,0.05)',
-                      color: idx === 0 ? '#fbbf24' : idx === 1 ? '#94a3b8' : idx === 2 ? '#b45309' : '#ffffff80',
-                    }}
+                    className={cn(
+                      "w-6 h-6 flex items-center justify-center rounded-full text-[10px] font-extrabold flex-shrink-0",
+                      idx === 0 ? "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400" :
+                      idx === 1 ? "bg-slate-100 text-slate-700 dark:bg-slate-500/20 dark:text-slate-400" :
+                      idx === 2 ? "bg-amber-200/50 text-amber-800 dark:bg-amber-700/20 dark:text-amber-500" :
+                      "bg-muted text-muted-foreground"
+                    )}
                   >
                     {idx + 1}
                   </span>
-                  <span className="flex-1 text-xs font-semibold text-white truncate">{cro.name}</span>
-                  <span className="text-xs font-extrabold text-emerald-400">{cro.count} SL</span>
+                  <span className="flex-1 text-xs font-semibold text-foreground truncate">{cro.name}</span>
+                  <span className="text-xs font-extrabold text-emerald-600 dark:text-emerald-400">{cro.count} SL</span>
                 </div>
               ))}
             </div>
@@ -230,17 +232,17 @@ export function AnalyticsDashboard({ allLeads, payments, users }: AnalyticsDashb
 
           {/* Lost reasons */}
           {topReasons.length > 0 && (
-            <div className="border-t border-white/5 pt-4 space-y-2">
-              <h4 className="text-[9px] font-extrabold text-white/30 uppercase tracking-wider flex items-center gap-1">
-                <AlertCircle size={10} /> Top Lost Reasons
+            <div className="border-t border-border dark:border-white/5 pt-4 space-y-2">
+              <h4 className="text-[9px] font-extrabold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                <AlertCircle size={10} className="text-red-500" /> Top Lost Reasons
               </h4>
               {topReasons.map(([reason, count]) => (
                 <div key={reason} className="flex items-center gap-2">
-                  <span className="text-[9px] text-white/50 flex-1 truncate">{reason}</span>
-                  <div className="w-16 h-1.5 rounded-full overflow-hidden" style={{ background: 'hsl(222,47%,14%)' }}>
+                  <span className="text-[9px] text-muted-foreground flex-1 truncate">{reason}</span>
+                  <div className="w-16 h-1.5 rounded-full overflow-hidden bg-muted dark:bg-slate-800">
                     <div className="h-full rounded-full bg-red-500/60" style={{ width: `${(count / maxReasonCount) * 100}%` }} />
                   </div>
-                  <span className="text-[9px] font-bold text-red-400 w-4 text-right">{count}</span>
+                  <span className="text-[9px] font-bold text-red-500 w-4 text-right">{count}</span>
                 </div>
               ))}
             </div>
@@ -249,19 +251,19 @@ export function AnalyticsDashboard({ allLeads, payments, users }: AnalyticsDashb
       </div>
 
       {/* Lead Type Split */}
-      <div className="glass-card rounded-2xl p-5 border border-white/5">
-        <h3 className="text-xs font-extrabold text-white uppercase tracking-wider mb-4">Lead Type Distribution</h3>
+      <div className="bg-card text-card-foreground rounded-2xl p-5 border border-border dark:border-white/5 shadow-xs">
+        <h3 className="text-xs font-extrabold text-foreground uppercase tracking-wider mb-4">Lead Type Distribution</h3>
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: 'rgba(59,130,246,0.15)' }}>
-              <Users size={16} className="text-blue-400" />
+            <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-blue-50 dark:bg-blue-950/30">
+              <Users size={16} className="text-blue-500" />
             </div>
             <div>
-              <p className="text-lg font-extrabold text-white">{stats.inbound}</p>
-              <p className="text-[10px] text-white/40">Inbound</p>
+              <p className="text-lg font-extrabold text-foreground">{stats.inbound}</p>
+              <p className="text-[10px] text-muted-foreground">Inbound</p>
             </div>
           </div>
-          <div className="flex-1 h-3 rounded-full overflow-hidden" style={{ background: 'hsl(222,47%,12%)' }}>
+          <div className="flex-1 h-3 rounded-full overflow-hidden bg-muted dark:bg-slate-800">
             <div
               className="h-full rounded-full transition-all duration-700"
               style={{
@@ -272,11 +274,11 @@ export function AnalyticsDashboard({ allLeads, payments, users }: AnalyticsDashb
           </div>
           <div className="flex items-center gap-3">
             <div>
-              <p className="text-lg font-extrabold text-white text-right">{stats.outbound}</p>
-              <p className="text-[10px] text-white/40 text-right">Outbound</p>
+              <p className="text-lg font-extrabold text-foreground text-right">{stats.outbound}</p>
+              <p className="text-[10px] text-muted-foreground text-right">Outbound</p>
             </div>
-            <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: 'rgba(245,158,11,0.15)' }}>
-              <TrendingUp size={16} className="text-amber-400" />
+            <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-amber-50 dark:bg-amber-950/30">
+              <TrendingUp size={16} className="text-amber-500" />
             </div>
           </div>
         </div>

@@ -91,7 +91,7 @@ export function PipelineBoard({ initialLeads }: PipelineBoardProps) {
       {/* Toolbar */}
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs text-white/40 border border-white/8" style={{ background: 'hsl(222,47%,10%)' }}>
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs text-muted-foreground border border-border bg-card">
             <Users size={13} />
             <span>{leads.length} Total Leads</span>
           </div>
@@ -100,11 +100,10 @@ export function PipelineBoard({ initialLeads }: PipelineBoardProps) {
             placeholder="Cari nama atau source..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            className="px-3 py-1.5 rounded-xl text-xs text-white placeholder-white/20 outline-none w-52"
-            style={{ background: 'hsl(222,47%,10%)', border: '1px solid hsl(222,47%,18%)' }}
+            className="px-3 py-1.5 rounded-xl text-xs text-foreground placeholder-muted-foreground bg-card border border-border outline-none w-52 focus:ring-1 focus:ring-primary focus:border-primary"
           />
         </div>
-        <p className="text-[10px] text-white/25 hidden md:block">Drag & drop kartu untuk pindah stage</p>
+        <p className="text-[10px] text-muted-foreground/50 hidden md:block">Drag & drop kartu untuk pindah stage</p>
       </div>
 
       {/* Board */}
@@ -118,8 +117,8 @@ export function PipelineBoard({ initialLeads }: PipelineBoardProps) {
               key={stage.key}
               className="flex-shrink-0 w-[220px] flex flex-col rounded-2xl transition-all duration-150"
               style={{
-                background: isOver ? stage.bg : 'hsl(222,47%,8%)',
-                border: `1px solid ${isOver ? stage.border : 'hsl(222,47%,13%)'}`,
+                background: isOver ? stage.bg : 'hsl(var(--secondary))',
+                border: `1px solid ${isOver ? stage.border : 'hsl(var(--border))'}`,
               }}
               onDragOver={e => onDragOver(e, stage.key)}
               onDrop={e => onDrop(e, stage.key)}
@@ -130,7 +129,7 @@ export function PipelineBoard({ initialLeads }: PipelineBoardProps) {
                 <div>
                   <div className="flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: stage.color }} />
-                    <span className="text-[11px] font-extrabold text-white/80 truncate leading-tight">{stage.label}</span>
+                    <span className="text-[11px] font-extrabold text-foreground truncate leading-tight">{stage.label}</span>
                   </div>
                 </div>
                 <span
@@ -145,7 +144,7 @@ export function PipelineBoard({ initialLeads }: PipelineBoardProps) {
               <div className="flex-1 px-2 pb-2 space-y-2 overflow-y-auto max-h-[65vh] pr-1">
                 {stageLeads.length === 0 ? (
                   <div
-                    className="h-20 rounded-xl border-2 border-dashed flex items-center justify-center text-[10px] text-white/15 transition-all"
+                    className="h-20 rounded-xl border-2 border-dashed flex items-center justify-center text-[10px] text-muted-foreground/30 transition-all"
                     style={{ borderColor: isOver ? stage.border : 'transparent' }}
                   >
                     {isOver ? 'Lepas di sini' : ''}
@@ -158,24 +157,23 @@ export function PipelineBoard({ initialLeads }: PipelineBoardProps) {
                       onDragStart={e => onDragStart(e, lead.id)}
                       onDragEnd={onDragEnd}
                       className={cn(
-                        'p-3 rounded-xl border cursor-grab active:cursor-grabbing transition-all duration-150 group',
-                        dragging === lead.id ? 'opacity-40 scale-95' : 'hover:border-white/15 hover:shadow-lg'
+                        'p-3 rounded-xl border border-border bg-card shadow-xs hover:shadow-md cursor-grab active:cursor-grabbing transition-all duration-150 group',
+                        dragging === lead.id ? 'opacity-40 scale-95' : ''
                       )}
-                      style={{ background: 'hsl(222,47%,11%)', border: '1px solid hsl(222,47%,17%)' }}
                     >
                       {/* Drag handle + name */}
                       <div className="flex items-start gap-1.5">
-                        <GripVertical size={12} className="text-white/20 mt-0.5 flex-shrink-0" />
+                        <GripVertical size={12} className="text-muted-foreground/40 mt-0.5 flex-shrink-0" />
                         <div className="min-w-0 flex-1">
-                          <p className="text-xs font-bold text-white leading-tight line-clamp-2">{lead.full_name}</p>
-                          <p className="text-[9px] text-white/35 mt-0.5 truncate">{lead.source_campaign}</p>
+                          <p className="text-xs font-bold text-foreground leading-tight line-clamp-2">{lead.full_name}</p>
+                          <p className="text-[9px] text-muted-foreground mt-0.5 truncate">{lead.source_campaign}</p>
                         </div>
                       </div>
 
                       {/* Meta */}
                       <div className="flex items-center gap-1 mt-2 flex-wrap">
                         {lead.lead_type === 'outbound' && (
-                          <span className="text-[8px] px-1.5 py-0.5 rounded-full font-bold" style={{ background: 'rgba(59,130,246,0.15)', color: '#60a5fa' }}>
+                          <span className="text-[8px] px-1.5 py-0.5 rounded-full font-bold" style={{ background: 'rgba(59,130,246,0.15)', color: '#3b82f6' }}>
                             OUT
                           </span>
                         )}
@@ -187,16 +185,16 @@ export function PipelineBoard({ initialLeads }: PipelineBoardProps) {
                       </div>
 
                       {/* Actions */}
-                      <div className="flex items-center gap-1 mt-2 pt-2 border-t border-white/5 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex items-center gap-1 mt-2 pt-2 border-t border-border opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
                           onClick={() => openWA(lead.whatsapp_number)}
-                          className="flex-1 flex items-center justify-center gap-1 py-1 rounded-lg text-[9px] font-semibold text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 transition-all"
+                          className="flex-1 flex items-center justify-center gap-1 py-1 rounded-lg text-[9px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 transition-all cursor-pointer"
                         >
                           <MessageCircle size={10} /> WA
                         </button>
                         <Link
                           href={`/leads/${lead.id}`}
-                          className="flex-1 flex items-center justify-center gap-1 py-1 rounded-lg text-[9px] font-semibold text-purple-400 bg-purple-500/10 hover:bg-purple-500/20 transition-all"
+                          className="flex-1 flex items-center justify-center gap-1 py-1 rounded-lg text-[9px] font-semibold text-purple-600 dark:text-purple-400 bg-purple-500/10 hover:bg-purple-500/20 transition-all"
                         >
                           <ExternalLink size={10} /> Detail
                         </Link>

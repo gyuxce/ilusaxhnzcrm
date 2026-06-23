@@ -31,46 +31,35 @@ export default function LoginPage() {
   }
 
   return (
-    <div
-      className="min-h-screen flex items-center justify-center p-4"
-      style={{
-        background: 'radial-gradient(ellipse at 50% 0%, hsl(250,50%,12%) 0%, hsl(222,47%,5%) 60%)',
-      }}
-    >
+    <div className="min-h-screen flex items-center justify-center p-4 bg-background text-foreground transition-all duration-300">
       {/* Background decoration */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div
-          className="absolute -top-40 -right-40 w-96 h-96 rounded-full opacity-20 blur-3xl"
+          className="absolute -top-40 -right-40 w-96 h-96 rounded-full opacity-[0.06] dark:opacity-20 blur-3xl"
           style={{ background: 'hsl(250,84%,65%)' }}
         />
         <div
-          className="absolute -bottom-40 -left-40 w-96 h-96 rounded-full opacity-10 blur-3xl"
+          className="absolute -bottom-40 -left-40 w-96 h-96 rounded-full opacity-[0.04] dark:opacity-10 blur-3xl"
           style={{ background: 'hsl(280,60%,55%)' }}
         />
       </div>
 
       <div className="relative w-full max-w-md">
         {/* Card */}
-        <div
-          className="rounded-2xl p-8 glass-card"
-          style={{ border: '1px solid rgba(139,92,246,0.15)' }}
-        >
+        <div className="rounded-2xl p-8 bg-card text-card-foreground border border-border dark:border-white/10 shadow-2xl relative w-full max-w-md">
           {/* Logo */}
           <div className="flex flex-col items-center mb-8">
-            <div
-              className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4 glow-purple"
-              style={{ background: 'linear-gradient(135deg, hsl(250,84%,60%), hsl(280,60%,55%))' }}
-            >
-              <Zap size={26} className="text-white" />
+            <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4 bg-primary shadow-md shadow-primary/20">
+              <Zap size={26} className="text-primary-foreground" />
             </div>
-            <h1 className="text-2xl font-bold text-white">ILUSA CRM</h1>
-            <p className="text-sm text-white/40 mt-1">Harunokaze × Wiwitan</p>
+            <h1 className="text-2xl font-extrabold text-foreground">ILUSA CRM</h1>
+            <p className="text-sm text-muted-foreground mt-1 font-medium">Harunokaze × Wiwitan</p>
           </div>
 
           {/* Form */}
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-white/70 mb-1.5">
+              <label className="block text-sm font-medium text-muted-foreground mb-1.5">
                 Email
               </label>
               <input
@@ -80,18 +69,12 @@ export default function LoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="nama@ilusa.com"
                 required
-                className="w-full px-4 py-2.5 rounded-xl text-sm text-white placeholder-white/20 outline-none transition-all"
-                style={{
-                  background: 'hsl(222,47%,12%)',
-                  border: '1px solid hsl(222,47%,20%)',
-                }}
-                onFocus={(e) => (e.target.style.borderColor = 'hsl(250,84%,65%)')}
-                onBlur={(e) => (e.target.style.borderColor = 'hsl(222,47%,20%)')}
+                className="w-full px-4 py-2.5 rounded-xl text-sm bg-background text-foreground border border-border outline-none transition-all placeholder:text-muted-foreground/45 focus:ring-1 focus:ring-primary focus:border-primary dark:bg-slate-800/20 dark:border-white/10"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-white/70 mb-1.5">
+              <label className="block text-sm font-medium text-muted-foreground mb-1.5">
                 Password
               </label>
               <div className="relative">
@@ -102,18 +85,12 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   required
-                  className="w-full px-4 py-2.5 pr-11 rounded-xl text-sm text-white placeholder-white/20 outline-none transition-all"
-                  style={{
-                    background: 'hsl(222,47%,12%)',
-                    border: '1px solid hsl(222,47%,20%)',
-                  }}
-                  onFocus={(e) => (e.target.style.borderColor = 'hsl(250,84%,65%)')}
-                  onBlur={(e) => (e.target.style.borderColor = 'hsl(222,47%,20%)')}
+                  className="w-full px-4 py-2.5 pr-11 rounded-xl text-sm bg-background text-foreground border border-border outline-none transition-all placeholder:text-muted-foreground/45 focus:ring-1 focus:ring-primary focus:border-primary dark:bg-slate-800/20 dark:border-white/10"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70 transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/60 hover:text-foreground transition-colors cursor-pointer"
                 >
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
@@ -121,10 +98,7 @@ export default function LoginPage() {
             </div>
 
             {error && (
-              <div
-                className="px-4 py-2.5 rounded-xl text-sm text-red-400"
-                style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)' }}
-              >
+              <div className="px-4 py-2.5 rounded-xl text-sm bg-red-50 border border-red-100 text-red-700 dark:bg-red-500/10 dark:border-red-500/20 dark:text-red-400">
                 {error}
               </div>
             )}
@@ -132,19 +106,14 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-2.5 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-2"
-              style={{
-                background: loading
-                  ? 'hsl(222,47%,20%)'
-                  : 'linear-gradient(135deg, hsl(250,84%,60%), hsl(280,60%,55%))',
-              }}
+              className="w-full py-2.5 rounded-xl text-sm font-semibold text-primary-foreground bg-primary hover:opacity-90 transition-all disabled:bg-muted disabled:text-muted-foreground disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-2 shadow-xs cursor-pointer"
             >
               {loading && <Loader2 size={15} className="animate-spin" />}
               {loading ? 'Masuk...' : 'Masuk'}
             </button>
           </form>
 
-          <p className="text-center text-xs text-white/25 mt-6">
+          <p className="text-center text-xs text-muted-foreground/60 mt-6 font-medium">
             Butuh akses? Hubungi admin tim CRO
           </p>
         </div>

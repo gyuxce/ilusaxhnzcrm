@@ -289,66 +289,66 @@ export default function DashboardPage() {
           <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-4">
             
             {/* Revenue Pemetaan */}
-            <div className="glass-card rounded-2xl p-5 border border-white/5 relative overflow-hidden flex flex-col justify-between">
+            <div className="glass-card rounded-2xl p-5 border border-border relative overflow-hidden flex flex-col justify-between">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-white/40 text-xs font-medium">Revenue Pemetaan</span>
-                <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-400">
+                <span className="text-muted-foreground text-xs font-medium">Revenue Pemetaan</span>
+                <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-600 dark:text-purple-400">
                   <DollarSign size={15} />
                 </div>
               </div>
               <div>
-                <p className="text-2xl font-bold text-white tracking-tight">
+                <p className="text-2xl font-bold text-foreground tracking-tight">
                   Rp {stats.revenuePemetaan.toLocaleString('id-ID')}
                 </p>
-                <p className="text-[10px] text-white/30 mt-1">Total pembayaran sesi pemetaan verified</p>
+                <p className="text-[10px] text-muted-foreground/80 mt-1">Total pembayaran sesi pemetaan verified</p>
               </div>
             </div>
 
             {/* Revenue Seat Lock */}
-            <div className="glass-card rounded-2xl p-5 border border-white/5 relative overflow-hidden flex flex-col justify-between">
+            <div className="glass-card rounded-2xl p-5 border border-border relative overflow-hidden flex flex-col justify-between">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-white/40 text-xs font-medium">Revenue Seat Lock</span>
-                <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-400">
+                <span className="text-muted-foreground text-xs font-medium">Revenue Seat Lock</span>
+                <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
                   <DollarSign size={15} />
                 </div>
               </div>
               <div>
-                <p className="text-2xl font-bold text-white tracking-tight">
+                <p className="text-2xl font-bold text-foreground tracking-tight">
                   Rp {stats.revenueSeatLock.toLocaleString('id-ID')}
                 </p>
-                <p className="text-[10px] text-white/30 mt-1">Total pembayaran seat lock verified</p>
+                <p className="text-[10px] text-muted-foreground/80 mt-1">Total pembayaran seat lock verified</p>
               </div>
             </div>
 
             {/* Combined Revenue */}
-            <div className="glass-card rounded-2xl p-5 border border-purple-500/10 relative overflow-hidden flex flex-col justify-between" style={{ background: 'linear-gradient(135deg, rgba(139,92,246,0.05), rgba(168,85,247,0.02))' }}>
+            <div className="glass-card rounded-2xl p-5 border border-purple-200 dark:border-purple-500/10 relative overflow-hidden flex flex-col justify-between" style={{ background: 'linear-gradient(135deg, rgba(139,92,246,0.05), rgba(168,85,247,0.02))' }}>
               <div className="flex items-center justify-between mb-2">
-                <span className="text-purple-300 text-xs font-bold">Revenue Combined</span>
-                <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center text-purple-300">
+                <span className="text-purple-600 dark:text-purple-300 text-xs font-bold">Revenue Combined</span>
+                <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center text-purple-600 dark:text-purple-300">
                   <TrendingUp size={15} />
                 </div>
               </div>
               <div>
-                <p className="text-2xl font-black text-purple-300 tracking-tight">
+                <p className="text-2xl font-black text-purple-600 dark:text-purple-300 tracking-tight">
                   Rp {stats.revenueCombined.toLocaleString('id-ID')}
                 </p>
-                <p className="text-[10px] text-purple-300/40 mt-1 font-medium">Total Akumulasi Pendapatan</p>
+                <p className="text-[10px] text-purple-600/60 dark:text-purple-300/40 mt-1 font-medium">Total Akumulasi Pendapatan</p>
               </div>
             </div>
 
           </div>
 
           {/* Batch Target Progress Bar */}
-          <div className="glass-card rounded-2xl p-5 border border-white/5 flex flex-col justify-between">
+          <div className="glass-card rounded-2xl p-5 border border-border flex flex-col justify-between">
             <div className="flex items-center justify-between mb-3">
               <div>
-                <span className="text-white/40 text-[10px] uppercase font-bold tracking-wider">Target Progres</span>
-                <h3 className="text-sm font-extrabold text-white">{batchTarget?.batch_name || 'Batch 1'}</h3>
+                <span className="text-muted-foreground text-[10px] uppercase font-bold tracking-wider">Target Progres</span>
+                <h3 className="text-sm font-extrabold text-foreground">{batchTarget?.batch_name || 'Batch 1'}</h3>
               </div>
               {(userRole === 'admin' || userRole === 'owner') && (
                 <button
                   onClick={() => setIsEditingTarget(true)}
-                  className="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/5 transition-all border border-white/5"
+                  className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-slate-100 dark:hover:bg-white/5 transition-all border border-border bg-card/50"
                 >
                   <Edit2 size={13} />
                 </button>
@@ -357,11 +357,11 @@ export default function DashboardPage() {
 
             <div className="space-y-2">
               <div className="flex justify-between items-end text-xs">
-                <span className="text-white/50">Seat Lock: {currentSeatLocks} / {targetVal}</span>
-                <span className="font-extrabold text-purple-400">{progressPct}%</span>
+                <span className="text-muted-foreground">Seat Lock: {currentSeatLocks} / {targetVal}</span>
+                <span className="font-extrabold text-purple-600 dark:text-purple-400">{progressPct}%</span>
               </div>
               
-              <div className="h-2.5 rounded-full overflow-hidden w-full" style={{ background: 'hsl(222,47%,12%)' }}>
+              <div className="h-2.5 rounded-full overflow-hidden w-full bg-slate-100 dark:bg-slate-800">
                 <div 
                   className="h-full rounded-full transition-all duration-700 glow-purple" 
                   style={{ width: `${progressPct}%`, background: 'linear-gradient(90deg, hsl(250,84%,60%), hsl(280,60%,55%))' }}
@@ -369,7 +369,7 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <p className="text-[10px] text-white/30 mt-3 italic">
+            <p className="text-[10px] text-muted-foreground/75 mt-3 italic">
               {batchTarget?.notes || 'Tidak ada catatan tambahan untuk batch ini.'}
             </p>
           </div>
@@ -378,8 +378,8 @@ export default function DashboardPage() {
 
         {/* 14 Summary Cards Grid */}
         <div>
-          <h2 className="text-white font-extrabold text-sm uppercase tracking-wider mb-4 flex items-center gap-2">
-            <Award size={16} className="text-purple-400" />
+          <h2 className="text-foreground font-extrabold text-sm uppercase tracking-wider mb-4 flex items-center gap-2">
+            <Award size={16} className="text-purple-600 dark:text-purple-400" />
             Summary Pipeline Leads
           </h2>
           
@@ -387,11 +387,11 @@ export default function DashboardPage() {
             {summaryCards.map(card => (
               <div 
                 key={card.label} 
-                className="glass-card rounded-2xl p-4 border border-white/5 flex flex-col justify-between hover:scale-[1.03] transition-transform duration-200"
+                className="glass-card rounded-2xl p-4 border border-border flex flex-col justify-between hover:scale-[1.03] transition-transform duration-200"
               >
-                <span className="text-white/40 text-[10px] font-bold uppercase tracking-wide truncate">{card.label}</span>
+                <span className="text-muted-foreground text-[10px] font-bold uppercase tracking-wide truncate">{card.label}</span>
                 <div className="flex items-baseline justify-between mt-3">
-                  <span className="text-2xl font-black text-white">{card.value}</span>
+                  <span className="text-2xl font-black text-foreground">{card.value}</span>
                   <div className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: card.bg }}>
                     <div className="w-2 h-2 rounded-full" style={{ background: card.color }} />
                   </div>
@@ -405,29 +405,29 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
           {/* Recent Leads Activity Feed */}
-          <div className="glass-card rounded-2xl p-5 border border-white/5">
-            <h2 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
-              <Users size={16} className="text-blue-400" />
+          <div className="glass-card rounded-2xl p-5 border border-border">
+            <h2 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+              <Users size={16} className="text-blue-600 dark:text-blue-400" />
               Lead Terbaru Masuk
             </h2>
             <div className="space-y-2">
               {recentLeads.length === 0 ? (
-                <p className="text-white/30 text-xs text-center py-6">Belum ada data lead.</p>
+                <p className="text-muted-foreground/50 text-xs text-center py-6">Belum ada data lead.</p>
               ) : (
                 recentLeads.map((lead: any) => (
-                  <a key={lead.id} href={`/leads/${lead.id}`} className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-white/5 transition-all group">
+                  <a key={lead.id} href={`/leads/${lead.id}`} className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 transition-all group">
                     <div className="w-7 h-7 rounded-xl flex items-center justify-center flex-shrink-0 text-[10px] font-extrabold" style={{ background: 'hsl(250,84%,60%,0.15)', color: '#a78bfa' }}>
                       {lead.full_name?.charAt(0) || '?'}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-bold text-white truncate group-hover:text-purple-300 transition-colors">{lead.full_name}</p>
-                      <p className="text-[9px] text-white/35 truncate">{lead.source_campaign}</p>
+                      <p className="text-xs font-bold text-foreground truncate group-hover:text-purple-300 transition-colors">{lead.full_name}</p>
+                      <p className="text-[9px] text-muted-foreground mt-0.5 truncate">{lead.source_campaign}</p>
                     </div>
                     <div className="text-right flex-shrink-0">
-                      <p className="text-[9px] font-bold" style={{ color: lead.lead_type === 'outbound' ? '#60a5fa' : '#34d399' }}>
+                      <p className="text-[9px] font-bold" style={{ color: lead.lead_type === 'outbound' ? '#3b82f6' : '#10b981' }}>
                         {lead.lead_type === 'outbound' ? 'OUT' : 'IN'}
                       </p>
-                      <p className="text-[8px] text-white/25">
+                      <p className="text-[8px] text-muted-foreground/60">
                         {new Date(lead.lead_entry_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
                       </p>
                     </div>
@@ -438,9 +438,9 @@ export default function DashboardPage() {
           </div>
 
           {/* Quick Actions */}
-          <div className="glass-card rounded-2xl p-5 border border-white/5">
-            <h2 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
-              <Zap size={16} className="text-purple-400" />
+          <div className="glass-card rounded-2xl p-5 border border-border">
+            <h2 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+              <Zap size={16} className="text-purple-600 dark:text-purple-400" />
               Aksi Cepat
             </h2>
             <div className="grid grid-cols-2 gap-3">
@@ -456,10 +456,10 @@ export default function DashboardPage() {
                   className="flex items-center gap-3 p-4 rounded-xl transition-all duration-150 hover:scale-[1.02]"
                   style={{ background: action.bg, border: `1px solid ${action.color}20` }}
                 >
-                  <div className="p-1.5 rounded-lg bg-white/5 text-white flex-shrink-0">
+                  <div className="p-1.5 rounded-lg bg-slate-100 dark:bg-white/5 text-foreground flex-shrink-0">
                     {action.icon}
                   </div>
-                  <span className="text-xs font-bold text-white">{action.label}</span>
+                  <span className="text-xs font-bold text-foreground">{action.label}</span>
                 </a>
               ))}
             </div>
@@ -471,71 +471,66 @@ export default function DashboardPage() {
       {/* Edit Target Modal */}
       {isEditingTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-          <div className="relative w-full max-w-md glass-card rounded-2xl p-6 border border-white/10 shadow-2xl">
-            <h3 className="text-lg font-bold text-white mb-4">Edit Target Progres Batch</h3>
+          <div className="relative w-full max-w-md bg-card border border-border rounded-2xl p-6 shadow-2xl">
+            <h3 className="text-lg font-bold text-foreground mb-4">Edit Target Progres Batch</h3>
 
             <div className="space-y-4 mb-6">
               <div>
-                <label className="block text-xs text-white/40 mb-1">Nama Batch</label>
+                <label className="block text-xs text-muted-foreground mb-1">Nama Batch</label>
                 <input
                   type="text"
                   value={newBatchName}
                   onChange={(e) => setNewBatchName(e.target.value)}
-                  className="w-full px-3 py-2 text-sm text-white outline-none rounded-xl"
-                  style={{ background: 'hsl(222,47%,12%)', border: '1px solid hsl(222,47%,20%)' }}
+                  className="w-full px-3 py-2 text-sm text-foreground bg-card border border-border outline-none rounded-xl focus:ring-1 focus:ring-primary focus:border-primary"
                 />
               </div>
 
               <div>
-                <label className="block text-xs text-white/40 mb-1">Target Seat Lock</label>
+                <label className="block text-xs text-muted-foreground mb-1">Target Seat Lock</label>
                 <input
                   type="number"
                   value={newTarget}
                   onChange={(e) => setNewTarget(Number(e.target.value))}
-                  className="w-full px-3 py-2 text-sm text-white outline-none rounded-xl"
-                  style={{ background: 'hsl(222,47%,12%)', border: '1px solid hsl(222,47%,20%)' }}
+                  className="w-full px-3 py-2 text-sm text-foreground bg-card border border-border outline-none rounded-xl focus:ring-1 focus:ring-primary focus:border-primary"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs text-white/40 mb-1">Tanggal Mulai</label>
+                  <label className="block text-xs text-muted-foreground mb-1">Tanggal Mulai</label>
                   <input
                     type="date"
                     value={newStartDate}
                     onChange={(e) => setNewStartDate(e.target.value)}
-                    className="w-full px-3 py-2 text-sm text-white outline-none rounded-xl"
-                    style={{ background: 'hsl(222,47%,12%)', border: '1px solid hsl(222,47%,20%)' }}
+                    className="w-full px-3 py-2 text-sm text-foreground bg-card border border-border outline-none rounded-xl focus:ring-1 focus:ring-primary focus:border-primary"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-white/40 mb-1">Tanggal Selesai</label>
+                  <label className="block text-xs text-muted-foreground mb-1">Tanggal Selesai</label>
                   <input
                     type="date"
                     value={newEndDate}
                     onChange={(e) => setNewEndDate(e.target.value)}
-                    className="w-full px-3 py-2 text-sm text-white outline-none rounded-xl"
-                    style={{ background: 'hsl(222,47%,12%)', border: '1px solid hsl(222,47%,20%)' }}
+                    className="w-full px-3 py-2 text-sm text-foreground bg-card border border-border outline-none rounded-xl focus:ring-1 focus:ring-primary focus:border-primary"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs text-white/40 mb-1">Catatan Tambahan</label>
+                <label className="block text-xs text-muted-foreground mb-1">Catatan Tambahan</label>
                 <textarea
                   placeholder="Catatan tambahan target..."
                   value={newNotes}
                   onChange={(e) => setNewNotes(e.target.value)}
-                  className="w-full px-3 py-2 text-sm text-white outline-none rounded-xl h-20"
-                  style={{ background: 'hsl(222,47%,12%)', border: '1px solid hsl(222,47%,20%)' }}
+                  className="w-full px-3 py-2 text-sm text-foreground bg-card border border-border outline-none rounded-xl h-20 focus:ring-1 focus:ring-primary focus:border-primary"
                 />
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-3 border-t border-white/5 pt-4">
+            <div className="flex items-center justify-end gap-3 border-t border-border pt-4">
               <button
                 onClick={() => setIsEditingTarget(false)}
-                className="px-4 py-2 text-xs font-semibold rounded-xl text-white/60 hover:text-white hover:bg-white/5 transition-all"
+                className="px-4 py-2 text-xs font-semibold rounded-xl text-muted-foreground hover:text-foreground hover:bg-slate-100 dark:hover:bg-white/5 transition-all"
               >
                 Batal
               </button>

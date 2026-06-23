@@ -104,25 +104,17 @@ export function Sidebar() {
         prefetch={true}
         onClick={closeSidebar}
         className={cn(
-          'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 group relative',
+          'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 group relative border border-transparent',
           isActive
-            ? 'text-white'
-            : 'text-white/50 hover:text-white/85 hover:bg-white/5'
+            ? 'text-purple-600 dark:text-purple-400 bg-purple-50/70 dark:bg-purple-950/20 border-purple-100/50 dark:border-purple-900/30'
+            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100/50 dark:hover:bg-white/5'
         )}
-        style={
-          isActive
-            ? {
-                background: 'linear-gradient(135deg, rgba(139,92,246,0.18), rgba(168,85,247,0.08))',
-                border: '1px solid rgba(139,92,246,0.22)',
-              }
-            : {}
-        }
       >
         <Icon
           size={16}
           className={cn(
             'transition-colors flex-shrink-0',
-            isActive ? 'text-purple-400' : 'text-white/35 group-hover:text-white/60'
+            isActive ? 'text-purple-600 dark:text-purple-400' : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-400'
           )}
         />
         <span className="truncate text-[13px] mr-1">{label}</span>
@@ -143,8 +135,7 @@ export function Sidebar() {
         <span className="flex-1" />
         {isActive && (
           <span
-            className="absolute right-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-l-full"
-            style={{ background: 'hsl(250,84%,65%)' }}
+            className="absolute right-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-l-full bg-purple-600 dark:bg-purple-400"
           />
         )}
       </Link>
@@ -163,16 +154,12 @@ export function Sidebar() {
 
       <aside
         className={cn(
-          'fixed left-0 top-0 h-full w-[260px] flex flex-col z-30 transition-transform duration-200',
+          'fixed left-0 top-0 h-full w-[260px] flex flex-col z-30 transition-transform duration-200 bg-card border-r border-border',
           sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         )}
-        style={{
-          background: 'hsl(222, 47%, 7%)',
-          borderRight: '1px solid hsl(222, 47%, 13%)',
-        }}
       >
         {/* Logo */}
-        <div className="flex items-center gap-3 px-5 py-5 border-b border-white/5">
+        <div className="flex items-center gap-3 px-5 py-5 border-b border-border">
           <div
             className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
             style={{ background: 'linear-gradient(135deg, hsl(250,84%,60%), hsl(280,60%,55%))' }}
@@ -180,8 +167,8 @@ export function Sidebar() {
             <Zap size={17} className="text-white" />
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-extrabold text-white leading-none tracking-tight">ILUSA CRM</p>
-            <p className="text-[10px] text-white/35 mt-0.5 truncate">HNZ x Wiwitan — CRO v2.0</p>
+            <p className="text-sm font-extrabold text-foreground leading-none tracking-tight">ILUSA CRM</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5 truncate">HNZ x Wiwitan — CRO v2.0</p>
           </div>
         </div>
 
@@ -189,7 +176,7 @@ export function Sidebar() {
         <nav className="flex-1 px-3 py-4 space-y-5 overflow-y-auto">
           {/* Main Menu */}
           <div className="space-y-0.5">
-            <p className="text-[9px] font-extrabold text-white/20 uppercase tracking-[0.15em] px-3 mb-2">
+            <p className="text-[9px] font-extrabold text-muted-foreground/60 uppercase tracking-[0.15em] px-3 mb-2">
               Main Menu
             </p>
             {mainNav.map((item) => (
@@ -198,11 +185,11 @@ export function Sidebar() {
           </div>
 
           {/* Divider */}
-          <div className="border-t border-white/5" />
+          <div className="border-t border-border" />
 
           {/* Tools */}
           <div className="space-y-0.5">
-            <p className="text-[9px] font-extrabold text-white/20 uppercase tracking-[0.15em] px-3 mb-2">
+            <p className="text-[9px] font-extrabold text-muted-foreground/60 uppercase tracking-[0.15em] px-3 mb-2">
               Tools CRO
             </p>
             {toolsNav.map((item) => (
@@ -212,24 +199,24 @@ export function Sidebar() {
         </nav>
 
         {/* Bottom */}
-        <div className="px-3 py-4 border-t border-white/5 space-y-0.5">
+        <div className="px-3 py-4 border-t border-border space-y-0.5">
           <Link
             href="/settings"
             prefetch={true}
             onClick={closeSidebar}
             className={cn(
-              'flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium transition-all duration-150',
+              'flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium transition-all duration-150 border border-transparent',
               pathname.startsWith('/settings')
-                ? 'text-white bg-white/5 border border-white/10'
-                : 'text-white/45 hover:text-white/80 hover:bg-white/5'
+                ? 'text-purple-600 dark:text-purple-400 bg-purple-50/70 dark:bg-purple-950/20 border-purple-100/50 dark:border-purple-900/30'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100/50 dark:hover:bg-white/5'
             )}
           >
-            <Settings size={16} className="text-white/35 flex-shrink-0" />
+            <Settings size={16} className="text-slate-400 dark:text-slate-500 flex-shrink-0" />
             Pengaturan
           </Link>
           <button
             onClick={handleSignOut}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium text-white/45 hover:text-red-400 hover:bg-red-500/8 transition-all duration-150"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium text-slate-600 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all duration-150"
           >
             <LogOut size={16} className="flex-shrink-0" />
             Keluar

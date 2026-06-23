@@ -217,25 +217,23 @@ export default function NeedsActionPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-extrabold text-white tracking-tight">Needs Action</h1>
-          <p className="text-white/40 text-sm mt-1">Daftar leads yang membutuhkan tindakan follow-up segera berdasarkan status pipeline.</p>
+          <h1 className="text-3xl font-extrabold text-foreground tracking-tight">Needs Action</h1>
+          <p className="text-muted-foreground text-sm mt-1">Daftar leads yang membutuhkan tindakan follow-up segera berdasarkan status pipeline.</p>
         </div>
         <div className="flex items-center gap-3">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" size={17} />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={17} />
             <input
               type="text"
               placeholder="Cari nama, WhatsApp, source..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 pr-4 py-2 w-64 rounded-xl text-sm text-white placeholder-white/20 outline-none transition-all"
-              style={{ background: 'hsl(222,47%,12%)', border: '1px solid hsl(222,47%,18%)' }}
+              className="pl-10 pr-4 py-2 w-64 rounded-xl text-sm bg-card text-foreground border border-border outline-none transition-all focus:ring-1 focus:ring-primary focus:border-primary placeholder:text-muted-foreground/60 dark:bg-slate-800/30 dark:border-white/10"
             />
           </div>
           <button 
             onClick={fetchLeads} 
-            className="p-2 rounded-xl text-white/60 hover:text-white hover:bg-white/5 transition-all border border-white/5"
-            style={{ background: 'hsl(222,47%,10%)' }}
+            className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-all border border-border dark:border-white/5 bg-card shadow-xs cursor-pointer"
           >
             <RefreshCw size={17} className={loading ? 'animate-spin' : ''} />
           </button>
@@ -244,23 +242,23 @@ export default function NeedsActionPage() {
 
       {loading && leads.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 gap-3">
-          <RefreshCw size={28} className="text-purple-500 animate-spin" />
-          <p className="text-white/40 text-sm">Memuat data leads...</p>
+          <RefreshCw size={28} className="text-primary animate-spin" />
+          <p className="text-muted-foreground text-sm">Memuat data leads...</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
           {/* Column 1: Paid but Form Pending */}
           <div className="space-y-4">
-            <div className="flex items-center justify-between p-3 rounded-xl bg-purple-500/10 border border-purple-500/20">
+            <div className="flex items-center justify-between p-3 rounded-xl bg-purple-50 dark:bg-purple-950/20 border border-purple-100 dark:border-purple-900/30">
               <div className="flex items-center gap-2">
-                <Hourglass size={15} className="text-purple-400" />
-                <h3 className="font-bold text-white text-xs uppercase tracking-wider">Paid, No Form</h3>
+                <Hourglass size={15} className="text-purple-600 dark:text-purple-400" />
+                <h3 className="font-bold text-purple-900 dark:text-purple-100 text-xs uppercase tracking-wider">Paid, No Form</h3>
               </div>
-              <span className="bg-purple-500/20 text-purple-300 text-xs px-2 py-0.5 rounded-full font-bold">{paidButNoForm.length}</span>
+              <span className="bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300 text-xs px-2 py-0.5 rounded-full font-bold">{paidButNoForm.length}</span>
             </div>
             <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
               {paidButNoForm.length === 0 ? (
-                <div className="text-center py-8 text-white/20 text-xs rounded-xl border border-dashed border-white/5">Tidak ada leads</div>
+                <div className="text-center py-8 text-muted-foreground/45 text-xs rounded-xl border border-dashed border-border dark:border-white/5">Tidak ada leads</div>
               ) : (
                 paidButNoForm.map(lead => (
                   <LeadActionCard 
@@ -280,16 +278,16 @@ export default function NeedsActionPage() {
 
           {/* Column 2: Pemetaan Done, Waiting Result */}
           <div className="space-y-4">
-            <div className="flex items-center justify-between p-3 rounded-xl bg-blue-500/10 border border-blue-500/20">
+            <div className="flex items-center justify-between p-3 rounded-xl bg-blue-50 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900/30">
               <div className="flex items-center gap-2">
-                <Clock size={15} className="text-blue-400" />
-                <h3 className="font-bold text-white text-xs uppercase tracking-wider">Waiting Result</h3>
+                <Clock size={15} className="text-blue-600 dark:text-blue-400" />
+                <h3 className="font-bold text-blue-900 dark:text-blue-100 text-xs uppercase tracking-wider">Waiting Result</h3>
               </div>
-              <span className="bg-blue-500/20 text-blue-300 text-xs px-2 py-0.5 rounded-full font-bold">{pemetaanDoneWaiting.length}</span>
+              <span className="bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 text-xs px-2 py-0.5 rounded-full font-bold">{pemetaanDoneWaiting.length}</span>
             </div>
             <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
               {pemetaanDoneWaiting.length === 0 ? (
-                <div className="text-center py-8 text-white/20 text-xs rounded-xl border border-dashed border-white/5">Tidak ada leads</div>
+                <div className="text-center py-8 text-muted-foreground/45 text-xs rounded-xl border border-dashed border-border dark:border-white/5">Tidak ada leads</div>
               ) : (
                 pemetaanDoneWaiting.map(lead => (
                   <LeadActionCard 
@@ -309,16 +307,16 @@ export default function NeedsActionPage() {
 
           {/* Column 3: Result Ready, Schedule Expert */}
           <div className="space-y-4">
-            <div className="flex items-center justify-between p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
+            <div className="flex items-center justify-between p-3 rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-100 dark:border-amber-900/30">
               <div className="flex items-center gap-2">
-                <Calendar size={15} className="text-amber-400" />
-                <h3 className="font-bold text-white text-xs uppercase tracking-wider">Schedule Expert</h3>
+                <Calendar size={15} className="text-amber-600 dark:text-amber-400" />
+                <h3 className="font-bold text-amber-900 dark:text-amber-100 text-xs uppercase tracking-wider">Schedule Expert</h3>
               </div>
-              <span className="bg-amber-500/20 text-amber-300 text-xs px-2 py-0.5 rounded-full font-bold">{resultReadySchedule.length}</span>
+              <span className="bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 text-xs px-2 py-0.5 rounded-full font-bold">{resultReadySchedule.length}</span>
             </div>
             <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
               {resultReadySchedule.length === 0 ? (
-                <div className="text-center py-8 text-white/20 text-xs rounded-xl border border-dashed border-white/5">Tidak ada leads</div>
+                <div className="text-center py-8 text-muted-foreground/45 text-xs rounded-xl border border-dashed border-border dark:border-white/5">Tidak ada leads</div>
               ) : (
                 resultReadySchedule.map(lead => (
                   <LeadActionCard 
@@ -338,16 +336,16 @@ export default function NeedsActionPage() {
 
           {/* Column 4: Expert Done, Follow Up Seat Lock */}
           <div className="space-y-4">
-            <div className="flex items-center justify-between p-3 rounded-xl bg-orange-500/10 border border-orange-500/20">
+            <div className="flex items-center justify-between p-3 rounded-xl bg-orange-50 dark:bg-orange-950/20 border border-orange-100 dark:border-orange-900/30">
               <div className="flex items-center gap-2">
-                <UserCheck size={15} className="text-orange-400" />
-                <h3 className="font-bold text-white text-xs uppercase tracking-wider">Offer Seat Lock</h3>
+                <UserCheck size={15} className="text-orange-600 dark:text-orange-400" />
+                <h3 className="font-bold text-orange-900 dark:text-orange-100 text-xs uppercase tracking-wider">Offer Seat Lock</h3>
               </div>
-              <span className="bg-orange-500/20 text-orange-300 text-xs px-2 py-0.5 rounded-full font-bold">{expertDoneFollowUp.length}</span>
+              <span className="bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300 text-xs px-2 py-0.5 rounded-full font-bold">{expertDoneFollowUp.length}</span>
             </div>
             <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
               {expertDoneFollowUp.length === 0 ? (
-                <div className="text-center py-8 text-white/20 text-xs rounded-xl border border-dashed border-white/5">Tidak ada leads</div>
+                <div className="text-center py-8 text-muted-foreground/45 text-xs rounded-xl border border-dashed border-border dark:border-white/5">Tidak ada leads</div>
               ) : (
                 expertDoneFollowUp.map(lead => (
                   <LeadActionCard 
@@ -367,16 +365,16 @@ export default function NeedsActionPage() {
 
           {/* Column 5: Seat Lock Offered, Waiting Payment */}
           <div className="space-y-4">
-            <div className="flex items-center justify-between p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+            <div className="flex items-center justify-between p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/30">
               <div className="flex items-center gap-2">
-                <FileCheck size={15} className="text-emerald-400" />
-                <h3 className="font-bold text-white text-xs uppercase tracking-wider">Waiting Payment</h3>
+                <FileCheck size={15} className="text-emerald-600 dark:text-emerald-400" />
+                <h3 className="font-bold text-emerald-900 dark:text-emerald-100 text-xs uppercase tracking-wider">Waiting Payment</h3>
               </div>
-              <span className="bg-emerald-500/20 text-emerald-300 text-xs px-2 py-0.5 rounded-full font-bold">{seatLockOfferedWaiting.length}</span>
+              <span className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 text-xs px-2 py-0.5 rounded-full font-bold">{seatLockOfferedWaiting.length}</span>
             </div>
             <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
               {seatLockOfferedWaiting.length === 0 ? (
-                <div className="text-center py-8 text-white/20 text-xs rounded-xl border border-dashed border-white/5">Tidak ada leads</div>
+                <div className="text-center py-8 text-muted-foreground/45 text-xs rounded-xl border border-dashed border-border dark:border-white/5">Tidak ada leads</div>
               ) : (
                 seatLockOfferedWaiting.map(lead => (
                   <LeadActionCard 
@@ -408,30 +406,29 @@ export default function NeedsActionPage() {
 
       {/* Action Modals */}
       {actioningLead && actionType && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-          <div className="relative w-full max-w-md glass-card rounded-2xl p-6 border border-white/10 shadow-2xl">
-            <h3 className="text-lg font-bold text-white mb-2">Tindak Lanjuti Lead</h3>
-            <p className="text-white/60 text-xs mb-4">
-              Konfirmasi perubahan status untuk lead <span className="text-purple-400 font-semibold">{actioningLead.full_name}</span>.
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
+          <div className="relative w-full max-w-md bg-card text-card-foreground rounded-2xl p-6 border border-border dark:border-white/10 shadow-2xl">
+            <h3 className="text-lg font-bold text-foreground mb-2">Tindak Lanjuti Lead</h3>
+            <p className="text-muted-foreground text-xs mb-4">
+              Konfirmasi perubahan status untuk lead <span className="text-primary font-semibold">{actioningLead.full_name}</span>.
             </p>
 
             {/* Inputs based on Action Type */}
             {actionType === 'submit_form' && (
-              <p className="text-sm text-white/80 mb-6 bg-purple-500/10 p-3 rounded-xl border border-purple-500/20">
-                Tindakan ini akan memindahkan status lead menjadi <span className="font-semibold text-white">Pemetaan Form Submitted</span>.
+              <p className="text-sm text-primary mb-6 bg-primary/10 p-3 rounded-xl border border-primary/20 font-medium">
+                Tindakan ini akan memindahkan status lead menjadi <span className="font-bold">Pemetaan Form Submitted</span>.
               </p>
             )}
 
             {actionType === 'ready_result' && (
               <div className="space-y-4 mb-6">
                 <div>
-                  <label className="block text-xs text-white/40 mb-1">Catatan Hasil Pemetaan</label>
+                  <label className="block text-xs text-muted-foreground mb-1 font-semibold">Catatan Hasil Pemetaan</label>
                   <textarea
                     placeholder="Masukkan ringkasan hasil pemetaan..."
                     value={inputVal}
                     onChange={(e) => setInputVal(e.target.value)}
-                    className="w-full px-3 py-2 text-sm text-white placeholder-white/20 outline-none rounded-xl h-24"
-                    style={{ background: 'hsl(222,47%,12%)', border: '1px solid hsl(222,47%,20%)' }}
+                    className="w-full px-3 py-2 text-sm bg-background text-foreground border border-border rounded-xl h-24 outline-none focus:ring-1 focus:ring-primary focus:border-primary placeholder:text-muted-foreground/50"
                   />
                 </div>
               </div>
@@ -440,75 +437,70 @@ export default function NeedsActionPage() {
             {actionType === 'schedule_expert' && (
               <div className="space-y-4 mb-6">
                 <div>
-                  <label className="block text-xs text-white/40 mb-1">Tanggal Konsultasi Expert</label>
+                  <label className="block text-xs text-muted-foreground mb-1 font-semibold">Tanggal Konsultasi Expert</label>
                   <input
                     type="datetime-local"
                     value={inputVal}
                     onChange={(e) => setInputVal(e.target.value)}
-                    className="w-full px-3 py-2 text-sm text-white outline-none rounded-xl"
-                    style={{ background: 'hsl(222,47%,12%)', border: '1px solid hsl(222,47%,20%)' }}
+                    className="w-full px-3 py-2 text-sm bg-background text-foreground border border-border rounded-xl outline-none focus:ring-1 focus:ring-primary focus:border-primary"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-white/40 mb-1">Nama Expert</label>
+                  <label className="block text-xs text-muted-foreground mb-1 font-semibold">Nama Expert</label>
                   <input
                     type="text"
                     placeholder="Nama expert/konsultan..."
                     value={inputVal2}
                     onChange={(e) => setInputVal2(e.target.value)}
-                    className="w-full px-3 py-2 text-sm text-white placeholder-white/20 outline-none rounded-xl"
-                    style={{ background: 'hsl(222,47%,12%)', border: '1px solid hsl(222,47%,20%)' }}
+                    className="w-full px-3 py-2 text-sm bg-background text-foreground border border-border rounded-xl outline-none focus:ring-1 focus:ring-primary focus:border-primary placeholder:text-muted-foreground/50"
                   />
                 </div>
               </div>
             )}
 
             {actionType === 'offer_seat_lock' && (
-              <p className="text-sm text-white/80 mb-6 bg-purple-500/10 p-3 rounded-xl border border-purple-500/20">
-                Tindakan ini akan memindahkan status lead menjadi <span className="font-semibold text-white">Seat Lock Offered</span>.
+              <p className="text-sm text-primary mb-6 bg-primary/10 p-3 rounded-xl border border-primary/20 font-medium">
+                Tindakan ini akan memindahkan status lead menjadi <span className="font-bold">Seat Lock Offered</span>.
               </p>
             )}
 
             {actionType === 'pay_seat_lock' && (
               <div className="space-y-4 mb-6">
                 <div>
-                  <label className="block text-xs text-white/40 mb-1">Nominal Pembayaran Seat Lock</label>
+                  <label className="block text-xs text-muted-foreground mb-1 font-semibold">Nominal Pembayaran Seat Lock</label>
                   <select
                     value={inputVal}
                     onChange={(e) => setInputVal(e.target.value)}
-                    className="w-full px-3 py-2 text-sm text-white outline-none rounded-xl mb-3 cursor-pointer"
-                    style={{ background: 'hsl(222,47%,12%)', border: '1px solid hsl(222,47%,20%)' }}
+                    className="w-full px-3 py-2 text-sm bg-background text-foreground border border-border rounded-xl mb-3 cursor-pointer outline-none focus:ring-1 focus:ring-primary focus:border-primary"
                   >
-                    <option value="">Pilih nominal...</option>
-                    <option value="3000000">Rp 3.000.000 (Regular)</option>
-                    <option value="5000000">Rp 5.000.000 (Construction)</option>
+                    <option value="" className="bg-card text-foreground">Pilih nominal...</option>
+                    <option value="3000000" className="bg-card text-foreground">Rp 3.000.000 (Regular)</option>
+                    <option value="5000000" className="bg-card text-foreground">Rp 5.000.000 (Construction)</option>
                   </select>
                   <input
                     type="number"
                     placeholder="Atau masukkan nominal custom..."
                     value={inputVal}
                     onChange={(e) => setInputVal(e.target.value)}
-                    className="w-full px-3 py-2 text-sm text-white placeholder-white/20 outline-none rounded-xl"
-                    style={{ background: 'hsl(222,47%,12%)', border: '1px solid hsl(222,47%,20%)' }}
+                    className="w-full px-3 py-2 text-sm bg-background text-foreground border border-border rounded-xl outline-none focus:ring-1 focus:ring-primary focus:border-primary placeholder:text-muted-foreground/50"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-white/40 mb-1">Tipe Seat Lock</label>
+                  <label className="block text-xs text-muted-foreground mb-1 font-semibold">Tipe Seat Lock</label>
                   <select
                     value={inputVal2}
                     onChange={(e) => setInputVal2(e.target.value)}
-                    className="w-full px-3 py-2 text-sm text-white outline-none rounded-xl cursor-pointer"
-                    style={{ background: 'hsl(222,47%,12%)', border: '1px solid hsl(222,47%,20%)' }}
+                    className="w-full px-3 py-2 text-sm bg-background text-foreground border border-border rounded-xl cursor-pointer outline-none focus:ring-1 focus:ring-primary focus:border-primary"
                   >
-                    <option value="Regular">Regular / Non-Construction</option>
-                    <option value="Construction">Construction</option>
+                    <option value="Regular" className="bg-card text-foreground">Regular / Non-Construction</option>
+                    <option value="Construction" className="bg-card text-foreground">Construction</option>
                   </select>
                 </div>
               </div>
             )}
 
             {/* Modal Buttons */}
-            <div className="flex items-center justify-end gap-3 border-t border-white/5 pt-4">
+            <div className="flex items-center justify-end gap-3 border-t border-border dark:border-white/5 pt-4">
               <button
                 onClick={() => {
                   setActioningLead(null)
@@ -516,7 +508,7 @@ export default function NeedsActionPage() {
                   setInputVal('')
                   setInputVal2('')
                 }}
-                className="px-4 py-2 text-xs font-semibold rounded-xl text-white/60 hover:text-white hover:bg-white/5 transition-all"
+                className="px-4 py-2 text-xs font-semibold rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-all cursor-pointer"
               >
                 Batal
               </button>
@@ -527,8 +519,7 @@ export default function NeedsActionPage() {
                   (actionType === 'schedule_expert' && (!inputVal || !inputVal2)) ||
                   (actionType === 'pay_seat_lock' && !inputVal)
                 }
-                className="px-4 py-2 text-xs font-bold rounded-xl text-white disabled:opacity-50 disabled:cursor-not-allowed hover:glow-purple transition-all duration-300"
-                style={{ background: 'linear-gradient(135deg, hsl(250,84%,60%), hsl(280,60%,55%))' }}
+                className="px-4 py-2 text-xs font-bold rounded-xl text-primary-foreground bg-primary disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-all duration-300 shadow-xs cursor-pointer"
               >
                 Simpan Perubahan
               </button>
@@ -558,30 +549,29 @@ function LeadActionCard({ lead, onWa, onAction, actionLabel }: LeadActionCardPro
 
   return (
     <div 
-      className="p-4 rounded-xl border border-white/5 space-y-3 transition-all hover:scale-[1.01] hover:border-white/10" 
-      style={{ background: 'hsl(222,47%,9%)' }}
+      className="p-4 rounded-xl border border-border dark:border-white/5 space-y-3 transition-all hover:scale-[1.01] hover:border-border-hover dark:hover:border-white/10 bg-card text-card-foreground shadow-xs" 
     >
       <div>
-        <h4 className="font-bold text-white text-sm line-clamp-1 leading-tight">{lead.full_name}</h4>
-        <span className="text-white/30 text-[10px] block mt-0.5">{lead.source_campaign}</span>
+        <h4 className="font-bold text-foreground text-sm line-clamp-1 leading-tight">{lead.full_name}</h4>
+        <span className="text-muted-foreground/75 text-[10px] block mt-0.5">{lead.source_campaign}</span>
       </div>
 
-      <div className="flex items-center justify-between text-[10px] text-white/40 pt-1 border-t border-white/5">
+      <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-1 border-t border-border dark:border-white/5">
         <span>Masuk: {formattedDate}</span>
-        <span className="font-medium text-purple-400">PIC: {lead.users?.name || 'Unassigned'}</span>
+        <span className="font-semibold text-primary">PIC: {lead.users?.name || 'Unassigned'}</span>
       </div>
 
       <div className="grid grid-cols-2 gap-2 pt-1">
         <button
           onClick={onWa}
-          className="flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 transition-all border border-emerald-500/10"
+          className="flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 transition-all border border-emerald-500/10 cursor-pointer"
         >
           <MessageCircle size={12} />
           Hubungi
         </button>
         <button
           onClick={onAction}
-          className="flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[10px] font-semibold text-purple-400 bg-purple-500/10 hover:bg-purple-500/20 transition-all border border-purple-500/10"
+          className="flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[10px] font-semibold text-primary bg-primary/10 hover:bg-primary/20 transition-all border border-primary/10 cursor-pointer"
         >
           {actionLabel}
           <ArrowRight size={12} />

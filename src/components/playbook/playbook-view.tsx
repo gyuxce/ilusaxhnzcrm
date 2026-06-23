@@ -58,19 +58,24 @@ export function PlaybookView({ items }: PlaybookViewProps) {
               key={cat.key}
               onClick={() => setCategory(cat.key)}
               className={cn(
-                'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all',
-                isActive ? 'text-white' : 'text-white/50 hover:text-white/70'
+                'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all border cursor-pointer',
+                isActive
+                  ? 'text-primary border-primary/20'
+                  : 'text-muted-foreground hover:text-foreground bg-card border-border dark:bg-slate-800/40 dark:border-white/5'
               )}
               style={isActive
-                ? { background: `${cat.color}20`, border: `1px solid ${cat.color}40`, color: cat.color }
-                : { background: 'hsl(222,47%,12%)', border: '1px solid hsl(222,47%,18%)' }
+                ? { background: `${cat.color}15`, borderColor: `${cat.color}30`, color: cat.color }
+                : undefined
               }
             >
               <Icon size={14} />
               {cat.label}
               <span
                 className="text-xs px-1.5 py-0.5 rounded-full"
-                style={{ background: isActive ? `${cat.color}30` : 'rgba(255,255,255,0.05)' }}
+                style={isActive
+                  ? { background: `${cat.color}25` }
+                  : { background: 'rgba(0,0,0,0.04)' }
+                }
               >
                 {cat.key === 'all' ? items.length : items.filter(i => i.category === cat.key).length}
               </span>
@@ -81,22 +86,21 @@ export function PlaybookView({ items }: PlaybookViewProps) {
 
       {/* Search */}
       <div className="relative">
-        <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30" />
+        <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
         <input
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="Cari script, SOP, atau topik..."
-          className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm text-white placeholder-white/25 outline-none"
-          style={{ background: 'hsl(222,47%,12%)', border: '1px solid hsl(222,47%,20%)' }}
+          className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm bg-card text-foreground border border-border outline-none focus:ring-1 focus:ring-primary focus:border-primary placeholder:text-muted-foreground/60 dark:bg-slate-800/30 dark:border-white/10"
         />
       </div>
 
       {/* Results */}
       {filtered.length === 0 ? (
-        <div className="glass-card rounded-2xl p-12 text-center">
+        <div className="bg-card text-card-foreground border border-border dark:border-white/5 rounded-2xl p-12 text-center shadow-xs">
           <div className="text-4xl mb-3">📖</div>
-          <p className="text-white/60 font-medium">Tidak ada item ditemukan</p>
-          <p className="text-sm text-white/30 mt-1">Coba ubah filter atau kata kunci</p>
+          <p className="text-foreground/80 font-medium">Tidak ada item ditemukan</p>
+          <p className="text-sm text-muted-foreground mt-1">Coba ubah filter atau kata kunci</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -105,7 +109,7 @@ export function PlaybookView({ items }: PlaybookViewProps) {
             const isCopied = copied === item.id
 
             return (
-              <div key={item.id} className="glass-card rounded-2xl p-5 flex flex-col gap-3 group hover:border-white/10 transition-all">
+              <div key={item.id} className="bg-card text-card-foreground border border-border dark:border-white/5 rounded-2xl p-5 flex flex-col gap-3 group hover:border-border-hover dark:hover:border-white/10 transition-all shadow-xs">
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <span
@@ -114,15 +118,16 @@ export function PlaybookView({ items }: PlaybookViewProps) {
                     >
                       {item.category}
                     </span>
-                    <h3 className="text-sm font-semibold text-white">{item.title}</h3>
+                    <h3 className="text-sm font-semibold text-foreground">{item.title}</h3>
                   </div>
                   <button
                     onClick={() => copyToClipboard(item.id, item.content)}
-                    className="flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs transition-all"
-                    style={isCopied
-                      ? { background: 'rgba(34,197,94,0.15)', color: '#22c55e' }
-                      : { background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.4)' }
-                    }
+                    className={cn(
+                      "flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs transition-all border",
+                      isCopied
+                        ? "bg-emerald-50 text-emerald-600 border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-400"
+                        : "bg-muted text-muted-foreground hover:text-foreground border-border/50 dark:border-white/5 cursor-pointer"
+                    )}
                   >
                     {isCopied ? <CheckCheck size={12} /> : <Copy size={12} />}
                     {isCopied ? 'Tersalin!' : 'Salin'}
@@ -130,8 +135,7 @@ export function PlaybookView({ items }: PlaybookViewProps) {
                 </div>
 
                 <div
-                  className="text-sm text-white/70 leading-relaxed whitespace-pre-wrap p-3 rounded-xl"
-                  style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}
+                  className="text-sm text-foreground/80 leading-relaxed whitespace-pre-wrap p-3 rounded-xl bg-muted/40 border border-border/40 dark:bg-white/[0.02] dark:border-white/5"
                 >
                   {item.content}
                 </div>
@@ -141,8 +145,7 @@ export function PlaybookView({ items }: PlaybookViewProps) {
                     {item.tags.map((tag: string) => (
                       <span
                         key={tag}
-                        className="text-xs px-2 py-0.5 rounded-full text-white/40 cursor-pointer hover:text-white/60 transition-colors"
-                        style={{ background: 'rgba(255,255,255,0.05)' }}
+                        className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground cursor-pointer transition-colors border border-border/20 dark:bg-white/5 dark:border-white/5"
                         onClick={() => setSearch(tag)}
                       >
                         #{tag}

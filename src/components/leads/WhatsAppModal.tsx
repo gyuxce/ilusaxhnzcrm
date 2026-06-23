@@ -92,17 +92,17 @@ export function WhatsAppModal({ isOpen, onClose, leadName, leadPhone, picName = 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-      <div className="relative w-full max-w-lg glass-card rounded-2xl overflow-hidden shadow-2xl border border-white/10 flex flex-col max-h-[90vh]">
+      <div className="relative w-full max-w-lg bg-card border border-border rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
         
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-white/5 bg-white/[0.02]">
-          <div className="flex items-center gap-2 text-purple-400">
+        <div className="flex items-center justify-between p-4 border-b border-border bg-slate-50/50 dark:bg-white/[0.02]">
+          <div className="flex items-center gap-2 text-purple-600 dark:text-purple-400">
             <MessageCircle size={18} />
-            <h3 className="font-bold text-white text-sm">Kirim Pesan WhatsApp</h3>
+            <h3 className="font-bold text-foreground text-sm">Kirim Pesan WhatsApp</h3>
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg text-white/40 hover:text-white hover:bg-white/5 transition-all"
+            className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-slate-100 dark:hover:bg-white/5 transition-all"
           >
             <X size={18} />
           </button>
@@ -111,10 +111,10 @@ export function WhatsAppModal({ isOpen, onClose, leadName, leadPhone, picName = 
         {/* Content */}
         <div className="p-5 space-y-4 overflow-y-auto flex-1">
           {/* Target Lead Info */}
-          <div className="p-3.5 rounded-xl text-xs space-y-1" style={{ background: 'hsl(222,47%,9%)', border: '1px solid hsl(222,47%,15%)' }}>
-            <p className="text-white/40">Mengirim ke:</p>
-            <p className="font-bold text-white text-sm">{leadName}</p>
-            <p className="font-mono text-white/50 text-xs">{leadPhone}</p>
+          <div className="p-3.5 rounded-xl text-xs space-y-1 bg-slate-50 dark:bg-slate-900 border border-border">
+            <p className="text-muted-foreground">Mengirim ke:</p>
+            <p className="font-bold text-foreground text-sm">{leadName}</p>
+            <p className="font-mono text-muted-foreground text-xs">{leadPhone}</p>
           </div>
 
           {loading ? (
@@ -126,15 +126,14 @@ export function WhatsAppModal({ isOpen, onClose, leadName, leadPhone, picName = 
               {/* Template Selector */}
               {templates.length > 0 && (
                 <div>
-                  <label className="block text-xs font-medium text-white/50 mb-1.5">Pilih Template Playbook</label>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">Pilih Template Playbook</label>
                   <select
                     value={selectedTemplateId}
                     onChange={(e) => handleTemplateChange(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl text-sm text-white outline-none transition-all cursor-pointer"
-                    style={{ background: 'hsl(222,47%,12%)', border: '1px solid hsl(222,47%,20%)' }}
+                    className="w-full px-3.5 py-2.5 rounded-xl text-sm text-foreground bg-card border border-border outline-none transition-all cursor-pointer focus:ring-1 focus:ring-primary focus:border-primary"
                   >
                     {templates.map((t) => (
-                      <option key={t.id} value={t.id} className="bg-slate-900 text-white">
+                      <option key={t.id} value={t.id} className="bg-card text-foreground">
                         {t.title}
                       </option>
                     ))}
@@ -145,10 +144,10 @@ export function WhatsAppModal({ isOpen, onClose, leadName, leadPhone, picName = 
               {/* Message Editor */}
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <label className="block text-xs font-medium text-white/50">Edit Isi Pesan</label>
+                  <label className="block text-xs font-medium text-muted-foreground">Edit Isi Pesan</label>
                   <button
                     onClick={handleCopy}
-                    className="text-xs text-white/40 hover:text-white flex items-center gap-1 transition-colors"
+                    className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
                   >
                     {copied ? (
                       <>
@@ -167,8 +166,7 @@ export function WhatsAppModal({ isOpen, onClose, leadName, leadPhone, picName = 
                   value={messageText}
                   onChange={(e) => setMessageText(e.target.value)}
                   rows={6}
-                  className="w-full px-3.5 py-2.5 rounded-xl text-sm text-white placeholder-white/20 outline-none transition-all font-sans leading-relaxed resize-none"
-                  style={{ background: 'hsl(222,47%,12%)', border: '1px solid hsl(222,47%,20%)' }}
+                  className="w-full px-3.5 py-2.5 rounded-xl text-sm text-foreground placeholder-muted-foreground/30 outline-none transition-all font-sans leading-relaxed resize-none bg-card border border-border focus:ring-1 focus:ring-primary focus:border-primary"
                 />
               </div>
             </>
@@ -176,17 +174,17 @@ export function WhatsAppModal({ isOpen, onClose, leadName, leadPhone, picName = 
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-white/5 bg-white/[0.02] flex items-center justify-end gap-3">
+        <div className="p-4 border-t border-border bg-slate-50/50 dark:bg-white/[0.02] flex items-center justify-end gap-3">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-xs font-medium rounded-xl text-white/60 hover:text-white hover:bg-white/5 transition-all"
+            className="px-4 py-2 text-xs font-medium rounded-xl text-muted-foreground hover:text-foreground hover:bg-slate-100 dark:hover:bg-white/5 transition-all"
           >
             Batal
           </button>
           <button
             onClick={handleSend}
             disabled={loading || !messageText}
-            className="px-5 py-2 text-xs font-semibold rounded-xl text-white hover:glow-purple transition-all duration-300 flex items-center gap-2"
+            className="px-5 py-2 text-xs font-semibold rounded-xl text-white hover:glow-purple transition-all duration-300 flex items-center gap-2 cursor-pointer"
             style={{
               background: 'linear-gradient(135deg, hsl(250,84%,60%), hsl(280,60%,55%))',
             }}

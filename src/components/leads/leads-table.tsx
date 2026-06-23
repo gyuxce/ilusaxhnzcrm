@@ -286,8 +286,8 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
     <div className="space-y-4">
       {/* Top bar info */}
       <div className="flex items-center justify-between">
-        <p className="text-sm text-white/50">
-          Ditemukan <span className="text-white font-bold">{filtered.length}</span> dari {initialLeads.length} leads
+        <p className="text-sm text-muted-foreground">
+          Ditemukan <span className="text-foreground font-bold">{filtered.length}</span> dari {initialLeads.length} leads
         </p>
         <Link
           href="/leads/new"
@@ -299,25 +299,25 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
       </div>
 
       {/* Search & Filter Component */}
-      <div className="glass-card rounded-2xl p-4 space-y-4 border border-white/5">
+      <div className="glass-card rounded-2xl p-4 space-y-4 border border-border">
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="flex-1 relative">
-            <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30" />
+            <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/60" />
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Cari nama, WhatsApp, email..."
-              className="w-full pl-10 pr-4 py-2 rounded-xl text-xs text-white placeholder-white/20 outline-none"
-              style={{ background: 'hsl(222,47%,10%)', border: '1px solid hsl(222,47%,18%)' }}
+              className="w-full pl-10 pr-4 py-2 rounded-xl text-xs text-foreground placeholder-muted-foreground bg-card border border-border outline-none focus:ring-1 focus:ring-primary focus:border-primary"
             />
           </div>
           <button
             onClick={() => setShowFilters(!showFilters)}
             className={cn(
-              'flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all border border-white/5 cursor-pointer',
-              showFilters ? 'text-purple-400 bg-purple-500/10' : 'text-white/60 hover:text-white hover:bg-white/5'
+              'flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all border cursor-pointer',
+              showFilters
+                ? 'text-purple-600 dark:text-purple-400 bg-purple-50/70 dark:bg-purple-950/20 border-purple-100 dark:border-purple-900/30'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 bg-card border-border hover:bg-slate-50 dark:hover:bg-white/5'
             )}
-            style={{ background: 'hsl(222,47%,10%)' }}
           >
             <Filter size={14} />
             Filter Lanjutan
@@ -325,15 +325,14 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
         </div>
 
         {showFilters && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-white/5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-border">
             {/* Status */}
             <div>
-              <label className="block text-[10px] text-white/40 font-bold uppercase mb-1.5">Status Pipeline</label>
+              <label className="block text-[10px] text-muted-foreground font-bold uppercase mb-1.5">Status Pipeline</label>
               <select
                 value={filterStatus}
                 onChange={e => setFilterStatus(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl text-xs text-white outline-none cursor-pointer"
-                style={{ background: 'hsl(222,47%,12%)', border: '1px solid hsl(222,47%,20%)' }}
+                className="w-full px-3 py-2 rounded-xl text-xs text-foreground bg-card border border-border outline-none cursor-pointer focus:ring-1 focus:ring-primary focus:border-primary"
               >
                 <option value="all">Semua Status</option>
                 {statusesList.map(s => (
@@ -344,12 +343,11 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
 
             {/* PIC */}
             <div>
-              <label className="block text-[10px] text-white/40 font-bold uppercase mb-1.5">PIC CRO</label>
+              <label className="block text-[10px] text-muted-foreground font-bold uppercase mb-1.5">PIC CRO</label>
               <select
                 value={filterPic}
                 onChange={e => setFilterPic(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl text-xs text-white outline-none cursor-pointer"
-                style={{ background: 'hsl(222,47%,12%)', border: '1px solid hsl(222,47%,20%)' }}
+                className="w-full px-3 py-2 rounded-xl text-xs text-foreground bg-card border border-border outline-none cursor-pointer focus:ring-1 focus:ring-primary focus:border-primary"
               >
                 <option value="all">Semua PIC</option>
                 {pics.map(p => (
@@ -360,12 +358,11 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
 
             {/* Campaign Source */}
             <div>
-              <label className="block text-[10px] text-white/40 font-bold uppercase mb-1.5">Source Campaign</label>
+              <label className="block text-[10px] text-muted-foreground font-bold uppercase mb-1.5">Source Campaign</label>
               <select
                 value={filterCampaign}
                 onChange={e => setFilterCampaign(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl text-xs text-white outline-none cursor-pointer"
-                style={{ background: 'hsl(222,47%,12%)', border: '1px solid hsl(222,47%,20%)' }}
+                className="w-full px-3 py-2 rounded-xl text-xs text-foreground bg-card border border-border outline-none cursor-pointer focus:ring-1 focus:ring-primary focus:border-primary"
               >
                 <option value="all">Semua Campaign</option>
                 {campaignsList.map(c => (
@@ -376,12 +373,11 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
 
             {/* Payment Status */}
             <div>
-              <label className="block text-[10px] text-white/40 font-bold uppercase mb-1.5">Status Pembayaran</label>
+              <label className="block text-[10px] text-muted-foreground font-bold uppercase mb-1.5">Status Pembayaran</label>
               <select
                 value={filterPayment}
                 onChange={e => setFilterPayment(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl text-xs text-white outline-none cursor-pointer"
-                style={{ background: 'hsl(222,47%,12%)', border: '1px solid hsl(222,47%,20%)' }}
+                className="w-full px-3 py-2 rounded-xl text-xs text-foreground bg-card border border-border outline-none cursor-pointer focus:ring-1 focus:ring-primary focus:border-primary"
               >
                 <option value="all">Semua Status</option>
                 <option value="verified">Verified</option>
@@ -393,12 +389,11 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
 
             {/* Seat Lock Status */}
             <div>
-              <label className="block text-[10px] text-white/40 font-bold uppercase mb-1.5">Status Seat Lock</label>
+              <label className="block text-[10px] text-muted-foreground font-bold uppercase mb-1.5">Status Seat Lock</label>
               <select
                 value={filterSeatLock}
                 onChange={e => setFilterSeatLock(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl text-xs text-white outline-none cursor-pointer"
-                style={{ background: 'hsl(222,47%,12%)', border: '1px solid hsl(222,47%,20%)' }}
+                className="w-full px-3 py-2 rounded-xl text-xs text-foreground bg-card border border-border outline-none cursor-pointer focus:ring-1 focus:ring-primary focus:border-primary"
               >
                 <option value="all">Semua Status</option>
                 <option value="verified">Paid / Verified</option>
@@ -409,25 +404,23 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
 
             {/* Date Range Start */}
             <div>
-              <label className="block text-[10px] text-white/40 font-bold uppercase mb-1.5">Mulai Tanggal</label>
+              <label className="block text-[10px] text-muted-foreground font-bold uppercase mb-1.5">Mulai Tanggal</label>
               <input
                 type="date"
                 value={startDate}
                 onChange={e => setStartDate(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl text-xs text-white outline-none"
-                style={{ background: 'hsl(222,47%,12%)', border: '1px solid hsl(222,47%,20%)' }}
+                className="w-full px-3 py-2 rounded-xl text-xs text-foreground bg-card border border-border outline-none focus:ring-1 focus:ring-primary focus:border-primary"
               />
             </div>
 
             {/* Date Range End */}
             <div>
-              <label className="block text-[10px] text-white/40 font-bold uppercase mb-1.5">Hingga Tanggal</label>
+              <label className="block text-[10px] text-muted-foreground font-bold uppercase mb-1.5">Hingga Tanggal</label>
               <input
                 type="date"
                 value={endDate}
                 onChange={e => setEndDate(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl text-xs text-white outline-none"
-                style={{ background: 'hsl(222,47%,12%)', border: '1px solid hsl(222,47%,20%)' }}
+                className="w-full px-3 py-2 rounded-xl text-xs text-foreground bg-card border border-border outline-none focus:ring-1 focus:ring-primary focus:border-primary"
               />
             </div>
           </div>
@@ -435,11 +428,11 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
       </div>
 
       {/* Table Data */}
-      <div className="glass-card rounded-2xl overflow-hidden border border-white/5">
+      <div className="glass-card rounded-2xl overflow-hidden border border-border">
         <div className="overflow-x-auto">
           <table className="w-full text-xs text-left">
             <thead>
-              <tr className="border-b border-white/10" style={{ background: 'rgba(255,255,255,0.01)' }}>
+              <tr className="border-b border-border bg-slate-50/50 dark:bg-white/[0.01]">
                 {[
                   { label: 'Nama & Campaign', field: 'full_name' as const },
                   { label: 'WhatsApp', field: null },
@@ -452,8 +445,8 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
                   <th
                     key={col.label}
                     className={cn(
-                      'px-4 py-3 font-semibold text-white/40 whitespace-nowrap',
-                      col.field && 'cursor-pointer hover:text-white/70 select-none'
+                      'px-4 py-3 font-semibold text-slate-500 dark:text-slate-400 whitespace-nowrap',
+                      col.field && 'cursor-pointer hover:text-slate-800 dark:hover:text-slate-200 select-none'
                     )}
                     onClick={() => col.field && toggleSort(col.field)}
                   >
@@ -465,45 +458,45 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/5">
+            <tbody className="divide-y divide-border">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-16 text-center text-white/20 text-sm">
+                  <td colSpan={7} className="px-4 py-16 text-center text-muted-foreground/40 text-sm">
                     Tidak ada data leads yang cocok dengan filter.
                   </td>
                 </tr>
               ) : (
                 filtered.map(lead => {
                   return (
-                    <tr key={lead.id} className="hover:bg-white/[0.01] transition-colors group">
+                    <tr key={lead.id} className="hover:bg-slate-50/50 dark:hover:bg-white/[0.01] transition-colors group">
                       {/* Name & Campaign */}
                       <td className="px-4 py-3 whitespace-nowrap">
                         <div className="flex flex-col">
-                          <Link href={`/leads/${lead.id}`} className="font-bold text-white hover:text-purple-300 transition-colors">
+                          <Link href={`/leads/${lead.id}`} className="font-bold text-foreground hover:text-purple-600 dark:hover:text-purple-400 transition-colors">
                             {lead.full_name}
                           </Link>
-                          <span className="text-[10px] text-white/35 mt-0.5">{lead.source_campaign || 'No Campaign'}</span>
+                          <span className="text-[10px] text-muted-foreground mt-0.5">{lead.source_campaign || 'No Campaign'}</span>
                         </div>
                       </td>
 
                       {/* WhatsApp */}
-                      <td className="px-4 py-3 font-mono text-white/70 whitespace-nowrap">
+                      <td className="px-4 py-3 font-mono text-slate-700 dark:text-slate-300 whitespace-nowrap">
                         {lead.whatsapp_number}
                       </td>
 
                       {/* Tanggal Masuk */}
-                      <td className="px-4 py-3 text-white/50 whitespace-nowrap">
+                      <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
                         {formatCellDate(lead.lead_entry_date)}
                       </td>
 
                       {/* PIC CRO */}
-                      <td className="px-4 py-3 text-white/60 whitespace-nowrap">
+                      <td className="px-4 py-3 text-slate-700 dark:text-slate-300 whitespace-nowrap">
                         {lead.users?.name || '-'}
                       </td>
 
                       {/* Status Pipeline */}
                       <td className="px-4 py-3 whitespace-nowrap">
-                        <span className="px-2 py-0.5 rounded-full font-semibold bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                        <span className="px-2 py-0.5 rounded-full font-semibold bg-purple-50 dark:bg-purple-950/20 text-purple-600 dark:text-purple-400 border border-purple-100 dark:border-purple-900/30">
                           {lead.current_status}
                         </span>
                       </td>
@@ -521,29 +514,29 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
                               setActiveLead(lead)
                               setWaModalOpen(true)
                             }}
-                            className="p-1 rounded-lg text-emerald-400 hover:bg-emerald-500/10 transition-colors"
+                            className="p-1 rounded-lg text-emerald-500 hover:bg-emerald-500/10 transition-colors"
                             title="Kirim Pesan WhatsApp"
                           >
                             <MessageCircle size={14} />
                           </button>
                           <Link
                             href={`/leads/${lead.id}`}
-                            className="p-1 rounded-lg text-purple-400 hover:bg-purple-500/10 transition-colors"
+                            className="p-1 rounded-lg text-purple-600 hover:bg-purple-500/10 transition-colors"
                             title="Lihat Detail"
                           >
                             <ExternalLink size={14} />
                           </Link>
                           <Link
                             href={`/leads/${lead.id}/edit`}
-                            className="p-1 rounded-lg text-blue-400 hover:bg-blue-500/10 transition-colors"
+                            className="p-1 rounded-lg text-blue-500 hover:bg-blue-500/10 transition-colors"
                             title="Edit Lead"
                           >
                             <Edit size={14} />
                           </Link>
-                           <button
+                          <button
                             onClick={() => promptDelete(lead.id, lead.full_name)}
                             disabled={deletingId === lead.id}
-                            className="p-1 rounded-lg text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-50"
+                            className="p-1 rounded-lg text-red-500 hover:bg-red-500/10 transition-colors disabled:opacity-50"
                             title="Hapus Lead"
                           >
                             <Trash2 size={14} />
@@ -575,21 +568,20 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
       {mounted && deleteModalOpen && leadToDelete && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-scale-in">
           <div
-            className="relative w-full max-w-sm rounded-2xl p-6 glass-card border border-white/10 shadow-2xl space-y-4"
-            style={{ background: 'radial-gradient(circle at top, hsl(222,47%,12%) 0%, hsl(222,47%,6%) 100%)' }}
+            className="relative w-full max-w-sm rounded-2xl p-6 bg-card border border-border shadow-2xl space-y-4"
           >
-            <div className="flex items-center gap-3 text-red-400">
+            <div className="flex items-center gap-3 text-red-500">
               <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center border border-red-500/20">
                 <Trash2 size={20} />
               </div>
               <div>
-                <h3 className="text-sm font-bold text-white uppercase tracking-wider">Hapus Lead</h3>
-                <p className="text-[10px] text-white/40">Tindakan ini tidak bisa dibatalkan</p>
+                <h3 className="text-sm font-bold text-foreground uppercase tracking-wider">Hapus Lead</h3>
+                <p className="text-[10px] text-muted-foreground">Tindakan ini tidak bisa dibatalkan</p>
               </div>
             </div>
 
-            <p className="text-xs text-white/70 leading-relaxed">
-              Apakah Anda yakin ingin menghapus data lead <span className="font-bold text-white">"{leadToDelete.name}"</span>? Semua data pembayaran, pemetaan, dan konsultasi expert yang berkaitan akan terhapus permanen dari sistem.
+            <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
+              Apakah Anda yakin ingin menghapus data lead <span className="font-bold text-foreground">"{leadToDelete.name}"</span>? Semua data pembayaran, pemetaan, dan konsultasi expert yang berkaitan akan terhapus permanen dari sistem.
             </p>
 
             <div className="flex items-center justify-end gap-3 pt-2">
@@ -599,7 +591,7 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
                   setLeadToDelete(null)
                 }}
                 disabled={deletingId !== null}
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-white/60 hover:text-white hover:bg-white/5 transition-all cursor-pointer disabled:opacity-50"
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-slate-100 dark:hover:bg-white/5 transition-all cursor-pointer disabled:opacity-50"
               >
                 Batal
               </button>

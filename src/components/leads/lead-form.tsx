@@ -111,8 +111,8 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
     }
   }
 
-  const inputClass = "w-full px-4 py-2.5 rounded-xl text-sm text-white placeholder-white/20 outline-none transition-all"
-  const inputStyle = { background: 'hsl(222,47%,12%)', border: '1px solid hsl(222,47%,20%)' }
+  const inputClass = "w-full px-4 py-2.5 rounded-xl text-sm text-foreground placeholder-muted-foreground/60 outline-none transition-all bg-card border border-border focus:ring-1 focus:ring-primary focus:border-primary"
+  const inputStyle = {}
 
   const statusOptions = [
     'New Lead', 'Follow Up', 'Pitching', 'Interested', 'Not Interested',
@@ -123,12 +123,12 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
   ]
 
   return (
-    <form onSubmit={handleSubmit} className="glass-card rounded-2xl p-6 space-y-5 border border-white/5">
+    <form onSubmit={handleSubmit} className="glass-card rounded-2xl p-6 space-y-5 border border-border">
 
       {/* Nama Lengkap */}
       <div>
-        <label className="flex items-center gap-1.5 text-xs font-bold text-white/50 mb-2">
-          <User size={12} /> Nama Lengkap <span className="text-red-400">*</span>
+        <label className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground mb-2">
+          <User size={12} /> Nama Lengkap <span className="text-red-500">*</span>
         </label>
         <input
           value={form.full_name}
@@ -140,54 +140,71 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
         />
       </div>
 
-      {/* WhatsApp Number */}
-      <div>
-        <label className="flex items-center gap-1.5 text-xs font-bold text-white/50 mb-2">
-          <Phone size={12} /> Nomor WhatsApp <span className="text-red-400">*</span>
-        </label>
-        <input
-          value={form.whatsapp_number}
-          onChange={e => update('whatsapp_number', e.target.value)}
-          placeholder="628xxxxxxxxx atau 08xxxxxxxxxx"
-          required
-          className={inputClass}
-          style={inputStyle}
-        />
+      {/* WhatsApp & Email */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground mb-2">
+            <Phone size={12} /> Nomor WhatsApp <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="tel"
+            value={form.whatsapp_number}
+            onChange={e => update('whatsapp_number', e.target.value)}
+            placeholder="Contoh: 08123456789"
+            required
+            className={inputClass}
+            style={inputStyle}
+          />
+        </div>
+
+        <div>
+          <label className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground mb-2">
+            <Mail size={12} /> Alamat Email
+          </label>
+          <input
+            type="email"
+            value={form.email}
+            onChange={e => update('email', e.target.value)}
+            placeholder="nama@domain.com"
+            className={inputClass}
+            style={inputStyle}
+          />
+        </div>
       </div>
 
-      {/* Email */}
-      <div>
-        <label className="flex items-center gap-1.5 text-xs font-bold text-white/50 mb-2">
-          <Mail size={12} /> Email (Opsional)
-        </label>
-        <input
-          type="email"
-          value={form.email}
-          onChange={e => update('email', e.target.value)}
-          placeholder="contoh@domain.com"
-          className={inputClass}
-          style={inputStyle}
-        />
-      </div>
+      {/* Source Campaign & Referral */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground mb-2">
+            <TrendingUp size={12} /> Source Campaign <span className="text-red-500">*</span>
+          </label>
+          <input
+            value={form.source_campaign}
+            onChange={e => update('source_campaign', e.target.value)}
+            placeholder="Contoh: Campaign Construction, Webinar Regular, Organic..."
+            required
+            className={inputClass}
+            style={inputStyle}
+          />
+        </div>
 
-      {/* Source Campaign */}
-      <div>
-        <label className="flex items-center gap-1.5 text-xs font-bold text-white/50 mb-2">
-          <Settings size={12} /> Source Campaign / Lead Source <span className="text-red-400">*</span>
-        </label>
-        <input
-          value={form.source_campaign}
-          onChange={e => update('source_campaign', e.target.value)}
-          placeholder="Contoh: Campaign Construction, Webinar Regular, Organic..."
-          required
-          className={inputClass}
-          style={inputStyle}
-        />
+        <div>
+          <label className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground mb-2">
+            <Users size={12} /> Nomor/Nama Referensi
+          </label>
+          <input
+            value={form.referral_source || ''}
+            onChange={e => update('referral_source', e.target.value)}
+            placeholder="Kosongkan jika tidak ada referensi"
+            className={inputClass}
+            style={inputStyle}
+          />
+        </div>
       </div>
 
       {/* Lead Type */}
       <div>
-        <label className="block text-xs font-bold text-white/50 mb-2">Tipe Lead</label>
+        <label className="block text-xs font-bold text-muted-foreground mb-2">Tipe Lead</label>
         <div className="flex gap-2">
           {[
             { value: 'inbound', label: '📥 Inbound', desc: 'Lead yang datang sendiri (submit form, DM, dll)' },
@@ -197,12 +214,14 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
               key={opt.value}
               type="button"
               onClick={() => update('lead_type', opt.value)}
-              className="flex-1 py-2.5 px-3 rounded-xl text-xs font-bold text-left transition-all"
-              style={{
-                background: form.lead_type === opt.value ? (opt.value === 'inbound' ? 'rgba(34,197,94,0.12)' : 'rgba(59,130,246,0.12)') : 'hsl(222,47%,12%)',
-                border: `1px solid ${form.lead_type === opt.value ? (opt.value === 'inbound' ? 'rgba(34,197,94,0.3)' : 'rgba(59,130,246,0.3)') : 'hsl(222,47%,20%)'}`,
-                color: form.lead_type === opt.value ? (opt.value === 'inbound' ? '#4ade80' : '#60a5fa') : 'rgba(255,255,255,0.45)',
-              }}
+              className={cn(
+                'flex-1 py-2.5 px-3 rounded-xl text-xs font-bold text-left border transition-all',
+                form.lead_type === opt.value
+                  ? opt.value === 'inbound'
+                    ? 'bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900/30 text-emerald-600 dark:text-emerald-400'
+                    : 'bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-900/30 text-blue-600 dark:text-blue-400'
+                  : 'bg-card border-border text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5'
+              )}
             >
               {opt.label}
             </button>
@@ -213,7 +232,7 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
       {/* PIC & Status */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label className="block text-xs font-bold text-white/50 mb-2">PIC CRO</label>
+          <label className="block text-xs font-bold text-muted-foreground mb-2">PIC CRO</label>
           <select value={form.assigned_cro_id} onChange={e => update('assigned_cro_id', e.target.value)} className={inputClass} style={inputStyle}>
             <option value="">Pilih PIC</option>
             {pics.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -221,7 +240,7 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
         </div>
 
         <div>
-          <label className="block text-xs font-bold text-white/50 mb-2">Status Pipeline</label>
+          <label className="block text-xs font-bold text-muted-foreground mb-2">Status Pipeline</label>
           <select value={form.current_status} onChange={e => update('current_status', e.target.value)} className={inputClass} style={inputStyle}>
             {statusOptions.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
@@ -230,7 +249,7 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
 
       {/* Entry Date */}
       <div>
-        <label className="flex items-center gap-1.5 text-xs font-bold text-white/50 mb-2">
+        <label className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground mb-2">
           <Calendar size={12} /> Tanggal Lead Masuk
         </label>
         <input
@@ -244,7 +263,7 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
 
       {/* Notes */}
       <div>
-        <label className="flex items-center gap-1.5 text-xs font-bold text-white/50 mb-2">
+        <label className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground mb-2">
           <MessageSquare size={12} /> Catatan Tambahan
         </label>
         <textarea
@@ -259,7 +278,7 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
 
       {error && (
         <div
-          className="px-4 py-2.5 rounded-xl text-sm text-red-400 font-bold border"
+          className="px-4 py-2.5 rounded-xl text-sm text-red-600 dark:text-red-400 font-bold border"
           style={{ background: 'rgba(239,68,68,0.1)', borderColor: 'rgba(239,68,68,0.2)' }}
         >
           {error}
@@ -271,8 +290,7 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
         <button
           type="button"
           onClick={() => router.back()}
-          className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white/60 hover:text-white/80 transition-all cursor-pointer"
-          style={{ background: 'hsl(222,47%,12%)', border: '1px solid hsl(222,47%,20%)' }}
+          className="flex-1 py-2.5 rounded-xl text-sm font-bold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-white/5 border border-border transition-all duration-150 cursor-pointer"
         >
           Batal
         </button>
