@@ -89,19 +89,19 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
       err = insertErr
 
       if (!err && newLeads && newLeads.length > 0) {
-        // Initialise associated pemetaan record
-        await supabase.from('pemetaan').insert({
-          lead_id: newLeads[0].id,
-          form_status: 'not_sent',
-          result_status: 'not_ready'
-        })
-
-        // Log initial activity
-        await supabase.from('lead_activities').insert({
-          lead_id: newLeads[0].id,
-          activity_type: 'Lead created',
-          description: 'Lead created manually via Tambah Lead form'
-        })
+        const newLeadId = newLeads[0].id
+        await Promise.all([
+          supabase.from('pemetaan').insert({
+            lead_id: newLeadId,
+            form_status: 'not_sent',
+            result_status: 'not_ready'
+          }),
+          supabase.from('lead_activities').insert({
+            lead_id: newLeadId,
+            activity_type: 'Lead created',
+            description: 'Lead created manually via Tambah Lead form'
+          })
+        ])
       }
     }
 

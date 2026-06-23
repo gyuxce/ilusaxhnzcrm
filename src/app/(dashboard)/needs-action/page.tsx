@@ -105,34 +105,37 @@ export default function NeedsActionPage() {
     let nextStatus = ''
     let updateFields: Record<string, any> = {}
     let activityDesc = ''
+    const promises: Promise<any>[] = []
 
     if (actionType === 'submit_form') {
       nextStatus = 'Pemetaan Form Submitted'
       activityDesc = 'Pemetaan Form Submitted marked via Needs Action dashboard'
-      // Update associated pemetaan record if exists
-      await supabase
-        .from('pemetaan')
-        .update({ form_status: 'submitted', updated_at: new Date().toISOString() })
-        .eq('lead_id', actioningLead.id)
+      promises.push(
+        supabase
+          .from('pemetaan')
+          .update({ form_status: 'submitted', updated_at: new Date().toISOString() })
+          .eq('lead_id', actioningLead.id)
+      )
     } 
     else if (actionType === 'ready_result') {
       nextStatus = 'Result Ready'
       activityDesc = `Pemetaan result ready: ${inputVal}`
-      await supabase
-        .from('pemetaan')
-        .update({ 
-          result_status: 'ready', 
-          result_ready_at: new Date().toISOString(),
-          result_notes: inputVal,
-          updated_at: new Date().toISOString()
-        })
-        .eq('lead_id', actioningLead.id)
+      promises.push(
+        supabase
+          .from('pemetaan')
+          .update({ 
+            result_status: 'ready', 
+            result_ready_at: new Date().toISOString(),
+            result_notes: inputVal,
+            updated_at: new Date().toISOString()
+          })
+          .eq('lead_id', actioningLead.id)
+      )
     } 
     else if (actionType === 'schedule_expert') {
       nextStatus = 'Expert Consultation Scheduled'
       activityDesc = `Expert consultation scheduled for ${inputVal} with expert: ${inputVal2}`
       
-      // Create or update expert consultation record
       const { data: ec } = await supabase
         .from('expert_consultations')
         .select('id')
@@ -140,22 +143,26 @@ export default function NeedsActionPage() {
         .maybeSingle()
 
       if (ec) {
-        await supabase
-          .from('expert_consultations')
-          .update({
-            scheduled_at: new Date(inputVal).toISOString(),
-            expert_name: inputVal2,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', ec.id)
+        promises.push(
+          supabase
+            .from('expert_consultations')
+            .update({
+              scheduled_at: new Date(inputVal).toISOString(),
+              expert_name: inputVal2,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', ec.id)
+        )
       } else {
-        await supabase
-          .from('expert_consultations')
-          .insert({
-            lead_id: actioningLead.id,
-            scheduled_at: new Date(inputVal).toISOString(),
-            expert_name: inputVal2
-          })
+        promises.push(
+          supabase
+            .from('expert_consultations')
+            .insert({
+              lead_id: actioningLead.id,
+              scheduled_at: new Date(inputVal).toISOString(),
+              expert_name: inputVal2
+            })
+        )
       }
     } 
     else if (actionType === 'offer_seat_lock') {
@@ -166,44 +173,47 @@ export default function NeedsActionPage() {
       nextStatus = 'Seat Lock Paid'
       activityDesc = `Seat lock paid: Rp ${Number(inputVal).toLocaleString('id-ID')} (${inputVal2})`
       
-      // Insert Payment 2 record
-      await supabase
-        .from('payments')
-        .insert({
-          lead_id: actioningLead.id,
-          payment_type: 'seat_lock',
-          amount: Number(inputVal),
-          payment_method: 'Transfer',
-          payment_date: new Date().toISOString().split('T')[0],
-          verification_status: 'verified',
-          verified_at: new Date().toISOString(),
-          notes: `Verified on Seat Lock Paid Action: ${inputVal2}`
-        })
+      promises.push(
+        supabase
+          .from('payments')
+          .insert({
+            lead_id: actioningLead.id,
+            payment_type: 'seat_lock',
+            amount: Number(inputVal),
+            payment_method: 'Transfer',
+            payment_date: new Date().toISOString().split('T')[0],
+            verification_status: 'verified',
+            verified_at: new Date().toISOString(),
+            notes: `Verified on Seat Lock Paid Action: ${inputVal2}`
+          })
+      )
     }
 
     if (nextStatus) {
       updateFields.current_status = nextStatus
       updateFields.updated_at = new Date().toISOString()
 
-      // Update lead
-      const { error } = await supabase
-        .from('leads')
-        .update(updateFields)
-        .eq('id', actioningLead.id)
+      promises.push(
+        supabase
+          .from('leads')
+          .update(updateFields)
+          .eq('id', actioningLead.id)
+      )
 
-      if (!error) {
-        // Log Activity
-        await supabase
+      promises.push(
+        supabase
           .from('lead_activities')
           .insert({
             lead_id: actioningLead.id,
             activity_type: 'Status changed',
             description: activityDesc
           })
-
-        fetchLeads()
-      }
+      )
     }
+
+    // Run all database calls in parallel
+    await Promise.all(promises)
+    fetchLeads()
 
     // Reset action state
     setActioningLead(null)
