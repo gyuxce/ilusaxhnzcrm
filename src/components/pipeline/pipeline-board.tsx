@@ -107,7 +107,7 @@ export function PipelineBoard({ initialLeads }: PipelineBoardProps) {
       </div>
 
       {/* Board */}
-      <div className="flex gap-4 overflow-x-auto pb-4" style={{ minHeight: '70vh' }}>
+      <div className="flex gap-4 overflow-x-auto pb-4 h-[calc(100vh-170px)]">
         {STAGES.map(stage => {
           const stageLeads = getLeadsByStage(stage.key)
           const isOver = dragOverStage === stage.key
@@ -115,7 +115,7 @@ export function PipelineBoard({ initialLeads }: PipelineBoardProps) {
           return (
             <div
               key={stage.key}
-              className="flex-shrink-0 w-[220px] flex flex-col rounded-2xl transition-all duration-150 min-h-[60vh]"
+              className="flex-shrink-0 w-[220px] flex flex-col rounded-2xl transition-all duration-150 h-full"
               style={{
                 background: isOver ? stage.bg : 'hsl(var(--secondary))',
                 border: `1px solid ${isOver ? stage.border : 'hsl(var(--border))'}`,
@@ -125,7 +125,7 @@ export function PipelineBoard({ initialLeads }: PipelineBoardProps) {
               onDragLeave={() => setDragOverStage(null)}
             >
               {/* Column Header */}
-              <div className="px-3 pt-3 pb-2 flex items-center justify-between">
+              <div className="px-3 pt-3 pb-2 flex items-center justify-between flex-shrink-0">
                 <div>
                   <div className="flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: stage.color }} />
@@ -141,7 +141,7 @@ export function PipelineBoard({ initialLeads }: PipelineBoardProps) {
               </div>
 
               {/* Cards */}
-              <div className="flex-1 px-2 pb-2 space-y-2 overflow-y-auto max-h-[65vh] pr-1">
+              <div className="flex-1 px-2 pb-2 space-y-2 overflow-y-auto pr-1">
                 {stageLeads.length === 0 ? (
                   <div
                     className="h-20 rounded-xl border-2 border-dashed flex items-center justify-center text-[10px] text-muted-foreground/30 transition-all"
