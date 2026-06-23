@@ -126,10 +126,7 @@ export function Header({ title, subtitle }: HeaderProps) {
         {/* Add lead */}
         <Link
           href="/leads/new"
-          className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium text-white transition-all flex-shrink-0"
-          style={{
-            background: 'linear-gradient(135deg, hsl(250,84%,60%), hsl(280,60%,55%))',
-          }}
+          className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium text-primary-foreground bg-primary hover:opacity-90 transition-all flex-shrink-0 shadow-sm"
         >
           <Plus size={14} />
           <span className="hidden sm:inline">Tambah Lead</span>

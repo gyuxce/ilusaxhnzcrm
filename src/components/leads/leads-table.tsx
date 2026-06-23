@@ -566,7 +566,7 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
 
       {/* Custom Delete Confirmation Modal (Rendered at Body level to bypass transformed containers) */}
       {mounted && deleteModalOpen && leadToDelete && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-scale-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 backdrop-blur-xs animate-scale-in">
           <div
             className="relative w-full max-w-sm rounded-2xl p-6 bg-card border border-border shadow-2xl space-y-4"
           >

@@ -406,7 +406,7 @@ export default function NeedsActionPage() {
 
       {/* Action Modals */}
       {actioningLead && actionType && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 backdrop-blur-xs">
           <div className="relative w-full max-w-md bg-card text-card-foreground rounded-2xl p-6 border border-border dark:border-white/10 shadow-2xl">
             <h3 className="text-lg font-bold text-foreground mb-2">Tindak Lanjuti Lead</h3>
             <p className="text-muted-foreground text-xs mb-4">

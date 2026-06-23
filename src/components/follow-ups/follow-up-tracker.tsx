@@ -259,7 +259,7 @@ export function FollowUpTracker({ dueFUs: initialDueFUs, upcomingFUs: initialUpc
 
       {/* Add FU Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 backdrop-blur-xs">
           <div className="w-full max-w-md bg-card text-card-foreground rounded-2xl p-6 border border-border dark:border-white/10 shadow-2xl space-y-4">
             <h3 className="text-base font-bold text-foreground">Jadwalkan Follow-Up Baru</h3>
             <div className="space-y-3">
