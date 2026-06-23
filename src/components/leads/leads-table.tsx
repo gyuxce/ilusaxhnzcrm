@@ -2,13 +2,16 @@
 
 import { useState, useMemo } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import {
   Search, Filter, ExternalLink, MessageCircle,
-  ChevronUp, ChevronDown, Copy, Calendar, RefreshCw
+  ChevronUp, ChevronDown, Copy, Calendar, RefreshCw,
+  Edit, Trash2
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { Lead } from '@/lib/supabase/types'
 import { WhatsAppModal } from './WhatsAppModal'
+import { createClient } from '@/lib/supabase/client'
 
 type LeadWithRelations = Lead & {
   users?: { id: string; name: string } | null
@@ -23,6 +26,24 @@ interface LeadsTableProps {
 }
 
 export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
+  const router = useRouter()
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+
+  const handleDelete = async (id: string, name: string) => {
+    if (!confirm(`Apakah Anda yakin ingin menghapus lead "${name}"?`)) return
+    
+    setDeletingId(id)
+    const supabase = createClient()
+    const { error } = await supabase.from('leads').delete().eq('id', id)
+    setDeletingId(null)
+
+    if (error) {
+      alert('Gagal menghapus lead: ' + error.message)
+    } else {
+      router.refresh()
+    }
+  }
+
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState('all')
   const [filterPic, setFilterPic] = useState('all')
@@ -445,7 +466,7 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
 
                       {/* Action buttons */}
                       <td className="px-4 py-3 whitespace-nowrap">
-                        <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex items-center gap-1.5 opacity-70 group-hover:opacity-100 transition-opacity">
                           <button
                             onClick={() => {
                               setActiveLead(lead)
@@ -463,6 +484,21 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
                           >
                             <ExternalLink size={14} />
                           </Link>
+                          <Link
+                            href={`/leads/${lead.id}/edit`}
+                            className="p-1 rounded-lg text-blue-400 hover:bg-blue-500/10 transition-colors"
+                            title="Edit Lead"
+                          >
+                            <Edit size={14} />
+                          </Link>
+                          <button
+                            onClick={() => handleDelete(lead.id, lead.full_name)}
+                            disabled={deletingId === lead.id}
+                            className="p-1 rounded-lg text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-50"
+                            title="Hapus Lead"
+                          >
+                            <Trash2 size={14} />
+                          </button>
                         </div>
                       </td>
                     </tr>
