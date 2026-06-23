@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { Loader2, Phone, User, Calendar, MessageSquare, Mail, Settings } from 'lucide-react'
+import { Loader2, Phone, User, Calendar, MessageSquare, Mail, Settings, TrendingUp, Users } from 'lucide-react'
 
 interface LeadFormProps {
   pics: { id: string; name: string }[]
@@ -17,6 +17,7 @@ interface LeadFormProps {
     assigned_cro_id: string
     notes: string
     lead_entry_date: string
+    referral_source: string
   }>
   leadId?: string
 }
@@ -35,6 +36,7 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
     assigned_cro_id: defaultValues?.assigned_cro_id || '',
     notes: defaultValues?.notes || '',
     lead_entry_date: defaultValues?.lead_entry_date?.split('T')[0] || new Date().toISOString().split('T')[0],
+    referral_source: defaultValues?.referral_source || '',
   })
 
   function update(field: string, value: string) {
