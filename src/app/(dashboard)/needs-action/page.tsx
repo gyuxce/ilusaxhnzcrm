@@ -18,6 +18,7 @@ import {
   MoreHorizontal
 } from 'lucide-react'
 import { WhatsAppModal } from '@/components/leads/WhatsAppModal'
+import { Header } from '@/components/layout/header'
 
 interface LeadWithDetails {
   id: string
@@ -223,32 +224,30 @@ export default function NeedsActionPage() {
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-extrabold text-foreground tracking-tight">Needs Action</h1>
-          <p className="text-muted-foreground text-sm mt-1">Daftar leads yang membutuhkan tindakan follow-up segera berdasarkan status pipeline.</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="relative">
+    <>
+      <Header title="Needs Action" subtitle="Daftar leads yang membutuhkan tindakan follow-up segera berdasarkan status pipeline." />
+      <div className="p-6 max-w-7xl mx-auto space-y-6 animate-fade-in">
+        
+        {/* Actions Bar */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={17} />
             <input
               type="text"
               placeholder="Cari nama, WhatsApp, source..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 pr-4 py-2 w-64 rounded-xl text-sm bg-card text-foreground border border-border outline-none transition-all focus:ring-1 focus:ring-primary focus:border-primary placeholder:text-muted-foreground/60 dark:bg-slate-800/30 dark:border-white/10"
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm bg-card text-foreground border border-border outline-none transition-all focus:ring-1 focus:ring-primary focus:border-primary placeholder:text-muted-foreground/60 dark:bg-slate-800/30 dark:border-white/10"
             />
           </div>
           <button 
             onClick={fetchLeads} 
-            className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-all border border-border dark:border-white/5 bg-card shadow-xs cursor-pointer"
+            className="self-start sm:self-auto p-2.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-slate-100 dark:hover:bg-white/5 transition-all border border-border dark:border-white/5 bg-card shadow-xs cursor-pointer flex items-center justify-center"
+            title="Muat Ulang"
           >
             <RefreshCw size={17} className={loading ? 'animate-spin' : ''} />
           </button>
         </div>
-      </div>
 
       {loading && leads.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 gap-3">
@@ -259,12 +258,12 @@ export default function NeedsActionPage() {
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
           {/* Column 1: Paid but Form Pending */}
           <div className="space-y-4">
-            <div className="flex items-center justify-between p-3 rounded-xl bg-purple-50 dark:bg-purple-950/20 border border-purple-100 dark:border-purple-900/30">
+            <div className="flex items-center justify-between p-3 rounded-xl bg-card border border-border">
               <div className="flex items-center gap-2">
                 <Hourglass size={15} className="text-purple-600 dark:text-purple-400" />
-                <h3 className="font-bold text-purple-900 dark:text-purple-100 text-xs uppercase tracking-wider">Paid, No Form</h3>
+                <h3 className="font-extrabold text-foreground text-xs uppercase tracking-wider">Paid, No Form</h3>
               </div>
-              <span className="bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300 text-xs px-2 py-0.5 rounded-full font-bold">{paidButNoForm.length}</span>
+              <span className="bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-slate-300 text-xs px-2 py-0.5 rounded-full font-bold">{paidButNoForm.length}</span>
             </div>
             <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
               {paidButNoForm.length === 0 ? (
@@ -288,12 +287,12 @@ export default function NeedsActionPage() {
 
           {/* Column 2: Pemetaan Done, Waiting Result */}
           <div className="space-y-4">
-            <div className="flex items-center justify-between p-3 rounded-xl bg-blue-50 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900/30">
+            <div className="flex items-center justify-between p-3 rounded-xl bg-card border border-border">
               <div className="flex items-center gap-2">
                 <Clock size={15} className="text-blue-600 dark:text-blue-400" />
-                <h3 className="font-bold text-blue-900 dark:text-blue-100 text-xs uppercase tracking-wider">Waiting Result</h3>
+                <h3 className="font-extrabold text-foreground text-xs uppercase tracking-wider">Waiting Result</h3>
               </div>
-              <span className="bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 text-xs px-2 py-0.5 rounded-full font-bold">{pemetaanDoneWaiting.length}</span>
+              <span className="bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-slate-300 text-xs px-2 py-0.5 rounded-full font-bold">{pemetaanDoneWaiting.length}</span>
             </div>
             <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
               {pemetaanDoneWaiting.length === 0 ? (
@@ -317,12 +316,12 @@ export default function NeedsActionPage() {
 
           {/* Column 3: Result Ready, Schedule Expert */}
           <div className="space-y-4">
-            <div className="flex items-center justify-between p-3 rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-100 dark:border-amber-900/30">
+            <div className="flex items-center justify-between p-3 rounded-xl bg-card border border-border">
               <div className="flex items-center gap-2">
                 <Calendar size={15} className="text-amber-600 dark:text-amber-400" />
-                <h3 className="font-bold text-amber-900 dark:text-amber-100 text-xs uppercase tracking-wider">Schedule Expert</h3>
+                <h3 className="font-extrabold text-foreground text-xs uppercase tracking-wider">Schedule Expert</h3>
               </div>
-              <span className="bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 text-xs px-2 py-0.5 rounded-full font-bold">{resultReadySchedule.length}</span>
+              <span className="bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-slate-300 text-xs px-2 py-0.5 rounded-full font-bold">{resultReadySchedule.length}</span>
             </div>
             <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
               {resultReadySchedule.length === 0 ? (
@@ -346,12 +345,12 @@ export default function NeedsActionPage() {
 
           {/* Column 4: Expert Done, Follow Up Seat Lock */}
           <div className="space-y-4">
-            <div className="flex items-center justify-between p-3 rounded-xl bg-orange-50 dark:bg-orange-950/20 border border-orange-100 dark:border-orange-900/30">
+            <div className="flex items-center justify-between p-3 rounded-xl bg-card border border-border">
               <div className="flex items-center gap-2">
                 <UserCheck size={15} className="text-orange-600 dark:text-orange-400" />
-                <h3 className="font-bold text-orange-900 dark:text-orange-100 text-xs uppercase tracking-wider">Offer Seat Lock</h3>
+                <h3 className="font-extrabold text-foreground text-xs uppercase tracking-wider">Offer Seat Lock</h3>
               </div>
-              <span className="bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300 text-xs px-2 py-0.5 rounded-full font-bold">{expertDoneFollowUp.length}</span>
+              <span className="bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-slate-300 text-xs px-2 py-0.5 rounded-full font-bold">{expertDoneFollowUp.length}</span>
             </div>
             <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
               {expertDoneFollowUp.length === 0 ? (
@@ -375,12 +374,12 @@ export default function NeedsActionPage() {
 
           {/* Column 5: Seat Lock Offered, Waiting Payment */}
           <div className="space-y-4">
-            <div className="flex items-center justify-between p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/30">
+            <div className="flex items-center justify-between p-3 rounded-xl bg-card border border-border">
               <div className="flex items-center gap-2">
                 <FileCheck size={15} className="text-emerald-600 dark:text-emerald-400" />
-                <h3 className="font-bold text-emerald-900 dark:text-emerald-100 text-xs uppercase tracking-wider">Waiting Payment</h3>
+                <h3 className="font-extrabold text-foreground text-xs uppercase tracking-wider">Waiting Payment</h3>
               </div>
-              <span className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 text-xs px-2 py-0.5 rounded-full font-bold">{seatLockOfferedWaiting.length}</span>
+              <span className="bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-slate-300 text-xs px-2 py-0.5 rounded-full font-bold">{seatLockOfferedWaiting.length}</span>
             </div>
             <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
               {seatLockOfferedWaiting.length === 0 ? (
@@ -537,7 +536,8 @@ export default function NeedsActionPage() {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </>
   )
 }
 

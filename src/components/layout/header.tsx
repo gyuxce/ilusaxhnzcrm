@@ -1,6 +1,6 @@
 'use client'
 
-import { Bell, Search, Plus, Menu, X, AlertCircle, Calendar, ChevronRight } from 'lucide-react'
+import { Bell, Search, Plus, Menu, X, AlertCircle, Calendar, ChevronRight, Sun, Moon } from 'lucide-react'
 import Link from 'next/link'
 import { useLayoutStore } from '@/lib/store'
 import { useState, useEffect, useRef } from 'react'
@@ -131,6 +131,29 @@ export function Header({ title, subtitle }: HeaderProps) {
     setNotifCount(0)
   }
 
+  const [theme, setTheme] = useState<'light' | 'dark'>('light')
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const isDark = document.documentElement.classList.contains('dark')
+      setTheme(isDark ? 'dark' : 'light')
+    }
+  }, [])
+
+  const toggleTheme = () => {
+    const nextTheme = theme === 'light' ? 'dark' : 'light'
+    setTheme(nextTheme)
+    if (nextTheme === 'dark') {
+      document.documentElement.classList.add('dark')
+      document.documentElement.classList.remove('light')
+      localStorage.setItem('theme', 'dark')
+    } else {
+      document.documentElement.classList.add('light')
+      document.documentElement.classList.remove('dark')
+      localStorage.setItem('theme', 'light')
+    }
+  }
+
   // Close on outside click
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -178,6 +201,15 @@ export function Header({ title, subtitle }: HeaderProps) {
           <Plus size={14} />
           <span className="hidden sm:inline">Tambah Lead</span>
         </Link>
+
+        {/* Theme Toggle */}
+        <button
+          onClick={toggleTheme}
+          className="w-9 h-9 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-slate-100/80 dark:hover:bg-white/5 transition-all border border-border bg-card/50 cursor-pointer"
+          title={theme === 'light' ? 'Mode Gelap' : 'Mode Terang'}
+        >
+          {theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}
+        </button>
 
         {/* Notifications */}
         <div ref={notifRef} className="relative flex-shrink-0">
