@@ -47,13 +47,6 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!form.whatsapp_number) return setError('Nomor WhatsApp wajib diisi')
-    if (!form.full_name) return setError('Nama Lengkap wajib diisi')
-    if (!form.source_campaign) return setError('Source Campaign wajib diisi')
-
-    setLoading(true)
-    setError('')
-
-    const supabase = createClient()
     
     // Standardise phone number format (remove non-digits, replace leading 0 or 8 with 62)
     let cleanPhone = form.whatsapp_number.replace(/\D/g, '')
@@ -62,6 +55,19 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
     } else if (cleanPhone.startsWith('8')) {
       cleanPhone = '62' + cleanPhone
     }
+
+    // Validate phone number digits
+    if (cleanPhone.length < 9 || cleanPhone.length > 15) {
+      return setError('Nomor WhatsApp tidak valid (harus antara 9 sampai 15 digit angka)')
+    }
+
+    if (!form.full_name) return setError('Nama Lengkap wajib diisi')
+    if (!form.source_campaign) return setError('Source Campaign wajib diisi')
+
+    setLoading(true)
+    setError('')
+
+    const supabase = createClient()
 
     const payload = {
       whatsapp_number: cleanPhone,
@@ -158,7 +164,7 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
             <input
               type="tel"
               value={form.whatsapp_number}
-              onChange={e => update('whatsapp_number', e.target.value)}
+              onChange={e => update('whatsapp_number', e.target.value.replace(/\D/g, ''))}
               placeholder="Contoh: 08123456789"
               required
               className={inputClass}
@@ -318,7 +324,7 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
         <button
           type="submit"
           disabled={loading}
-          className="flex-1 py-2.5 rounded-xl text-sm font-extrabold text-primary-foreground bg-primary hover:opacity-90 transition-all disabled:opacity-60 cursor-pointer shadow-xs"
+          className="flex-1 py-2.5 rounded-xl text-sm font-extrabold text-primary-foreground bg-primary hover:opacity-90 transition-all disabled:opacity-60 cursor-pointer shadow-xs flex items-center justify-center gap-1.5"
         >
           {loading && <Loader2 size={14} className="animate-spin" />}
           {loading ? 'Menyimpan...' : leadId ? 'Simpan Perubahan' : 'Tambah Lead'}

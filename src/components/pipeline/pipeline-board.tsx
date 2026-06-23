@@ -185,7 +185,7 @@ export function PipelineBoard({ initialLeads }: PipelineBoardProps) {
                       </div>
 
                       {/* Actions */}
-                      <div className="flex items-center gap-1 mt-2 pt-2 border-t border-border opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex items-center gap-1 mt-2 pt-2 border-t border-border">
                         <button
                           onClick={() => openWA(lead.whatsapp_number)}
                           className="flex-1 flex items-center justify-center gap-1 py-1 rounded-lg text-[9px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 transition-all cursor-pointer"
