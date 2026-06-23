@@ -155,7 +155,8 @@ export function Header({ title, subtitle }: HeaderProps) {
           {/* Notification Dropdown */}
           {notifOpen && (
             <div
-              className="absolute right-0 top-12 w-80 rounded-2xl border shadow-2xl overflow-hidden z-50 bg-card border-border"
+              className="absolute right-0 top-12 w-80 rounded-2xl border shadow-2xl overflow-hidden z-50 border-border"
+              style={{ backgroundColor: 'hsl(var(--card))' }}
             >
               {/* Header */}
               <div className="flex items-center justify-between px-4 py-3 border-b border-border">
