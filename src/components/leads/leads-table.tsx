@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
@@ -139,6 +140,11 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)
   const [leadToDelete, setLeadToDelete] = useState<{ id: string; name: string } | null>(null)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const promptDelete = (id: string, name: string) => {
     setLeadToDelete({ id, name })
@@ -565,9 +571,9 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
         />
       )}
 
-      {/* Custom Delete Confirmation Modal */}
-      {deleteModalOpen && leadToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
+      {/* Custom Delete Confirmation Modal (Rendered at Body level to bypass transformed containers) */}
+      {mounted && deleteModalOpen && leadToDelete && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-scale-in">
           <div
             className="relative w-full max-w-sm rounded-2xl p-6 glass-card border border-white/10 shadow-2xl space-y-4"
             style={{ background: 'radial-gradient(circle at top, hsl(222,47%,12%) 0%, hsl(222,47%,6%) 100%)' }}
@@ -606,7 +612,8 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )

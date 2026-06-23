@@ -41,8 +41,12 @@ export function Sidebar() {
     needsAction: 0,
     followUps: 0,
   })
-
   const supabase = createClient()
+
+  // Automatically close sidebar on mobile when pathname changes
+  useEffect(() => {
+    closeSidebar()
+  }, [pathname, closeSidebar])
 
   useEffect(() => {
     async function fetchBadges() {
