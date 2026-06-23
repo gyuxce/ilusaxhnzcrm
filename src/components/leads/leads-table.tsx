@@ -96,10 +96,10 @@ const renderMilestones = (lead: LeadWithRelations) => {
   }
 
   const steps = [
-    { id: 1, label: 'Payment', icon: '💰', status: step1, tooltip: step1Text },
-    { id: 2, label: 'Pemetaan', icon: '📋', status: step2, tooltip: step2Text },
-    { id: 3, label: 'Expert', icon: '🤝', status: step3, tooltip: step3Text },
-    { id: 4, label: 'Seat Lock', icon: '🔒', status: step4, tooltip: step4Text }
+    { id: 1, label: 'Payment', icon: '💰', status: step1, tooltip: step1Text, colorClass: 'emerald' },
+    { id: 2, label: 'Pemetaan', icon: '📋', status: step2, tooltip: step2Text, colorClass: 'blue' },
+    { id: 3, label: 'Expert', icon: '🤝', status: step3, tooltip: step3Text, colorClass: 'purple' },
+    { id: 4, label: 'Seat Lock', icon: '🔒', status: step4, tooltip: step4Text, colorClass: 'red' }
   ]
 
   return (
@@ -109,12 +109,28 @@ const renderMilestones = (lead: LeadWithRelations) => {
           <div
             className={cn(
               "w-6 h-6 rounded-full flex items-center justify-center text-[10px] border transition-all duration-300 relative group/step cursor-help select-none",
-              step.status === 'success' && "bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-bold shadow-xs",
-              step.status === 'warning' && "bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400 font-bold shadow-xs",
-              step.status === 'empty' && "bg-slate-100/60 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800"
+              // Emerald
+              step.colorClass === 'emerald' && step.status === 'success' && "bg-emerald-500/15 dark:bg-emerald-500/10 border-emerald-500 text-emerald-600 dark:text-emerald-400 font-bold shadow-xs",
+              step.colorClass === 'emerald' && step.status === 'warning' && "bg-emerald-500/10 dark:bg-emerald-500/5 border-emerald-400 dark:border-emerald-500/60 border-dashed text-emerald-600 dark:text-emerald-400",
+              step.colorClass === 'emerald' && step.status === 'empty' && "bg-emerald-500/5 border-emerald-500/35 dark:border-emerald-500/20 text-emerald-600/40 dark:text-emerald-400/30",
+              
+              // Blue
+              step.colorClass === 'blue' && step.status === 'success' && "bg-blue-500/15 dark:bg-blue-500/10 border-blue-500 text-blue-600 dark:text-blue-400 font-bold shadow-xs",
+              step.colorClass === 'blue' && step.status === 'warning' && "bg-blue-500/10 dark:bg-blue-500/5 border-blue-400 dark:border-blue-500/60 border-dashed text-blue-600 dark:text-blue-400",
+              step.colorClass === 'blue' && step.status === 'empty' && "bg-blue-500/5 border-blue-500/35 dark:border-blue-500/20 text-blue-600/40 dark:text-blue-400/30",
+              
+              // Purple
+              step.colorClass === 'purple' && step.status === 'success' && "bg-purple-500/15 dark:bg-purple-500/10 border-purple-500 text-purple-600 dark:text-purple-400 font-bold shadow-xs",
+              step.colorClass === 'purple' && step.status === 'warning' && "bg-purple-500/10 dark:bg-purple-500/5 border-purple-400 dark:border-purple-500/60 border-dashed text-purple-600 dark:text-purple-400",
+              step.colorClass === 'purple' && step.status === 'empty' && "bg-purple-500/5 border-purple-500/35 dark:border-purple-500/20 text-purple-600/40 dark:text-purple-400/30",
+              
+              // Red
+              step.colorClass === 'red' && step.status === 'success' && "bg-red-500/15 dark:bg-red-500/10 border-red-500 text-red-600 dark:text-red-400 font-bold shadow-xs",
+              step.colorClass === 'red' && step.status === 'warning' && "bg-red-500/10 dark:bg-red-500/5 border-red-400 dark:border-red-500/60 border-dashed text-red-600 dark:text-red-400",
+              step.colorClass === 'red' && step.status === 'empty' && "bg-red-500/5 border-red-500/35 dark:border-red-500/20 text-red-600/40 dark:text-red-400/30"
             )}
           >
-            <span className={cn(step.status === 'empty' && "grayscale opacity-35")}>{step.icon}</span>
+            <span className={cn(step.status === 'empty' && "grayscale opacity-40")}>{step.icon}</span>
             {/* Custom Tooltip on hover */}
             <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover/step:block z-50 bg-slate-950 border border-white/10 text-white text-[10px] px-2.5 py-1.5 rounded-lg whitespace-nowrap shadow-2xl pointer-events-none">
               {step.tooltip}
@@ -124,7 +140,7 @@ const renderMilestones = (lead: LeadWithRelations) => {
             <div
               className={cn(
                 "w-3 h-0.5 transition-all duration-300",
-                steps[idx + 1].status !== 'empty' ? "bg-purple-500/40 dark:bg-purple-500/30" : "bg-slate-200 dark:bg-slate-800"
+                steps[idx + 1].status !== 'empty' ? "bg-slate-400 dark:bg-slate-600" : "bg-slate-200 dark:bg-slate-800"
               )}
             />
           )}
