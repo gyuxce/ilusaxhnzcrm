@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { cn } from '@/lib/utils'
 import { Loader2, Phone, User, Calendar, MessageSquare, Mail, Settings, TrendingUp, Users } from 'lucide-react'
 
 interface LeadFormProps {

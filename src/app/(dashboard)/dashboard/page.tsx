@@ -259,21 +259,45 @@ export default function DashboardPage() {
   const targetVal = batchTarget?.target_seat_lock || 1
   const progressPct = Math.min(Math.round((currentSeatLocks / targetVal) * 100), 100)
 
-  const summaryCards = [
-    { label: 'Total Leads', value: stats.totalLeads, color: '#a78bfa', bg: 'rgba(167,139,250,0.1)' },
-    { label: 'New Leads', value: stats.newLeads, color: '#60a5fa', bg: 'rgba(96,165,250,0.1)' },
-    { label: 'Interested Leads', value: stats.interestedLeads, color: '#34d399', bg: 'rgba(52,211,153,0.1)' },
-    { label: 'Not Interested / Lost', value: stats.notInterested, color: '#f87171', bg: 'rgba(248,113,113,0.1)' },
-    { label: 'Pemetaan Paid', value: stats.pemetaanPaid, color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' },
-    { label: 'Pemetaan Done', value: stats.pemetaanDone, color: '#10b981', bg: 'rgba(16,185,129,0.1)' },
-    { label: 'Waiting Result', value: stats.waitingResult, color: '#06b6d4', bg: 'rgba(6,182,212,0.1)' },
-    { label: 'Result Ready', value: stats.resultReady, color: '#3b82f6', bg: 'rgba(59,130,246,0.1)' },
-    { label: 'Expert Consult Scheduled', value: stats.expertScheduled, color: '#8b5cf6', bg: 'rgba(139,92,246,0.1)' },
-    { label: 'Expert Consult Done', value: stats.expertDone, color: '#ec4899', bg: 'rgba(236,72,153,0.1)' },
-    { label: 'Seat Lock Offered', value: stats.seatLockOffered, color: '#f43f5e', bg: 'rgba(244,63,94,0.1)' },
-    { label: 'Seat Lock Paid', value: stats.seatLockPaid, color: '#10b981', bg: 'rgba(16,185,129,0.1)' },
-    { label: 'Onboarding', value: stats.onboarding, color: '#d97706', bg: 'rgba(217,119,6,0.1)' },
-    { label: 'Class Started', value: stats.classStarted, color: '#2563eb', bg: 'rgba(37,99,235,0.1)' },
+  const funnelPhases = [
+    {
+      title: 'Acquisition (Lead Masuk)',
+      color: '#a78bfa',
+      stages: [
+        { label: 'Total Leads', value: stats.totalLeads, color: '#a78bfa' },
+        { label: 'New Leads', value: stats.newLeads, color: '#60a5fa' },
+        { label: 'Interested Leads', value: stats.interestedLeads, color: '#34d399' },
+        { label: 'Not Interested / Lost', value: stats.notInterested, color: '#f87171' },
+      ]
+    },
+    {
+      title: 'Proses Pemetaan',
+      color: '#f59e0b',
+      stages: [
+        { label: 'Pemetaan Paid', value: stats.pemetaanPaid, color: '#f59e0b' },
+        { label: 'Pemetaan Done', value: stats.pemetaanDone, color: '#10b981' },
+        { label: 'Waiting Result', value: stats.waitingResult, color: '#06b6d4' },
+        { label: 'Result Ready', value: stats.resultReady, color: '#3b82f6' },
+      ]
+    },
+    {
+      title: 'Konsultasi Expert',
+      color: '#8b5cf6',
+      stages: [
+        { label: 'Expert Consult Scheduled', value: stats.expertScheduled, color: '#8b5cf6' },
+        { label: 'Expert Consult Done', value: stats.expertDone, color: '#ec4899' },
+      ]
+    },
+    {
+      title: 'Closing & Kelas',
+      color: '#10b981',
+      stages: [
+        { label: 'Seat Lock Offered', value: stats.seatLockOffered, color: '#f43f5e' },
+        { label: 'Seat Lock Paid', value: stats.seatLockPaid, color: '#10b981' },
+        { label: 'Onboarding', value: stats.onboarding, color: '#d97706' },
+        { label: 'Class Started', value: stats.classStarted, color: '#2563eb' },
+      ]
+    }
   ]
 
   return (
@@ -376,24 +400,37 @@ export default function DashboardPage() {
 
         </div>
 
-        {/* 14 Summary Cards Grid */}
+        {/* Grouped Funnel Summary Cards */}
         <div>
           <h2 className="text-foreground font-extrabold text-sm uppercase tracking-wider mb-4 flex items-center gap-2">
             <Award size={16} className="text-purple-600 dark:text-purple-400" />
             Summary Pipeline Leads
           </h2>
           
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-4">
-            {summaryCards.map(card => (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {funnelPhases.map(phase => (
               <div 
-                key={card.label} 
-                className="glass-card rounded-2xl p-4 border border-border flex flex-col justify-between hover:scale-[1.03] transition-transform duration-200"
+                key={phase.title} 
+                className="glass-card rounded-2xl p-5 border border-border flex flex-col justify-between hover:scale-[1.02] transition-all duration-200"
               >
-                <span className="text-muted-foreground text-[10px] font-bold uppercase tracking-wide truncate">{card.label}</span>
-                <div className="flex items-baseline justify-between mt-3">
-                  <span className="text-2xl font-black text-foreground">{card.value}</span>
-                  <div className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: card.bg }}>
-                    <div className="w-2 h-2 rounded-full" style={{ background: card.color }} />
+                <div>
+                  <div className="flex items-center gap-2 border-b border-border pb-3 mb-3">
+                    <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: phase.color }} />
+                    <h3 className="text-xs font-extrabold text-foreground uppercase tracking-wider">{phase.title}</h3>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    {phase.stages.map(stage => (
+                      <div key={stage.label} className="flex items-center justify-between text-xs py-0.5">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: stage.color }} />
+                          <span className="text-muted-foreground font-medium truncate">{stage.label}</span>
+                        </div>
+                        <span className="font-extrabold text-foreground bg-slate-50 dark:bg-white/[0.04] px-2 py-0.5 rounded-lg border border-border/50">
+                          {stage.value}
+                        </span>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>

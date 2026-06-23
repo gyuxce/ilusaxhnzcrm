@@ -40,7 +40,7 @@ export function WhatsAppModal({ isOpen, onClose, leadName, leadPhone, picName = 
         generatePreview(data[0].content)
       } else {
         // Fallback default message if no playbook items exist
-        const defaultText = `Halo Kak ${leadName}, saya ${picName} dari ILUSA. Bagaimana kabarnya?`
+        const defaultText = `Halo Kak ${leadName}, saya ${picName} dari Harunokaze. Bagaimana kabarnya?`
         setMessageText(defaultText)
       }
       setLoading(false)

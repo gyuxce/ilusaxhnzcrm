@@ -167,7 +167,7 @@ export function Sidebar() {
             <Zap size={17} className="text-white" />
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-extrabold text-foreground leading-none tracking-tight">ILUSA CRM</p>
+            <p className="text-sm font-extrabold text-foreground leading-none tracking-tight">CRM Harunokaze</p>
             <p className="text-[10px] text-muted-foreground mt-0.5 truncate">HNZ x Wiwitan — CRO v2.0</p>
           </div>
         </div>

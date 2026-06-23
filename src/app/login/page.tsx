@@ -52,7 +52,7 @@ export default function LoginPage() {
             <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4 bg-primary shadow-md shadow-primary/20">
               <Zap size={26} className="text-primary-foreground" />
             </div>
-            <h1 className="text-2xl font-extrabold text-foreground">ILUSA CRM</h1>
+            <h1 className="text-2xl font-extrabold text-foreground">CRM Harunokaze</h1>
             <p className="text-sm text-muted-foreground mt-1 font-medium">Harunokaze × Wiwitan</p>
           </div>
 
