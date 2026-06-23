@@ -28,14 +28,23 @@ interface LeadsTableProps {
 export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
   const router = useRouter()
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false)
+  const [leadToDelete, setLeadToDelete] = useState<{ id: string; name: string } | null>(null)
 
-  const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`Apakah Anda yakin ingin menghapus lead "${name}"?`)) return
+  const promptDelete = (id: string, name: string) => {
+    setLeadToDelete({ id, name })
+    setDeleteModalOpen(true)
+  }
+
+  const confirmDelete = async () => {
+    if (!leadToDelete) return
     
-    setDeletingId(id)
+    setDeletingId(leadToDelete.id)
     const supabase = createClient()
-    const { error } = await supabase.from('leads').delete().eq('id', id)
+    const { error } = await supabase.from('leads').delete().eq('id', leadToDelete.id)
     setDeletingId(null)
+    setDeleteModalOpen(false)
+    setLeadToDelete(null)
 
     if (error) {
       alert('Gagal menghapus lead: ' + error.message)
@@ -491,8 +500,8 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
                           >
                             <Edit size={14} />
                           </Link>
-                          <button
-                            onClick={() => handleDelete(lead.id, lead.full_name)}
+                           <button
+                            onClick={() => promptDelete(lead.id, lead.full_name)}
                             disabled={deletingId === lead.id}
                             className="p-1 rounded-lg text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-50"
                             title="Hapus Lead"
@@ -520,6 +529,50 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
           leadName={activeLead.full_name}
           leadPhone={activeLead.whatsapp_number}
         />
+      )}
+
+      {/* Custom Delete Confirmation Modal */}
+      {deleteModalOpen && leadToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
+          <div
+            className="relative w-full max-w-sm rounded-2xl p-6 glass-card border border-white/10 shadow-2xl space-y-4"
+            style={{ background: 'radial-gradient(circle at top, hsl(222,47%,12%) 0%, hsl(222,47%,6%) 100%)' }}
+          >
+            <div className="flex items-center gap-3 text-red-400">
+              <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center border border-red-500/20">
+                <Trash2 size={20} />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-white uppercase tracking-wider">Hapus Lead</h3>
+                <p className="text-[10px] text-white/40">Tindakan ini tidak bisa dibatalkan</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-white/70 leading-relaxed">
+              Apakah Anda yakin ingin menghapus data lead <span className="font-bold text-white">"{leadToDelete.name}"</span>? Semua data pembayaran, pemetaan, dan konsultasi expert yang berkaitan akan terhapus permanen dari sistem.
+            </p>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                onClick={() => {
+                  setDeleteModalOpen(false)
+                  setLeadToDelete(null)
+                }}
+                disabled={deletingId !== null}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-white/60 hover:text-white hover:bg-white/5 transition-all cursor-pointer disabled:opacity-50"
+              >
+                Batal
+              </button>
+              <button
+                onClick={confirmDelete}
+                disabled={deletingId !== null}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-red-500 hover:bg-red-600 transition-all cursor-pointer disabled:opacity-50 flex items-center gap-1.5 shadow-lg shadow-red-500/10 border border-red-500/20"
+              >
+                {deletingId !== null ? 'Menghapus...' : 'Ya, Hapus'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

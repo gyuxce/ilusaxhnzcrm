@@ -12,54 +12,53 @@ export default async function LeadDetailPage({ params }: PageProps) {
   const resolvedParams = await params
   const supabase = await createClient()
 
-  // Fetch lead data
-  const { data: lead } = await supabase
-    .from('leads')
-    .select('*')
-    .eq('id', resolvedParams.id)
-    .maybeSingle()
+  // Fetch all data in parallel to avoid sequential network waterfalls
+  const [leadRes, paymentsRes, pemetaanRes, expertRes, activitiesRes, picsRes] = await Promise.all([
+    supabase
+      .from('leads')
+      .select('*')
+      .eq('id', resolvedParams.id)
+      .maybeSingle(),
+    supabase
+      .from('payments')
+      .select('*')
+      .eq('lead_id', resolvedParams.id)
+      .order('payment_date', { ascending: true }),
+    supabase
+      .from('pemetaan')
+      .select('*')
+      .eq('lead_id', resolvedParams.id),
+    supabase
+      .from('expert_consultations')
+      .select('*')
+      .eq('lead_id', resolvedParams.id),
+    supabase
+      .from('lead_activities')
+      .select('*')
+      .eq('lead_id', resolvedParams.id)
+      .order('created_at', { ascending: false }),
+    supabase
+      .from('users')
+      .select('id, name')
+  ])
 
+  const lead = leadRes.data
   if (!lead) notFound()
 
-  // Fetch payments
-  const { data: payments } = await supabase
-    .from('payments')
-    .select('*')
-    .eq('lead_id', resolvedParams.id)
-    .order('payment_date', { ascending: true })
-
-  // Fetch pemetaan
-  const { data: pemetaan } = await supabase
-    .from('pemetaan')
-    .select('*')
-    .eq('lead_id', resolvedParams.id)
-
-  // Fetch expert consultations
-  const { data: expertConsultations } = await supabase
-    .from('expert_consultations')
-    .select('*')
-    .eq('lead_id', resolvedParams.id)
-
-  // Fetch activities
-  const { data: activities } = await supabase
-    .from('lead_activities')
-    .select('*')
-    .eq('lead_id', resolvedParams.id)
-    .order('created_at', { ascending: false })
-
-  // Fetch CRO list
-  const { data: pics } = await supabase
-    .from('users')
-    .select('id, name')
+  const payments = paymentsRes.data || []
+  const pemetaan = pemetaanRes.data || []
+  const expertConsultations = expertRes.data || []
+  const activities = activitiesRes.data || []
+  const pics = picsRes.data || []
 
   return (
     <LeadDetailClient
       initialLead={lead}
-      initialPayments={payments || []}
-      initialPemetaan={pemetaan || []}
-      initialExpertConsultations={expertConsultations || []}
-      initialActivities={activities || []}
-      pics={pics || []}
+      initialPayments={payments}
+      initialPemetaan={pemetaan}
+      initialExpertConsultations={expertConsultations}
+      initialActivities={activities}
+      pics={pics}
     />
   )
 }
