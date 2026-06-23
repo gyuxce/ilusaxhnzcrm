@@ -2,6 +2,8 @@ import { Header } from '@/components/layout/header'
 import { createClient } from '@/lib/supabase/server'
 import { PlaybookView } from '@/components/playbook/playbook-view'
 
+export const dynamic = 'force-dynamic'
+
 export default async function PlaybookPage() {
   const supabase = await createClient()
 
@@ -13,8 +15,8 @@ export default async function PlaybookPage() {
 
   return (
     <>
-      <Header title="Playbook" subtitle="Script, SOP, dan Product Knowledge tim CRO" />
-      <div className="p-6 animate-fade-in">
+      <Header title="Playbook CRO" subtitle="Script, SOP, Objection Handling & Product Knowledge tim Harunokaze" />
+      <div className="p-6 animate-fade-in max-w-7xl mx-auto">
         <PlaybookView items={items || []} />
       </div>
     </>

@@ -74,6 +74,8 @@ export default function DashboardPage() {
   const [batchTarget, setBatchTarget] = useState<BatchTarget | null>(null)
   const [loading, setLoading] = useState(true)
   const [userRole, setUserRole] = useState<string>('cro')
+  const [recentLeads, setRecentLeads] = useState<any[]>([])
+  const [fuTodayCount, setFuTodayCount] = useState(0)
   
   // Edit Batch Target Modal
   const [isEditingTarget, setIsEditingTarget] = useState(false)
@@ -118,6 +120,23 @@ export default function DashboardPage() {
       .select('*')
       .order('created_at', { ascending: false })
       .limit(1)
+
+    // 5. Fetch 6 most recent leads for activity feed
+    const { data: recent } = await supabase
+      .from('leads')
+      .select('id, full_name, source_campaign, current_status, lead_entry_date, lead_type')
+      .order('lead_entry_date', { ascending: false })
+      .limit(6)
+    setRecentLeads(recent || [])
+
+    // 6. Count today's follow-ups
+    const today = new Date().toISOString().split('T')[0]
+    const { count: fuCount } = await supabase
+      .from('follow_ups')
+      .select('*', { count: 'exact', head: true })
+      .eq('is_done', false)
+      .lte('scheduled_date', today)
+    setFuTodayCount(fuCount || 0)
 
     const latestTarget = targets && targets.length > 0 ? targets[0] : null
     setBatchTarget(latestTarget)
@@ -382,30 +401,68 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Quick Actions */}
-        <div className="glass-card rounded-2xl p-5 border border-white/5">
-          <h2 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
-            <Zap size={16} className="text-purple-400" />
-            Aksi Cepat
-          </h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {[
-              { href: '/leads/new', label: 'Tambah Lead Baru', emoji: <Plus size={16} />, color: '#a78bfa', bg: 'rgba(167,139,250,0.1)' },
-              { href: '/needs-action', label: 'Needs Action Dashboard', emoji: <CheckCircle2 size={16} />, color: '#10b981', bg: 'rgba(16,185,129,0.1)' },
-              { href: '/leads', label: 'Tabel Seluruh Leads', emoji: <BookOpen size={16} />, color: '#3b82f6', bg: 'rgba(59,130,246,0.1)' },
-            ].map((action, idx) => (
-              <a
-                key={idx}
-                href={action.href}
-                className="flex items-center gap-3 p-4 rounded-xl transition-all duration-200 hover:scale-[1.02]"
-                style={{ background: action.bg, border: `1px solid ${action.color}20` }}
-              >
-                <div className="p-2 rounded-lg bg-white/5 text-white">
-                  {action.emoji}
-                </div>
-                <span className="text-xs font-bold text-white">{action.label}</span>
-              </a>
-            ))}
+        {/* Bottom: Activity Feed + Quick Actions */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+          {/* Recent Leads Activity Feed */}
+          <div className="glass-card rounded-2xl p-5 border border-white/5">
+            <h2 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
+              <Users size={16} className="text-blue-400" />
+              Lead Terbaru Masuk
+            </h2>
+            <div className="space-y-2">
+              {recentLeads.length === 0 ? (
+                <p className="text-white/30 text-xs text-center py-6">Belum ada data lead.</p>
+              ) : (
+                recentLeads.map((lead: any) => (
+                  <a key={lead.id} href={`/leads/${lead.id}`} className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-white/5 transition-all group">
+                    <div className="w-7 h-7 rounded-xl flex items-center justify-center flex-shrink-0 text-[10px] font-extrabold" style={{ background: 'hsl(250,84%,60%,0.15)', color: '#a78bfa' }}>
+                      {lead.full_name?.charAt(0) || '?'}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-white truncate group-hover:text-purple-300 transition-colors">{lead.full_name}</p>
+                      <p className="text-[9px] text-white/35 truncate">{lead.source_campaign}</p>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <p className="text-[9px] font-bold" style={{ color: lead.lead_type === 'outbound' ? '#60a5fa' : '#34d399' }}>
+                        {lead.lead_type === 'outbound' ? 'OUT' : 'IN'}
+                      </p>
+                      <p className="text-[8px] text-white/25">
+                        {new Date(lead.lead_entry_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
+                      </p>
+                    </div>
+                  </a>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Quick Actions */}
+          <div className="glass-card rounded-2xl p-5 border border-white/5">
+            <h2 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
+              <Zap size={16} className="text-purple-400" />
+              Aksi Cepat
+            </h2>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { href: '/leads/new', label: 'Tambah Lead Baru', icon: <Plus size={16} />, color: '#a78bfa', bg: 'rgba(167,139,250,0.1)' },
+                { href: '/needs-action', label: 'Needs Action', icon: <CheckCircle2 size={16} />, color: '#10b981', bg: 'rgba(16,185,129,0.1)' },
+                { href: '/follow-ups', label: `FU Hari Ini (${fuTodayCount})`, icon: <Calendar size={16} />, color: fuTodayCount > 0 ? '#f97316' : '#64748b', bg: fuTodayCount > 0 ? 'rgba(249,115,22,0.1)' : 'rgba(100,116,139,0.08)' },
+                { href: '/pipeline', label: 'Pipeline Board', icon: <BookOpen size={16} />, color: '#3b82f6', bg: 'rgba(59,130,246,0.1)' },
+              ].map((action, idx) => (
+                <a
+                  key={idx}
+                  href={action.href}
+                  className="flex items-center gap-3 p-4 rounded-xl transition-all duration-150 hover:scale-[1.02]"
+                  style={{ background: action.bg, border: `1px solid ${action.color}20` }}
+                >
+                  <div className="p-1.5 rounded-lg bg-white/5 text-white flex-shrink-0">
+                    {action.icon}
+                  </div>
+                  <span className="text-xs font-bold text-white">{action.label}</span>
+                </a>
+              ))}
+            </div>
           </div>
         </div>
 

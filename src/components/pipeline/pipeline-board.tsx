@@ -1,33 +1,32 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { MessageCircle, ExternalLink } from 'lucide-react'
-import { generateWALink } from '@/lib/utils'
+import { MessageCircle, ExternalLink, GripVertical, Users } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 const STAGES = [
-  { key: 'new', label: 'Baru', color: '#64748b', bg: 'rgba(100,116,139,0.1)', border: 'rgba(100,116,139,0.2)' },
-  { key: 'probing', label: 'Probing', color: '#3b82f6', bg: 'rgba(59,130,246,0.1)', border: 'rgba(59,130,246,0.2)' },
-  { key: 'hot', label: '🔥 Hot', color: '#f97316', bg: 'rgba(249,115,22,0.1)', border: 'rgba(249,115,22,0.2)' },
-  { key: 'potential', label: 'Potensial', color: '#eab308', bg: 'rgba(234,179,8,0.1)', border: 'rgba(234,179,8,0.2)' },
-  { key: 'converted', label: '✅ Konversi', color: '#22c55e', bg: 'rgba(34,197,94,0.1)', border: 'rgba(34,197,94,0.2)' },
-  { key: 'rejected', label: 'Reject', color: '#ef4444', bg: 'rgba(239,68,68,0.1)', border: 'rgba(239,68,68,0.2)' },
+  { key: 'New Lead', label: 'New Lead', color: '#64748b', bg: 'rgba(100,116,139,0.08)', border: 'rgba(100,116,139,0.18)' },
+  { key: 'Interested', label: 'Interested', color: '#3b82f6', bg: 'rgba(59,130,246,0.08)', border: 'rgba(59,130,246,0.18)' },
+  { key: 'Payment Pemetaan Paid', label: '💰 Paid Pemetaan', color: '#8b5cf6', bg: 'rgba(139,92,246,0.08)', border: 'rgba(139,92,246,0.18)' },
+  { key: 'Pemetaan Done', label: '📋 Pemetaan Done', color: '#f59e0b', bg: 'rgba(245,158,11,0.08)', border: 'rgba(245,158,11,0.18)' },
+  { key: 'Expert Consultation Done', label: '🧠 Expert Done', color: '#10b981', bg: 'rgba(16,185,129,0.08)', border: 'rgba(16,185,129,0.18)' },
+  { key: 'Seat Lock Paid', label: '🔒 Seat Lock', color: '#22c55e', bg: 'rgba(34,197,94,0.08)', border: 'rgba(34,197,94,0.18)' },
+  { key: 'Not Interested', label: '❌ Not Interested', color: '#ef4444', bg: 'rgba(239,68,68,0.08)', border: 'rgba(239,68,68,0.18)' },
 ]
-
-const SOURCE_ICONS: Record<string, string> = {
-  ig: '📸', fb: '📘', linkedin: '💼', webinar: '🎓', manual: '✍️', referral: '🤝', other: '📌'
-}
 
 interface LeadCard {
   id: string
-  name: string | null
-  phone_number: string
-  source: string
-  stage: string
-  inbound_date: string | null
+  full_name: string
+  whatsapp_number: string
+  source_campaign: string
+  current_status: string
+  lead_entry_date: string | null
+  lead_type?: string
   notes: string | null
-  users?: { full_name: string } | null
+  assigned_cro_id: string | null
+  users?: { id: string; name: string } | null
 }
 
 interface PipelineBoardProps {
@@ -38,21 +37,24 @@ export function PipelineBoard({ initialLeads }: PipelineBoardProps) {
   const [leads, setLeads] = useState<LeadCard[]>(initialLeads)
   const [dragging, setDragging] = useState<string | null>(null)
   const [dragOverStage, setDragOverStage] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
 
   const supabase = createClient()
 
+  const filtered = searchQuery
+    ? leads.filter(l =>
+        l.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        l.source_campaign?.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : leads
+
   function getLeadsByStage(stage: string) {
-    return leads.filter(l => l.stage === stage)
+    return filtered.filter(l => l.current_status === stage)
   }
 
   async function moveLeadToStage(leadId: string, newStage: string) {
-    // Optimistic update
-    setLeads(prev => prev.map(l => l.id === leadId ? { ...l, stage: newStage } : l))
-
-    await supabase
-      .from('leads')
-      .update({ stage: newStage as any })
-      .eq('id', leadId)
+    setLeads(prev => prev.map(l => l.id === leadId ? { ...l, current_status: newStage } : l))
+    await supabase.from('leads').update({ current_status: newStage, updated_at: new Date().toISOString() }).eq('id', leadId)
   }
 
   function onDragStart(e: React.DragEvent, leadId: string) {
@@ -68,9 +70,7 @@ export function PipelineBoard({ initialLeads }: PipelineBoardProps) {
 
   function onDrop(e: React.DragEvent, stage: string) {
     e.preventDefault()
-    if (dragging) {
-      moveLeadToStage(dragging, stage)
-    }
+    if (dragging) moveLeadToStage(dragging, stage)
     setDragging(null)
     setDragOverStage(null)
   }
@@ -80,104 +80,135 @@ export function PipelineBoard({ initialLeads }: PipelineBoardProps) {
     setDragOverStage(null)
   }
 
+  const openWA = useCallback((phone: string) => {
+    const clean = phone.replace(/\D/g, '')
+    const num = clean.startsWith('0') ? '62' + clean.slice(1) : clean.startsWith('62') ? clean : '62' + clean
+    window.open(`https://wa.me/${num}`, '_blank')
+  }, [])
+
   return (
-    <div className="flex gap-4 overflow-x-auto pb-4 min-h-[calc(100vh-160px)]">
-      {STAGES.map(stage => {
-        const stageLeads = getLeadsByStage(stage.key)
-        const isOver = dragOverStage === stage.key
-
-        return (
-          <div
-            key={stage.key}
-            className="flex-shrink-0 w-72 flex flex-col rounded-2xl transition-all"
-            style={{
-              background: isOver ? `${stage.color}10` : 'rgba(255,255,255,0.02)',
-              border: isOver ? `2px solid ${stage.color}50` : '1px solid rgba(255,255,255,0.06)',
-            }}
-            onDragOver={e => onDragOver(e, stage.key)}
-            onDrop={e => onDrop(e, stage.key)}
-          >
-            {/* Column header */}
-            <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full" style={{ background: stage.color }} />
-                <span className="text-sm font-semibold text-white">{stage.label}</span>
-              </div>
-              <span
-                className="text-xs px-2 py-0.5 rounded-full font-bold"
-                style={{ background: `${stage.color}20`, color: stage.color }}
-              >
-                {stageLeads.length}
-              </span>
-            </div>
-
-            {/* Cards */}
-            <div className="flex-1 p-2 space-y-2 overflow-y-auto">
-              {stageLeads.map(lead => (
-                <div
-                  key={lead.id}
-                  draggable
-                  onDragStart={e => onDragStart(e, lead.id)}
-                  onDragEnd={onDragEnd}
-                  className="p-3 rounded-xl cursor-grab active:cursor-grabbing transition-all group hover:scale-[1.01]"
-                  style={{
-                    background: dragging === lead.id ? 'rgba(139,92,246,0.15)' : 'rgba(255,255,255,0.04)',
-                    border: dragging === lead.id ? '1px solid rgba(139,92,246,0.4)' : '1px solid rgba(255,255,255,0.07)',
-                    opacity: dragging === lead.id ? 0.7 : 1,
-                  }}
-                >
-                  <div className="flex items-start justify-between gap-2 mb-2">
-                    <p className="text-sm font-semibold text-white leading-tight">
-                      {lead.name || 'Tanpa Nama'}
-                    </p>
-                    <span className="text-xs flex-shrink-0">{SOURCE_ICONS[lead.source] || '📌'}</span>
-                  </div>
-
-                  <p className="text-xs text-white/40 font-mono mb-2">{lead.phone_number}</p>
-
-                  {lead.notes && (
-                    <p className="text-xs text-white/30 truncate mb-2 italic">{lead.notes}</p>
-                  )}
-
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-white/30">
-                      {/* @ts-ignore */}
-                      {lead.users?.full_name || 'No PIC'}
-                    </span>
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <a
-                        href={generateWALink(lead.phone_number)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={e => e.stopPropagation()}
-                        className="w-6 h-6 rounded-lg flex items-center justify-center text-green-400 hover:bg-green-500/15 transition-colors"
-                      >
-                        <MessageCircle size={12} />
-                      </a>
-                      <Link
-                        href={`/leads/${lead.id}`}
-                        onClick={e => e.stopPropagation()}
-                        className="w-6 h-6 rounded-lg flex items-center justify-center text-purple-400 hover:bg-purple-500/15 transition-colors"
-                      >
-                        <ExternalLink size={12} />
-                      </Link>
-                    </div>
-                  </div>
-                </div>
-              ))}
-
-              {stageLeads.length === 0 && (
-                <div
-                  className="h-16 rounded-xl border-2 border-dashed flex items-center justify-center"
-                  style={{ borderColor: `${stage.color}30` }}
-                >
-                  <p className="text-xs" style={{ color: `${stage.color}60` }}>Drop leads di sini</p>
-                </div>
-              )}
-            </div>
+    <div className="space-y-4">
+      {/* Toolbar */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs text-white/40 border border-white/8" style={{ background: 'hsl(222,47%,10%)' }}>
+            <Users size={13} />
+            <span>{leads.length} Total Leads</span>
           </div>
-        )
-      })}
+          <input
+            type="text"
+            placeholder="Cari nama atau source..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="px-3 py-1.5 rounded-xl text-xs text-white placeholder-white/20 outline-none w-52"
+            style={{ background: 'hsl(222,47%,10%)', border: '1px solid hsl(222,47%,18%)' }}
+          />
+        </div>
+        <p className="text-[10px] text-white/25 hidden md:block">Drag & drop kartu untuk pindah stage</p>
+      </div>
+
+      {/* Board */}
+      <div className="flex gap-4 overflow-x-auto pb-4" style={{ minHeight: '70vh' }}>
+        {STAGES.map(stage => {
+          const stageLeads = getLeadsByStage(stage.key)
+          const isOver = dragOverStage === stage.key
+
+          return (
+            <div
+              key={stage.key}
+              className="flex-shrink-0 w-[220px] flex flex-col rounded-2xl transition-all duration-150"
+              style={{
+                background: isOver ? stage.bg : 'hsl(222,47%,8%)',
+                border: `1px solid ${isOver ? stage.border : 'hsl(222,47%,13%)'}`,
+              }}
+              onDragOver={e => onDragOver(e, stage.key)}
+              onDrop={e => onDrop(e, stage.key)}
+              onDragLeave={() => setDragOverStage(null)}
+            >
+              {/* Column Header */}
+              <div className="px-3 pt-3 pb-2 flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: stage.color }} />
+                    <span className="text-[11px] font-extrabold text-white/80 truncate leading-tight">{stage.label}</span>
+                  </div>
+                </div>
+                <span
+                  className="text-[10px] font-extrabold rounded-full px-1.5 py-0.5 min-w-[20px] text-center"
+                  style={{ background: stage.bg, color: stage.color, border: `1px solid ${stage.border}` }}
+                >
+                  {stageLeads.length}
+                </span>
+              </div>
+
+              {/* Cards */}
+              <div className="flex-1 px-2 pb-2 space-y-2 overflow-y-auto max-h-[65vh] pr-1">
+                {stageLeads.length === 0 ? (
+                  <div
+                    className="h-20 rounded-xl border-2 border-dashed flex items-center justify-center text-[10px] text-white/15 transition-all"
+                    style={{ borderColor: isOver ? stage.border : 'transparent' }}
+                  >
+                    {isOver ? 'Lepas di sini' : ''}
+                  </div>
+                ) : (
+                  stageLeads.map(lead => (
+                    <div
+                      key={lead.id}
+                      draggable
+                      onDragStart={e => onDragStart(e, lead.id)}
+                      onDragEnd={onDragEnd}
+                      className={cn(
+                        'p-3 rounded-xl border cursor-grab active:cursor-grabbing transition-all duration-150 group',
+                        dragging === lead.id ? 'opacity-40 scale-95' : 'hover:border-white/15 hover:shadow-lg'
+                      )}
+                      style={{ background: 'hsl(222,47%,11%)', border: '1px solid hsl(222,47%,17%)' }}
+                    >
+                      {/* Drag handle + name */}
+                      <div className="flex items-start gap-1.5">
+                        <GripVertical size={12} className="text-white/20 mt-0.5 flex-shrink-0" />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-bold text-white leading-tight line-clamp-2">{lead.full_name}</p>
+                          <p className="text-[9px] text-white/35 mt-0.5 truncate">{lead.source_campaign}</p>
+                        </div>
+                      </div>
+
+                      {/* Meta */}
+                      <div className="flex items-center gap-1 mt-2 flex-wrap">
+                        {lead.lead_type === 'outbound' && (
+                          <span className="text-[8px] px-1.5 py-0.5 rounded-full font-bold" style={{ background: 'rgba(59,130,246,0.15)', color: '#60a5fa' }}>
+                            OUT
+                          </span>
+                        )}
+                        {lead.users?.name && (
+                          <span className="text-[8px] px-1.5 py-0.5 rounded-full font-bold truncate max-w-[80px]" style={{ background: 'rgba(139,92,246,0.1)', color: '#a78bfa' }}>
+                            {lead.users.name.split(' ')[0]}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex items-center gap-1 mt-2 pt-2 border-t border-white/5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={() => openWA(lead.whatsapp_number)}
+                          className="flex-1 flex items-center justify-center gap-1 py-1 rounded-lg text-[9px] font-semibold text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 transition-all"
+                        >
+                          <MessageCircle size={10} /> WA
+                        </button>
+                        <Link
+                          href={`/leads/${lead.id}`}
+                          className="flex-1 flex items-center justify-center gap-1 py-1 rounded-lg text-[9px] font-semibold text-purple-400 bg-purple-500/10 hover:bg-purple-500/20 transition-all"
+                        >
+                          <ExternalLink size={10} /> Detail
+                        </Link>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }

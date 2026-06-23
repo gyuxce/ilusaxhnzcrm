@@ -1,5 +1,4 @@
 import { Sidebar } from '@/components/layout/sidebar'
-import { Header } from '@/components/layout/header'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 
@@ -8,9 +7,10 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode
 }) {
+  // Middleware (proxy.ts) already handles auth guard for all routes.
+  // This is a lightweight fallback check only.
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-
   if (!user) redirect('/login')
 
   return (

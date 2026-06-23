@@ -183,4 +183,64 @@ CREATE POLICY "Allow all for authenticated users on batch_targets" ON public.bat
 
 -- Insert Default Seed Data
 INSERT INTO public.batch_targets (batch_name, target_seat_lock, start_date, closing_date, notes)
-VALUES ('Batch 1', 28, '2026-06-01', '2026-06-30', 'Target seat lock untuk Batch 1 Harunokaze');
+VALUES ('Batch 1', 28, '2026-06-01', '2026-06-30', 'Target seat lock untuk Batch 1 Harunokaze')
+ON CONFLICT DO NOTHING;
+
+-- ============================================================
+-- v2.0 ADDITIONS: Follow-Ups + Playbook + Lead Type
+-- ============================================================
+
+-- Add lead_type column to leads (Inbound / Outbound)
+ALTER TABLE public.leads ADD COLUMN IF NOT EXISTS lead_type TEXT NOT NULL DEFAULT 'inbound';
+-- 'inbound' = datang sendiri / submit form, 'outbound' = dicari tim CRO
+
+-- Create Follow-Ups Table
+DROP TABLE IF EXISTS public.follow_ups CASCADE;
+CREATE TABLE public.follow_ups (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  lead_id UUID NOT NULL REFERENCES public.leads(id) ON DELETE CASCADE,
+  pic_id UUID REFERENCES public.users(id) ON DELETE SET NULL,
+  scheduled_date DATE NOT NULL,
+  fu_type TEXT NOT NULL DEFAULT 'chat', -- chat / call / meeting / whatsapp
+  notes TEXT,
+  is_done BOOLEAN NOT NULL DEFAULT false,
+  done_at TIMESTAMPTZ,
+  result TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TRIGGER trg_follow_ups_updated_at BEFORE UPDATE ON public.follow_ups FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+ALTER TABLE public.follow_ups ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow all for authenticated users on follow_ups" ON public.follow_ups FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+-- Create Playbook Items Table
+DROP TABLE IF EXISTS public.playbook_items CASCADE;
+CREATE TABLE public.playbook_items (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  category TEXT NOT NULL DEFAULT 'script', -- script / objection / product / sop / faq
+  title TEXT NOT NULL,
+  content TEXT NOT NULL,
+  tags TEXT[] DEFAULT '{}',
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  created_by UUID REFERENCES public.users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TRIGGER trg_playbook_items_updated_at BEFORE UPDATE ON public.playbook_items FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+ALTER TABLE public.playbook_items ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow all for authenticated users on playbook_items" ON public.playbook_items FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+-- Insert Sample Playbook Items
+INSERT INTO public.playbook_items (category, title, content, tags) VALUES
+('script', 'Opening Script Pemetaan', 'Halo [NAMA], saya [CRO NAME] dari tim Harunokaze. Terima kasih sudah tertarik dengan program kami. Saya ingin menjelaskan lebih lanjut tentang sesi pemetaan yang akan membantu menentukan jalur terbaik untuk perjalanan umroh Anda. Apakah ada waktu 15-20 menit untuk berbicara?', ARRAY['opening', 'pemetaan', 'cold-call']),
+('script', 'Follow-Up After No Response', 'Halo [NAMA], saya follow-up terkait program Harunokaze yang kemarin saya kirimkan. Saya ingin memastikan informasinya sudah Anda terima. Apakah ada pertanyaan yang bisa saya bantu jelaskan?', ARRAY['follow-up', 'no-response']),
+('objection', 'Terlalu Mahal', 'Saya mengerti kekhawatiran Anda soal biaya. Sebenarnya program kami dirancang agar terjangkau dengan cicilan, dan dibandingkan biaya umroh konvensional, program ini justru menghemat lebih banyak dalam jangka panjang karena [alasan]. Boleh saya jelaskan lebih detail?', ARRAY['price', 'objection', 'closing']),
+('objection', 'Perlu Diskusi Dulu', 'Tentu, sangat bijaksana untuk mendiskusikan ini dengan keluarga. Boleh saya tanyakan, apakah ada pertimbangan khusus yang perlu saya bantu jelaskan kepada keluarga Anda? Mungkin saya bisa membantu mempersiapkan informasi yang relevan.', ARRAY['objection', 'family', 'follow-up']),
+('sop', 'SOP Verifikasi Pembayaran', '1. Terima bukti transfer dari lead via WhatsApp\n2. Konfirmasi ke tim finance\n3. Update status lead ke "Payment Pemetaan Paid"\n4. Kirim konfirmasi ke lead + jadwal pemetaan\n5. Catat aktivitas di sistem CRM', ARRAY['payment', 'sop', 'pemetaan']),
+('faq', 'Berapa lama proses pemetaan?', 'Sesi pemetaan berlangsung sekitar 60-90 menit via online/offline. Setelah sesi, hasil akan dikirimkan dalam 3-5 hari kerja melalui email dan WhatsApp.', ARRAY['faq', 'pemetaan', 'duration']),
+('product', 'Paket Harunokaze Regular', 'Program Harunokaze Regular mencakup: Sesi Pemetaan Kebutuhan, Konsultasi Expert, Seat Lock prioritas, Panduan persiapan umroh lengkap, dan dukungan tim selama persiapan. Harga seat lock: Rp 3.000.000', ARRAY['product', 'regular', 'pricing']);
+

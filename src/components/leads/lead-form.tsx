@@ -12,6 +12,7 @@ interface LeadFormProps {
     full_name: string
     email: string
     source_campaign: string
+    lead_type: string
     current_status: string
     assigned_cro_id: string
     notes: string
@@ -29,6 +30,7 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
     full_name: defaultValues?.full_name || '',
     email: defaultValues?.email || '',
     source_campaign: defaultValues?.source_campaign || '',
+    lead_type: defaultValues?.lead_type || 'inbound',
     current_status: defaultValues?.current_status || 'New Lead',
     assigned_cro_id: defaultValues?.assigned_cro_id || '',
     notes: defaultValues?.notes || '',
@@ -63,6 +65,7 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
       full_name: form.full_name,
       email: form.email || null,
       source_campaign: form.source_campaign,
+      lead_type: form.lead_type,
       current_status: form.current_status,
       assigned_cro_id: form.assigned_cro_id || null,
       notes: form.notes || null,
@@ -180,6 +183,31 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
           className={inputClass}
           style={inputStyle}
         />
+      </div>
+
+      {/* Lead Type */}
+      <div>
+        <label className="block text-xs font-bold text-white/50 mb-2">Tipe Lead</label>
+        <div className="flex gap-2">
+          {[
+            { value: 'inbound', label: '📥 Inbound', desc: 'Lead yang datang sendiri (submit form, DM, dll)' },
+            { value: 'outbound', label: '📤 Outbound', desc: 'Lead yang dicari/dihubungi tim CRO' },
+          ].map(opt => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => update('lead_type', opt.value)}
+              className="flex-1 py-2.5 px-3 rounded-xl text-xs font-bold text-left transition-all"
+              style={{
+                background: form.lead_type === opt.value ? (opt.value === 'inbound' ? 'rgba(34,197,94,0.12)' : 'rgba(59,130,246,0.12)') : 'hsl(222,47%,12%)',
+                border: `1px solid ${form.lead_type === opt.value ? (opt.value === 'inbound' ? 'rgba(34,197,94,0.3)' : 'rgba(59,130,246,0.3)') : 'hsl(222,47%,20%)'}`,
+                color: form.lead_type === opt.value ? (opt.value === 'inbound' ? '#4ade80' : '#60a5fa') : 'rgba(255,255,255,0.45)',
+              }}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* PIC & Status */}

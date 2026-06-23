@@ -71,15 +71,10 @@ export const SOURCE_COLORS: Record<LeadSource, string> = {
 }
 
 export const FU_LABELS: Record<FuType, string> = {
-  d1: 'D+1',
-  d3: 'D+3',
-  d7: 'D+7',
-  d14: 'D+14',
-  fu1: 'FU 1',
-  fu2: 'FU 2',
-  fu3: 'FU 3',
-  fu4: 'FU 4',
-  custom: 'Custom',
+  chat: '💬 Chat',
+  call: '📞 Telepon',
+  whatsapp: '🟢 WhatsApp',
+  meeting: '🤝 Meeting',
 }
 
 export const MSG_STATUS_LABELS: Record<MessageStatus, string> = {

@@ -2,42 +2,41 @@ import { Header } from '@/components/layout/header'
 import { FollowUpTracker } from '@/components/follow-ups/follow-up-tracker'
 import { createClient } from '@/lib/supabase/server'
 
+export const dynamic = 'force-dynamic'
+
 export default async function FollowUpsPage() {
   const supabase = await createClient()
   const today = new Date().toISOString().split('T')[0]
 
-  const { data: dueFUs } = await supabase
-    .from('follow_ups')
-    .select(`
-      *,
-      leads(id, name, phone_number, stage, source),
-      users!follow_ups_pic_id_fkey(full_name)
-    `)
-    .eq('is_done', false)
-    .lte('scheduled_date', today)
-    .order('scheduled_date', { ascending: true })
-    .limit(100)
+  const [dueRes, upcomingRes] = await Promise.all([
+    supabase
+      .from('follow_ups')
+      .select(`*, leads(id, full_name, whatsapp_number, current_status, source_campaign), users:pic_id(name)`)
+      .eq('is_done', false)
+      .lte('scheduled_date', today)
+      .order('scheduled_date', { ascending: true })
+      .limit(100),
 
-  const { data: upcomingFUs } = await supabase
-    .from('follow_ups')
-    .select(`
-      *,
-      leads(id, name, phone_number, stage, source),
-      users!follow_ups_pic_id_fkey(full_name)
-    `)
-    .eq('is_done', false)
-    .gt('scheduled_date', today)
-    .order('scheduled_date', { ascending: true })
-    .limit(50)
+    supabase
+      .from('follow_ups')
+      .select(`*, leads(id, full_name, whatsapp_number, current_status, source_campaign), users:pic_id(name)`)
+      .eq('is_done', false)
+      .gt('scheduled_date', today)
+      .order('scheduled_date', { ascending: true })
+      .limit(50),
+  ])
+
+  const dueFUs = dueRes.data || []
+  const upcomingFUs = upcomingRes.data || []
 
   return (
     <>
       <Header
         title="Follow-Up Tracker"
-        subtitle={`${dueFUs?.length || 0} FU yang harus dilakukan hari ini`}
+        subtitle={`${dueFUs.length} FU yang harus diselesaikan hari ini`}
       />
       <div className="p-6 animate-fade-in">
-        <FollowUpTracker dueFUs={dueFUs || []} upcomingFUs={upcomingFUs || []} />
+        <FollowUpTracker dueFUs={dueFUs} upcomingFUs={upcomingFUs} />
       </div>
     </>
   )

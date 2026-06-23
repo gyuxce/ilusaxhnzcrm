@@ -10,22 +10,12 @@ export type UserRole = 'admin' | 'owner' | 'cro'
 export type LeadSource = string
 export type LeadType = 'inbound' | 'outbound'
 export type LeadStage = string
-export type FuType = string
+export type FuType = 'chat' | 'call' | 'meeting' | 'whatsapp'
 export type MessageStatus = string
 export type PlaybookCategory = 'script' | 'objection' | 'product' | 'sop' | 'faq'
 
-export type PlaybookItem = {
-  id: string
-  category: PlaybookCategory
-  title: string
-  content: string
-  tags: string[]
-  is_active: boolean
-  created_at: string
-  updated_at?: string
-}
-
 // Users Types
+
 export type UserRow = {
   id: string
   name: string
@@ -51,6 +41,7 @@ export type LeadRow = {
   whatsapp_number: string
   email: string | null
   source_campaign: string
+  lead_type: LeadType
   assigned_cro_id: string | null
   current_status: string
   lead_entry_date: string
@@ -67,6 +58,7 @@ export type LeadInsert = {
   whatsapp_number: string
   email?: string | null
   source_campaign: string
+  lead_type?: LeadType
   assigned_cro_id?: string | null
   current_status?: string
   lead_entry_date?: string
@@ -208,6 +200,60 @@ export type BatchTargetInsert = {
 }
 export type BatchTargetUpdate = Partial<BatchTargetInsert>
 
+// Follow-Up Types
+export type FollowUpRow = {
+  id: string
+  lead_id: string
+  pic_id: string | null
+  scheduled_date: string
+  fu_type: FuType
+  notes: string | null
+  is_done: boolean
+  done_at: string | null
+  result: string | null
+  created_at: string
+  updated_at: string
+}
+export type FollowUpInsert = {
+  id?: string
+  lead_id: string
+  pic_id?: string | null
+  scheduled_date: string
+  fu_type?: FuType
+  notes?: string | null
+  is_done?: boolean
+  done_at?: string | null
+  result?: string | null
+  created_at?: string
+  updated_at?: string
+}
+export type FollowUpUpdate = Partial<FollowUpInsert>
+
+// Playbook Item Types
+export type PlaybookItemRow = {
+  id: string
+  category: PlaybookCategory
+  title: string
+  content: string
+  tags: string[]
+  is_active: boolean
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+export type PlaybookItemInsert = {
+  id?: string
+  category: PlaybookCategory
+  title: string
+  content: string
+  tags?: string[]
+  is_active?: boolean
+  created_by?: string | null
+  created_at?: string
+  updated_at?: string
+}
+export type PlaybookItemUpdate = Partial<PlaybookItemInsert>
+
 export type Database = {
   public: {
     Tables: {
@@ -246,6 +292,16 @@ export type Database = {
         Insert: BatchTargetInsert
         Update: BatchTargetUpdate
       }
+      follow_ups: {
+        Row: FollowUpRow
+        Insert: FollowUpInsert
+        Update: FollowUpUpdate
+      }
+      playbook_items: {
+        Row: PlaybookItemRow
+        Insert: PlaybookItemInsert
+        Update: PlaybookItemUpdate
+      }
     }
   }
 }
@@ -257,3 +313,5 @@ export type Pemetaan = PemetaanRow
 export type ExpertConsultation = ExpertConsultationRow
 export type LeadActivity = LeadActivityRow
 export type BatchTarget = BatchTargetRow
+export type FollowUp = FollowUpRow
+export type PlaybookItem = PlaybookItemRow
