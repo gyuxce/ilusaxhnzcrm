@@ -1,6 +1,6 @@
 'use client'
 
-import { Bell, Search, Plus, Menu, X, AlertCircle, Calendar, ChevronRight, Sun, Moon } from 'lucide-react'
+import { Bell, Search, Plus, Menu, X, AlertCircle, Calendar, ChevronRight, Sun, Moon, RefreshCw } from 'lucide-react'
 import Link from 'next/link'
 import { useLayoutStore } from '@/lib/store'
 import { useState, useEffect, useRef } from 'react'
@@ -154,6 +154,74 @@ export function Header({ title, subtitle }: HeaderProps) {
     }
   }
 
+  // Global Spotlight Search State
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [globalQuery, setGlobalQuery] = useState('')
+  const [globalResults, setGlobalResults] = useState<any[]>([])
+  const [globalLoading, setGlobalLoading] = useState(false)
+  const searchModalRef = useRef<HTMLDivElement>(null)
+  const searchInputRef = useRef<HTMLInputElement>(null)
+
+  // Listen to keyboard shortcut (Ctrl+K or Cmd+K)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        setSearchOpen(prev => !prev)
+      }
+      if (e.key === 'Escape') {
+        setSearchOpen(false)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
+
+  // Focus input when modal opens
+  useEffect(() => {
+    if (searchOpen) {
+      setTimeout(() => searchInputRef.current?.focus(), 100)
+    } else {
+      setGlobalQuery('')
+      setGlobalResults([])
+    }
+  }, [searchOpen])
+
+  // Close search modal on outside click
+  useEffect(() => {
+    function handleOutside(e: MouseEvent) {
+      if (searchModalRef.current && !searchModalRef.current.contains(e.target as Node)) {
+        setSearchOpen(false)
+      }
+    }
+    if (searchOpen) document.addEventListener('mousedown', handleOutside)
+    return () => document.removeEventListener('mousedown', handleOutside)
+  }, [searchOpen])
+
+  // Fetch search results with 300ms debounce
+  useEffect(() => {
+    if (!globalQuery.trim()) {
+      setGlobalResults([])
+      return
+    }
+
+    const delayDebounce = setTimeout(async () => {
+      setGlobalLoading(true)
+      const { data, error } = await supabase
+        .from('leads')
+        .select('id, full_name, whatsapp_number, source_campaign, current_status')
+        .or(`full_name.ilike.%${globalQuery}%,whatsapp_number.ilike.%${globalQuery}%,email.ilike.%${globalQuery}%`)
+        .limit(10)
+
+      if (!error && data) {
+        setGlobalResults(data)
+      }
+      setGlobalLoading(false)
+    }, 300)
+
+    return () => clearTimeout(delayDebounce)
+  }, [globalQuery])
+
   // Close on outside click
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -187,7 +255,10 @@ export function Header({ title, subtitle }: HeaderProps) {
       {/* Actions */}
       <div className="flex items-center gap-2">
         {/* Search */}
-        <button className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-slate-100/80 dark:hover:bg-white/5 transition-all border border-border bg-card/50">
+        <button
+          onClick={() => setSearchOpen(true)}
+          className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-slate-100/80 dark:hover:bg-white/5 transition-all border border-border bg-card/50 cursor-pointer"
+        >
           <Search size={14} />
           <span className="hidden sm:inline">Cari...</span>
           <kbd className="hidden sm:inline text-[10px] px-1 py-0.5 rounded bg-slate-100 dark:bg-white/5 text-muted-foreground/60 border border-border/40">⌘K</kbd>
@@ -331,6 +402,70 @@ export function Header({ title, subtitle }: HeaderProps) {
           )}
         </div>
       </div>
+
+      {/* Global Spotlight Search Modal */}
+      {searchOpen && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-[15vh] bg-black/30 backdrop-blur-xs">
+          <div 
+            ref={searchModalRef}
+            className="w-full max-w-lg bg-card border border-border rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[60vh] animate-scale-in"
+          >
+            {/* Input field */}
+            <div className="relative border-b border-border p-4 flex items-center">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
+              <input
+                ref={searchInputRef}
+                type="text"
+                placeholder="Cari lead berdasarkan nama, WhatsApp, atau email..."
+                value={globalQuery}
+                onChange={(e) => setGlobalQuery(e.target.value)}
+                className="w-full pl-10 pr-10 py-2 text-sm text-foreground bg-transparent border-0 outline-none placeholder:text-muted-foreground/60"
+              />
+              {globalQuery && (
+                <button
+                  onClick={() => setGlobalQuery('')}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 cursor-pointer"
+                >
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+
+            {/* Results List */}
+            <div className="flex-1 overflow-y-auto p-2 min-h-[150px]">
+              {globalLoading ? (
+                <div className="flex flex-col items-center justify-center py-8 gap-2">
+                  <RefreshCw className="animate-spin text-primary" size={16} />
+                  <p className="text-xs text-muted-foreground">Mencari data...</p>
+                </div>
+              ) : globalResults.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground/50 text-xs">
+                  {globalQuery ? 'Tidak ada lead ditemukan.' : 'Ketik sesuatu untuk memulai pencarian...'}
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  {globalResults.map((lead: any) => (
+                    <Link
+                      key={lead.id}
+                      href={`/leads/${lead.id}`}
+                      onClick={() => setSearchOpen(false)}
+                      className="flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 transition-all group"
+                    >
+                      <div>
+                        <p className="text-xs font-bold text-foreground group-hover:text-primary transition-colors">{lead.full_name}</p>
+                        <p className="text-[9px] text-muted-foreground mt-0.5">{lead.whatsapp_number} | {lead.source_campaign}</p>
+                      </div>
+                      <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-purple-50 dark:bg-purple-950/20 text-purple-600 dark:text-purple-400 border border-purple-100/50 dark:border-purple-900/30 uppercase tracking-wide">
+                        {lead.current_status}
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </header>
   )
 }

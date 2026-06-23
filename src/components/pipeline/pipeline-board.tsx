@@ -115,7 +115,7 @@ export function PipelineBoard({ initialLeads }: PipelineBoardProps) {
           return (
             <div
               key={stage.key}
-              className="flex-shrink-0 w-[220px] flex flex-col rounded-2xl transition-all duration-150"
+              className="flex-shrink-0 w-[220px] flex flex-col rounded-2xl transition-all duration-150 min-h-[60vh]"
               style={{
                 background: isOver ? stage.bg : 'hsl(var(--secondary))',
                 border: `1px solid ${isOver ? stage.border : 'hsl(var(--border))'}`,
