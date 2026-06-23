@@ -7,22 +7,26 @@ export const dynamic = 'force-dynamic'
 export default async function LeadsPage() {
   const supabase = await createClient()
 
-  // Fetch all leads with their related payment, pemetaan, expert_consultation and user data
-  const { data: leads } = await supabase
-    .from('leads')
-    .select(`
-      *,
-      users:assigned_cro_id(id, name),
-      payments(*),
-      pemetaan(*),
-      expert_consultations(*)
-    `)
-    .order('lead_entry_date', { ascending: false })
-    .limit(300)
+  // Fetch leads list and pics list in parallel to avoid sequential waterfall
+  const [leadsRes, picsRes] = await Promise.all([
+    supabase
+      .from('leads')
+      .select(`
+        *,
+        users:assigned_cro_id(id, name),
+        payments(*),
+        pemetaan(*),
+        expert_consultations(*)
+      `)
+      .order('lead_entry_date', { ascending: false })
+      .limit(300),
+    supabase
+      .from('users')
+      .select('id, name')
+  ])
 
-  const { data: pics } = await supabase
-    .from('users')
-    .select('id, name')
+  const leads = leadsRes.data || []
+  const pics = picsRes.data || []
 
   return (
     <>

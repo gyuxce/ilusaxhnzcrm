@@ -9,8 +9,14 @@ export default async function EditLeadPage({ params }: { params: Promise<{ id: s
   const resolvedParams = await params
   const supabase = await createClient()
 
-  const { data: lead } = await supabase.from('leads').select('*').eq('id', resolvedParams.id).single()
-  const { data: pics } = await supabase.from('users').select('id, name')
+  // Fetch lead and pics in parallel to prevent sequential waterfall
+  const [leadRes, picsRes] = await Promise.all([
+    supabase.from('leads').select('*').eq('id', resolvedParams.id).maybeSingle(),
+    supabase.from('users').select('id, name')
+  ])
+
+  const lead = leadRes.data
+  const pics = picsRes.data || []
 
   if (!lead) notFound()
 
