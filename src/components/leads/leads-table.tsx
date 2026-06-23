@@ -109,12 +109,12 @@ const renderMilestones = (lead: LeadWithRelations) => {
           <div
             className={cn(
               "w-6 h-6 rounded-full flex items-center justify-center text-[10px] border transition-all duration-300 relative group/step cursor-help select-none",
-              step.status === 'success' && "bg-emerald-500/10 border-emerald-500/30 text-emerald-400 font-bold shadow-lg shadow-emerald-500/5",
-              step.status === 'warning' && "bg-amber-500/10 border-amber-500/30 text-amber-400 font-bold shadow-lg shadow-amber-500/5",
-              step.status === 'empty' && "bg-white/[0.02] border-white/5 text-white/20"
+              step.status === 'success' && "bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-bold shadow-xs",
+              step.status === 'warning' && "bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400 font-bold shadow-xs",
+              step.status === 'empty' && "bg-slate-100/60 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800"
             )}
           >
-            <span>{step.icon}</span>
+            <span className={cn(step.status === 'empty' && "grayscale opacity-35")}>{step.icon}</span>
             {/* Custom Tooltip on hover */}
             <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover/step:block z-50 bg-slate-950 border border-white/10 text-white text-[10px] px-2.5 py-1.5 rounded-lg whitespace-nowrap shadow-2xl pointer-events-none">
               {step.tooltip}
@@ -124,7 +124,7 @@ const renderMilestones = (lead: LeadWithRelations) => {
             <div
               className={cn(
                 "w-3 h-0.5 transition-all duration-300",
-                steps[idx + 1].status !== 'empty' ? "bg-purple-500/30" : "bg-white/5"
+                steps[idx + 1].status !== 'empty' ? "bg-purple-500/40 dark:bg-purple-500/30" : "bg-slate-200 dark:bg-slate-800"
               )}
             />
           )}
