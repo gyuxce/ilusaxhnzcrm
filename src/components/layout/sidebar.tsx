@@ -121,7 +121,7 @@ export function Sidebar() {
             isActive ? 'text-purple-400' : 'text-white/35 group-hover:text-white/60'
           )}
         />
-        <span className="flex-1 truncate text-[13px]">{label}</span>
+        <span className="truncate text-[13px] mr-1">{label}</span>
         {count > 0 && (
           <span
             className="flex-shrink-0 min-w-[18px] h-[18px] flex items-center justify-center rounded-full text-[10px] font-extrabold px-1"
@@ -135,6 +135,8 @@ export function Sidebar() {
             {count > 99 ? '99+' : count}
           </span>
         )}
+        {/* spacer pushes active indicator to right edge */}
+        <span className="flex-1" />
         {isActive && (
           <span
             className="absolute right-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-l-full"

@@ -1,24 +1,107 @@
 'use client'
 
-import { Bell, Search, Plus, Menu } from 'lucide-react'
+import { Bell, Search, Plus, Menu, X, AlertCircle, Calendar, ChevronRight } from 'lucide-react'
 import Link from 'next/link'
 import { useLayoutStore } from '@/lib/store'
+import { useState, useEffect, useRef } from 'react'
+import { createClient } from '@/lib/supabase/client'
 
 interface HeaderProps {
   title: string
   subtitle?: string
 }
 
+interface NotifItem {
+  id: string
+  type: 'needs_action' | 'follow_up'
+  label: string
+  name: string
+  href: string
+}
+
 export function Header({ title, subtitle }: HeaderProps) {
   const { toggleSidebar } = useLayoutStore()
+  const [notifOpen, setNotifOpen] = useState(false)
+  const [notifs, setNotifs] = useState<NotifItem[]>([])
+  const [notifCount, setNotifCount] = useState(0)
+  const notifRef = useRef<HTMLDivElement>(null)
+  const supabase = createClient()
+
+  useEffect(() => {
+    async function fetchNotifs() {
+      const today = new Date().toISOString().split('T')[0]
+
+      // Leads yang butuh aksi (in important stages)
+      const { data: naLeads } = await supabase
+        .from('leads')
+        .select('id, full_name, current_status')
+        .in('current_status', [
+          'Payment Pemetaan Paid',
+          'Pemetaan Done',
+          'Result Ready',
+          'Expert Consultation Done',
+          'Seat Lock Offered',
+        ])
+        .order('updated_at', { ascending: false })
+        .limit(5)
+
+      // FU overdue / hari ini
+      const { data: fuLeads } = await supabase
+        .from('follow_ups')
+        .select('id, leads(id, full_name), scheduled_date')
+        .eq('is_done', false)
+        .lte('scheduled_date', today)
+        .order('scheduled_date', { ascending: true })
+        .limit(3)
+
+      const items: NotifItem[] = []
+
+      ;(naLeads || []).forEach((l: any) => {
+        items.push({
+          id: l.id,
+          type: 'needs_action',
+          label: l.current_status,
+          name: l.full_name,
+          href: `/leads/${l.id}`,
+        })
+      })
+
+      ;(fuLeads || []).forEach((f: any) => {
+        if (f.leads) {
+          items.push({
+            id: f.id,
+            type: 'follow_up',
+            label: `FU ${new Date(f.scheduled_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}`,
+            name: f.leads.full_name,
+            href: `/leads/${f.leads.id}`,
+          })
+        }
+      })
+
+      setNotifs(items)
+      setNotifCount(items.length)
+    }
+    fetchNotifs()
+  }, [])
+
+  // Close on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+        setNotifOpen(false)
+      }
+    }
+    if (notifOpen) document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [notifOpen])
 
   return (
     <header
       className="fixed top-0 left-0 lg:left-[260px] right-0 z-20 flex items-center justify-between px-4 sm:px-6"
       style={{
         height: '64px',
-        background: 'hsla(222, 47%, 6%, 0.8)',
-        backdropFilter: 'blur(12px)',
+        background: 'hsla(222, 47%, 6%, 0.85)',
+        backdropFilter: 'blur(14px)',
         borderBottom: '1px solid hsl(222, 47%, 14%)',
       }}
     >
@@ -59,16 +142,106 @@ export function Header({ title, subtitle }: HeaderProps) {
         </Link>
 
         {/* Notifications */}
-        <button className="relative w-9 h-9 flex items-center justify-center rounded-lg text-white/50 hover:text-white hover:bg-white/5 transition-all border border-white/5 flex-shrink-0">
-          <Bell size={16} />
-          <span
-            className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full border-2"
-            style={{
-              background: 'hsl(0,72%,51%)',
-              borderColor: 'hsl(222, 47%, 6%)',
-            }}
-          />
-        </button>
+        <div ref={notifRef} className="relative flex-shrink-0">
+          <button
+            onClick={() => setNotifOpen(prev => !prev)}
+            className="relative w-9 h-9 flex items-center justify-center rounded-lg text-white/50 hover:text-white hover:bg-white/5 transition-all border border-white/5"
+          >
+            <Bell size={16} />
+            {notifCount > 0 && (
+              <span
+                className="absolute top-1 right-1 min-w-[16px] h-4 flex items-center justify-center rounded-full text-[9px] font-extrabold px-1"
+                style={{ background: 'hsl(0,72%,51%)', color: 'white' }}
+              >
+                {notifCount > 9 ? '9+' : notifCount}
+              </span>
+            )}
+          </button>
+
+          {/* Notification Dropdown */}
+          {notifOpen && (
+            <div
+              className="absolute right-0 top-12 w-80 rounded-2xl border shadow-2xl overflow-hidden z-50"
+              style={{ background: 'hsl(222,47%,8%)', borderColor: 'hsl(222,47%,16%)' }}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: 'hsl(222,47%,14%)' }}>
+                <div>
+                  <p className="text-sm font-extrabold text-white">Notifikasi</p>
+                  <p className="text-[10px] text-white/35">{notifCount} item perlu perhatian</p>
+                </div>
+                <button onClick={() => setNotifOpen(false)} className="text-white/30 hover:text-white transition-colors">
+                  <X size={14} />
+                </button>
+              </div>
+
+              {/* List */}
+              <div className="max-h-72 overflow-y-auto">
+                {notifs.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-8 gap-2">
+                    <Bell size={24} className="text-white/15" />
+                    <p className="text-white/30 text-xs">Tidak ada notifikasi saat ini</p>
+                  </div>
+                ) : (
+                  notifs.map(notif => (
+                    <Link
+                      key={notif.id}
+                      href={notif.href}
+                      onClick={() => setNotifOpen(false)}
+                      className="flex items-center gap-3 px-4 py-3 hover:bg-white/5 transition-all border-b group"
+                      style={{ borderColor: 'hsl(222,47%,12%)' }}
+                    >
+                      {/* Icon */}
+                      <div
+                        className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
+                        style={{
+                          background: notif.type === 'follow_up'
+                            ? 'rgba(249,115,22,0.12)'
+                            : 'rgba(139,92,246,0.12)',
+                        }}
+                      >
+                        {notif.type === 'follow_up'
+                          ? <Calendar size={14} className="text-orange-400" />
+                          : <AlertCircle size={14} className="text-purple-400" />
+                        }
+                      </div>
+
+                      {/* Content */}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-bold text-white truncate group-hover:text-purple-300 transition-colors">
+                          {notif.name}
+                        </p>
+                        <p className="text-[10px] text-white/40 truncate">{notif.label}</p>
+                      </div>
+
+                      <ChevronRight size={12} className="text-white/20 group-hover:text-white/50 transition-colors flex-shrink-0" />
+                    </Link>
+                  ))
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="px-4 py-3 border-t grid grid-cols-2 gap-2" style={{ borderColor: 'hsl(222,47%,14%)' }}>
+                <Link
+                  href="/needs-action"
+                  onClick={() => setNotifOpen(false)}
+                  className="flex items-center justify-center gap-1.5 py-2 rounded-xl text-[10px] font-bold text-purple-400 transition-all"
+                  style={{ background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.15)' }}
+                >
+                  <AlertCircle size={11} /> Needs Action
+                </Link>
+                <Link
+                  href="/follow-ups"
+                  onClick={() => setNotifOpen(false)}
+                  className="flex items-center justify-center gap-1.5 py-2 rounded-xl text-[10px] font-bold text-orange-400 transition-all"
+                  style={{ background: 'rgba(249,115,22,0.1)', border: '1px solid rgba(249,115,22,0.15)' }}
+                >
+                  <Calendar size={11} /> Follow-Up
+                </Link>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </header>
   )
