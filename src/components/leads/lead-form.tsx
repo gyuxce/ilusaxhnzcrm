@@ -3,45 +3,36 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { Loader2, Phone, User, Calendar, MessageSquare } from 'lucide-react'
-import type { LeadSource, LeadType, LeadStage } from '@/lib/supabase/types'
-import { cn } from '@/lib/utils'
+import { Loader2, Phone, User, Calendar, MessageSquare, Mail, Settings } from 'lucide-react'
 
 interface LeadFormProps {
-  pics: { id: string; full_name: string }[]
-  campaigns: { id: string; name: string }[]
+  pics: { id: string; name: string }[]
   defaultValues?: Partial<{
-    phone_number: string
-    name: string
-    source: LeadSource
-    lead_type: LeadType
-    stage: LeadStage
-    pic_id: string
-    campaign_id: string
+    whatsapp_number: string
+    full_name: string
+    email: string
+    source_campaign: string
+    current_status: string
+    assigned_cro_id: string
     notes: string
-    age: number
-    education: string
-    inbound_date: string
+    lead_entry_date: string
   }>
   leadId?: string
 }
 
-export function LeadForm({ pics, campaigns, defaultValues, leadId }: LeadFormProps) {
+export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [form, setForm] = useState({
-    phone_number: defaultValues?.phone_number || '',
-    name: defaultValues?.name || '',
-    source: defaultValues?.source || 'ig' as LeadSource,
-    lead_type: defaultValues?.lead_type || 'inbound' as LeadType,
-    stage: defaultValues?.stage || 'new' as LeadStage,
-    pic_id: defaultValues?.pic_id || '',
-    campaign_id: defaultValues?.campaign_id || '',
+    whatsapp_number: defaultValues?.whatsapp_number || '',
+    full_name: defaultValues?.full_name || '',
+    email: defaultValues?.email || '',
+    source_campaign: defaultValues?.source_campaign || '',
+    current_status: defaultValues?.current_status || 'New Lead',
+    assigned_cro_id: defaultValues?.assigned_cro_id || '',
     notes: defaultValues?.notes || '',
-    age: defaultValues?.age?.toString() || '',
-    education: defaultValues?.education || '',
-    inbound_date: defaultValues?.inbound_date?.split('T')[0] || new Date().toISOString().split('T')[0],
+    lead_entry_date: defaultValues?.lead_entry_date?.split('T')[0] || new Date().toISOString().split('T')[0],
   })
 
   function update(field: string, value: string) {
@@ -50,35 +41,66 @@ export function LeadForm({ pics, campaigns, defaultValues, leadId }: LeadFormPro
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!form.phone_number) return setError('Nomor HP wajib diisi')
+    if (!form.whatsapp_number) return setError('Nomor WhatsApp wajib diisi')
+    if (!form.full_name) return setError('Nama Lengkap wajib diisi')
+    if (!form.source_campaign) return setError('Source Campaign wajib diisi')
 
     setLoading(true)
     setError('')
 
     const supabase = createClient()
+    
+    // Standardise phone number format (remove non-digits, replace leading 0 or 8 with 62)
+    let cleanPhone = form.whatsapp_number.replace(/\D/g, '')
+    if (cleanPhone.startsWith('0')) {
+      cleanPhone = '62' + cleanPhone.slice(1)
+    } else if (cleanPhone.startsWith('8')) {
+      cleanPhone = '62' + cleanPhone
+    }
+
     const payload = {
-      phone_number: form.phone_number.replace(/\D/g, ''),
-      name: form.name || null,
-      source: form.source,
-      lead_type: form.lead_type,
-      stage: form.stage,
-      pic_id: form.pic_id || null,
-      campaign_id: form.campaign_id || null,
+      whatsapp_number: cleanPhone,
+      full_name: form.full_name,
+      email: form.email || null,
+      source_campaign: form.source_campaign,
+      current_status: form.current_status,
+      assigned_cro_id: form.assigned_cro_id || null,
       notes: form.notes || null,
-      age: form.age ? parseInt(form.age) : null,
-      education: form.education || null,
-      inbound_date: form.inbound_date ? new Date(form.inbound_date).toISOString() : null,
+      lead_entry_date: form.lead_entry_date ? new Date(form.lead_entry_date).toISOString() : new Date().toISOString(),
+      updated_at: new Date().toISOString()
     }
 
-    let error
+    let err
     if (leadId) {
-      ({ error } = await supabase.from('leads').update(payload).eq('id', leadId))
+      const { error: updateErr } = await supabase.from('leads').update(payload).eq('id', leadId)
+      err = updateErr
     } else {
-      ({ error } = await supabase.from('leads').insert(payload))
+      const { data: newLeads, error: insertErr } = await supabase.from('leads').insert({
+        ...payload,
+        created_at: new Date().toISOString()
+      }).select()
+      
+      err = insertErr
+
+      if (!err && newLeads && newLeads.length > 0) {
+        // Initialise associated pemetaan record
+        await supabase.from('pemetaan').insert({
+          lead_id: newLeads[0].id,
+          form_status: 'not_sent',
+          result_status: 'not_ready'
+        })
+
+        // Log initial activity
+        await supabase.from('lead_activities').insert({
+          lead_id: newLeads[0].id,
+          activity_type: 'Lead created',
+          description: 'Lead created manually via Tambah Lead form'
+        })
+      }
     }
 
-    if (error) {
-      setError(error.message)
+    if (err) {
+      setError(err.message)
       setLoading(false)
     } else {
       router.push('/leads')
@@ -89,150 +111,104 @@ export function LeadForm({ pics, campaigns, defaultValues, leadId }: LeadFormPro
   const inputClass = "w-full px-4 py-2.5 rounded-xl text-sm text-white placeholder-white/20 outline-none transition-all"
   const inputStyle = { background: 'hsl(222,47%,12%)', border: '1px solid hsl(222,47%,20%)' }
 
+  const statusOptions = [
+    'New Lead', 'Follow Up', 'Pitching', 'Interested', 'Not Interested',
+    'Payment Pemetaan Pending', 'Payment Pemetaan Paid', 'Pemetaan Form Submitted',
+    'Pemetaan Scheduled', 'Pemetaan Done', 'Waiting Result', 'Result Ready',
+    'Expert Consultation Scheduled', 'Expert Consultation Done', 'Seat Lock Offered',
+    'Seat Lock Paid', 'Onboarding', 'Class Started'
+  ]
+
   return (
-    <form onSubmit={handleSubmit} className="glass-card rounded-2xl p-6 space-y-5">
+    <form onSubmit={handleSubmit} className="glass-card rounded-2xl p-6 space-y-5 border border-white/5">
 
-      {/* Lead Type Toggle */}
+      {/* Nama Lengkap */}
       <div>
-        <label className="block text-xs font-medium text-white/50 mb-2">Tipe Lead</label>
-        <div className="flex gap-2">
-          {(['inbound', 'outbound'] as LeadType[]).map(type => (
-            <button
-              key={type}
-              type="button"
-              onClick={() => update('lead_type', type)}
-              className={cn(
-                'flex-1 py-2 rounded-xl text-sm font-medium transition-all capitalize',
-                form.lead_type === type
-                  ? 'text-white'
-                  : 'text-white/40 hover:text-white/60'
-              )}
-              style={form.lead_type === type
-                ? { background: 'linear-gradient(135deg, hsl(250,84%,55%), hsl(280,60%,50%))' }
-                : { background: 'hsl(222,47%,12%)', border: '1px solid hsl(222,47%,20%)' }
-              }
-            >
-              {type === 'inbound' ? '📥 Inbound' : '📤 Outbound'}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Phone Number */}
-      <div>
-        <label className="flex items-center gap-1.5 text-xs font-medium text-white/50 mb-2">
-          <Phone size={12} /> Nomor HP <span className="text-red-400">*</span>
+        <label className="flex items-center gap-1.5 text-xs font-bold text-white/50 mb-2">
+          <User size={12} /> Nama Lengkap <span className="text-red-400">*</span>
         </label>
         <input
-          value={form.phone_number}
-          onChange={e => update('phone_number', e.target.value)}
-          placeholder="628xxxxxxxxx"
+          value={form.full_name}
+          onChange={e => update('full_name', e.target.value)}
+          placeholder="Nama lengkap lead..."
           required
           className={inputClass}
           style={inputStyle}
         />
       </div>
 
-      {/* Name */}
+      {/* WhatsApp Number */}
       <div>
-        <label className="flex items-center gap-1.5 text-xs font-medium text-white/50 mb-2">
-          <User size={12} /> Nama
+        <label className="flex items-center gap-1.5 text-xs font-bold text-white/50 mb-2">
+          <Phone size={12} /> Nomor WhatsApp <span className="text-red-400">*</span>
         </label>
         <input
-          value={form.name}
-          onChange={e => update('name', e.target.value)}
-          placeholder="Nama lengkap lead"
+          value={form.whatsapp_number}
+          onChange={e => update('whatsapp_number', e.target.value)}
+          placeholder="628xxxxxxxxx atau 08xxxxxxxxxx"
+          required
           className={inputClass}
           style={inputStyle}
         />
       </div>
 
-      {/* Source + Stage */}
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="block text-xs font-medium text-white/50 mb-2">Source</label>
-          <select value={form.source} onChange={e => update('source', e.target.value)} className={inputClass} style={inputStyle}>
-            {[
-              { v: 'ig', l: '📸 Instagram' },
-              { v: 'fb', l: '📘 Facebook' },
-              { v: 'linkedin', l: '💼 LinkedIn' },
-              { v: 'webinar', l: '🎓 Webinar' },
-              { v: 'manual', l: '✍️ Manual' },
-              { v: 'referral', l: '🤝 Referral' },
-              { v: 'other', l: '📌 Lainnya' },
-            ].map(s => <option key={s.v} value={s.v}>{s.l}</option>)}
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-xs font-medium text-white/50 mb-2">Stage</label>
-          <select value={form.stage} onChange={e => update('stage', e.target.value)} className={inputClass} style={inputStyle}>
-            {[
-              { v: 'new', l: 'Baru' },
-              { v: 'probing', l: 'Probing' },
-              { v: 'hot', l: '🔥 Hot Lead' },
-              { v: 'potential', l: 'Potensial' },
-              { v: 'converted', l: '✅ Konversi' },
-              { v: 'rejected', l: 'Reject' },
-            ].map(s => <option key={s.v} value={s.v}>{s.l}</option>)}
-          </select>
-        </div>
-      </div>
-
-      {/* PIC + Campaign */}
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="block text-xs font-medium text-white/50 mb-2">PIC</label>
-          <select value={form.pic_id} onChange={e => update('pic_id', e.target.value)} className={inputClass} style={inputStyle}>
-            <option value="">Pilih PIC</option>
-            {pics.map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-xs font-medium text-white/50 mb-2">Campaign</label>
-          <select value={form.campaign_id} onChange={e => update('campaign_id', e.target.value)} className={inputClass} style={inputStyle}>
-            <option value="">Pilih Campaign</option>
-            {campaigns.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
-        </div>
-      </div>
-
-      {/* Age + Education */}
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="block text-xs font-medium text-white/50 mb-2">Usia</label>
-          <input
-            type="number"
-            value={form.age}
-            onChange={e => update('age', e.target.value)}
-            placeholder="35"
-            min="17" max="99"
-            className={inputClass}
-            style={inputStyle}
-          />
-        </div>
-
-        <div>
-          <label className="block text-xs font-medium text-white/50 mb-2">Pendidikan</label>
-          <select value={form.education} onChange={e => update('education', e.target.value)} className={inputClass} style={inputStyle}>
-            <option value="">Pilih pendidikan</option>
-            {['SMA/SMK', 'D1', 'D2', 'D3', 'S1', 'S2', 'S3'].map(e => (
-              <option key={e} value={e.toLowerCase()}>{e}</option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      {/* Date */}
+      {/* Email */}
       <div>
-        <label className="flex items-center gap-1.5 text-xs font-medium text-white/50 mb-2">
-          <Calendar size={12} /> Tanggal Inbound
+        <label className="flex items-center gap-1.5 text-xs font-bold text-white/50 mb-2">
+          <Mail size={12} /> Email (Opsional)
+        </label>
+        <input
+          type="email"
+          value={form.email}
+          onChange={e => update('email', e.target.value)}
+          placeholder="contoh@domain.com"
+          className={inputClass}
+          style={inputStyle}
+        />
+      </div>
+
+      {/* Source Campaign */}
+      <div>
+        <label className="flex items-center gap-1.5 text-xs font-bold text-white/50 mb-2">
+          <Settings size={12} /> Source Campaign / Lead Source <span className="text-red-400">*</span>
+        </label>
+        <input
+          value={form.source_campaign}
+          onChange={e => update('source_campaign', e.target.value)}
+          placeholder="Contoh: Campaign Construction, Webinar Regular, Organic..."
+          required
+          className={inputClass}
+          style={inputStyle}
+        />
+      </div>
+
+      {/* PIC & Status */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-xs font-bold text-white/50 mb-2">PIC CRO</label>
+          <select value={form.assigned_cro_id} onChange={e => update('assigned_cro_id', e.target.value)} className={inputClass} style={inputStyle}>
+            <option value="">Pilih PIC</option>
+            {pics.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-xs font-bold text-white/50 mb-2">Status Pipeline</label>
+          <select value={form.current_status} onChange={e => update('current_status', e.target.value)} className={inputClass} style={inputStyle}>
+            {statusOptions.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+        </div>
+      </div>
+
+      {/* Entry Date */}
+      <div>
+        <label className="flex items-center gap-1.5 text-xs font-bold text-white/50 mb-2">
+          <Calendar size={12} /> Tanggal Lead Masuk
         </label>
         <input
           type="date"
-          value={form.inbound_date}
-          onChange={e => update('inbound_date', e.target.value)}
+          value={form.lead_entry_date}
+          onChange={e => update('lead_entry_date', e.target.value)}
           className={inputClass}
           style={inputStyle}
         />
@@ -240,13 +216,13 @@ export function LeadForm({ pics, campaigns, defaultValues, leadId }: LeadFormPro
 
       {/* Notes */}
       <div>
-        <label className="flex items-center gap-1.5 text-xs font-medium text-white/50 mb-2">
-          <MessageSquare size={12} /> Catatan
+        <label className="flex items-center gap-1.5 text-xs font-bold text-white/50 mb-2">
+          <MessageSquare size={12} /> Catatan Tambahan
         </label>
         <textarea
           value={form.notes}
           onChange={e => update('notes', e.target.value)}
-          placeholder="Catatan tambahan tentang lead ini..."
+          placeholder="Tulis informasi tambahan atau kualifikasi awal..."
           rows={3}
           className={inputClass}
           style={{ ...inputStyle, resize: 'none' }}
@@ -255,8 +231,8 @@ export function LeadForm({ pics, campaigns, defaultValues, leadId }: LeadFormPro
 
       {error && (
         <div
-          className="px-4 py-2.5 rounded-xl text-sm text-red-400"
-          style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)' }}
+          className="px-4 py-2.5 rounded-xl text-sm text-red-400 font-bold border"
+          style={{ background: 'rgba(239,68,68,0.1)', borderColor: 'rgba(239,68,68,0.2)' }}
         >
           {error}
         </div>
@@ -267,7 +243,7 @@ export function LeadForm({ pics, campaigns, defaultValues, leadId }: LeadFormPro
         <button
           type="button"
           onClick={() => router.back()}
-          className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white/60 hover:text-white/80 transition-all"
+          className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white/60 hover:text-white/80 transition-all cursor-pointer"
           style={{ background: 'hsl(222,47%,12%)', border: '1px solid hsl(222,47%,20%)' }}
         >
           Batal
@@ -275,7 +251,7 @@ export function LeadForm({ pics, campaigns, defaultValues, leadId }: LeadFormPro
         <button
           type="submit"
           disabled={loading}
-          className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2 transition-all disabled:opacity-60"
+          className="flex-1 py-2.5 rounded-xl text-sm font-extrabold text-white flex items-center justify-center gap-2 transition-all disabled:opacity-60 cursor-pointer hover:glow-purple"
           style={{ background: 'linear-gradient(135deg, hsl(250,84%,60%), hsl(280,60%,55%))' }}
         >
           {loading && <Loader2 size={14} className="animate-spin" />}

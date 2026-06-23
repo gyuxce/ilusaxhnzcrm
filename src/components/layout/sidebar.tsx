@@ -5,12 +5,7 @@ import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard,
   Users,
-  GitBranch,
-  Phone,
-  Megaphone,
-  TrendingUp,
-  BookOpen,
-  CheckSquare,
+  AlertCircle,
   Settings,
   LogOut,
   Zap,
@@ -23,12 +18,7 @@ import { useLayoutStore } from '@/lib/store'
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/leads', label: 'Leads', icon: Users },
-  { href: '/pipeline', label: 'Pipeline', icon: GitBranch },
-  { href: '/follow-ups', label: 'Follow-Up', icon: Phone },
-  { href: '/campaigns', label: 'Campaign', icon: Megaphone },
-  { href: '/conversions', label: 'Konversi', icon: CheckSquare },
-  { href: '/analytics', label: 'Analytics', icon: TrendingUp },
-  { href: '/playbook', label: 'Playbook', icon: BookOpen },
+  { href: '/needs-action', label: 'Needs Action', icon: AlertCircle },
 ]
 
 export function Sidebar() {

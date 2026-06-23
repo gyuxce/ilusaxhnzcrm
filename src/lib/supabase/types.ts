@@ -6,226 +6,207 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
-export type LeadSource = 'ig' | 'fb' | 'linkedin' | 'webinar' | 'manual' | 'referral' | 'other'
+export type UserRole = 'admin' | 'owner' | 'cro'
+export type LeadSource = string
 export type LeadType = 'inbound' | 'outbound'
-export type LeadStage = 'new' | 'probing' | 'hot' | 'potential' | 'converted' | 'rejected'
-export type FuType = 'd1' | 'd3' | 'd7' | 'd14' | 'fu1' | 'fu2' | 'fu3' | 'fu4' | 'custom'
-export type MessageStatus = 'connected' | 'not_connected' | 'no_response' | 'restricted' | 'pending'
-export type ConversionType = 'pemetaan' | 'full_payment' | 'dp' | 'webinar_attend'
-export type UserRole = 'admin' | 'cro' | 'manager'
-export type CampaignType = 'webinar' | 'ads_ig' | 'ads_fb' | 'organic' | 'event'
+export type LeadStage = string
+export type FuType = string
+export type MessageStatus = string
 export type PlaybookCategory = 'script' | 'objection' | 'product' | 'sop' | 'faq'
 
-// Users Types
-export type UserRow = {
-  id: string
-  full_name: string
-  role: UserRole
-  wa_number: string | null
-  avatar_url: string | null
-  is_active: boolean
-  created_at: string
-  updated_at: string
-}
-export type UserInsert = {
-  id: string
-  full_name: string
-  role?: UserRole
-  wa_number?: string | null
-  avatar_url?: string | null
-  is_active?: boolean
-  created_at?: string
-  updated_at?: string
-}
-export type UserUpdate = Partial<UserInsert>
-
-// Leads Types
-export type LeadRow = {
-  id: string
-  phone_number: string
-  name: string | null
-  source: LeadSource
-  lead_type: LeadType
-  inbound_date: string | null
-  pic_id: string | null
-  campaign_id: string | null
-  stage: LeadStage
-  education: string | null
-  age: number | null
-  current_position: string | null
-  segment: string | null
-  reach_out_channel: string | null
-  final_status: string | null
-  rejection_reason: string | null
-  notes: string | null
-  is_duplicate: boolean
-  duplicate_of: string | null
-  created_by: string | null
-  created_at: string
-  updated_at: string
-}
-export type LeadInsert = {
-  id?: string
-  phone_number: string
-  name?: string | null
-  source?: LeadSource
-  lead_type?: LeadType
-  inbound_date?: string | null
-  pic_id?: string | null
-  campaign_id?: string | null
-  stage?: LeadStage
-  education?: string | null
-  age?: number | null
-  current_position?: string | null
-  segment?: string | null
-  reach_out_channel?: string | null
-  final_status?: string | null
-  rejection_reason?: string | null
-  notes?: string | null
-  is_duplicate?: boolean
-  duplicate_of?: string | null
-  created_by?: string | null
-  created_at?: string
-  updated_at?: string
-}
-export type LeadUpdate = Partial<LeadInsert>
-
-// Follow-ups Types
-export type FollowUpRow = {
-  id: string
-  lead_id: string
-  fu_type: FuType
-  scheduled_date: string | null
-  actual_date: string | null
-  pic_id: string | null
-  status_message: MessageStatus | null
-  stage_after: LeadStage | null
-  note: string | null
-  is_done: boolean
-  created_at: string
-  updated_at: string
-}
-export type FollowUpInsert = {
-  id?: string
-  lead_id: string
-  fu_type: FuType
-  scheduled_date?: string | null
-  actual_date?: string | null
-  pic_id?: string | null
-  status_message?: MessageStatus | null
-  stage_after?: LeadStage | null
-  note?: string | null
-  is_done?: boolean
-  created_at?: string
-  updated_at?: string
-}
-export type FollowUpUpdate = Partial<FollowUpInsert>
-
-// Campaigns Types
-export type CampaignRow = {
-  id: string
-  name: string
-  type: CampaignType
-  batch: string | null
-  event_date: string | null
-  description: string | null
-  is_active: boolean
-  created_by: string | null
-  created_at: string
-  updated_at: string
-}
-export type CampaignInsert = {
-  id?: string
-  name: string
-  type?: CampaignType
-  batch?: string | null
-  event_date?: string | null
-  description?: string | null
-  is_active?: boolean
-  created_by?: string | null
-  created_at?: string
-  updated_at?: string
-}
-export type CampaignUpdate = Partial<CampaignInsert>
-
-// Conversions Types
-export type ConversionRow = {
-  id: string
-  lead_id: string
-  conversion_type: ConversionType
-  conversion_date: string | null
-  amount: number | null
-  interview_date: string | null
-  interview_result: string | null
-  attended_event: boolean | null
-  cv_submitted: boolean | null
-  note: string | null
-  created_by: string | null
-  created_at: string
-  updated_at: string
-}
-export type ConversionInsert = {
-  id?: string
-  lead_id: string
-  conversion_type?: ConversionType
-  conversion_date?: string | null
-  amount?: number | null
-  interview_date?: string | null
-  interview_result?: string | null
-  attended_event?: boolean | null
-  cv_submitted?: boolean | null
-  note?: string | null
-  created_by?: string | null
-  created_at?: string
-  updated_at?: string
-}
-export type ConversionUpdate = Partial<ConversionInsert>
-
-// Activities Types
-export type ActivityRow = {
-  id: string
-  lead_id: string | null
-  user_id: string | null
-  action: string
-  old_value: Json | null
-  new_value: Json | null
-  created_at: string
-}
-export type ActivityInsert = {
-  id?: string
-  lead_id?: string | null
-  user_id?: string | null
-  action: string
-  old_value?: Json | null
-  new_value?: Json | null
-  created_at?: string
-}
-export type ActivityUpdate = never
-
-// Playbook Items Types
-export type PlaybookItemRow = {
+export type PlaybookItem = {
   id: string
   category: PlaybookCategory
   title: string
   content: string
   tags: string[]
   is_active: boolean
-  created_by: string | null
+  created_at: string
+  updated_at?: string
+}
+
+// Users Types
+export type UserRow = {
+  id: string
+  name: string
+  email: string
+  password_hash: string | null
+  role: UserRole
+  created_at: string
+}
+export type UserInsert = {
+  id: string
+  name: string
+  email: string
+  password_hash?: string | null
+  role?: UserRole
+  created_at?: string
+}
+export type UserUpdate = Partial<UserInsert>
+
+// Leads Types
+export type LeadRow = {
+  id: string
+  full_name: string
+  whatsapp_number: string
+  email: string | null
+  source_campaign: string
+  assigned_cro_id: string | null
+  current_status: string
+  lead_entry_date: string
+  last_contacted_date: string | null
+  follow_up_result: string | null
+  notes: string | null
+  lost_reason: string | null
   created_at: string
   updated_at: string
 }
-export type PlaybookItemInsert = {
+export type LeadInsert = {
   id?: string
-  category?: PlaybookCategory
-  title: string
-  content: string
-  tags?: string[]
-  is_active?: boolean
-  created_by?: string | null
+  full_name: string
+  whatsapp_number: string
+  email?: string | null
+  source_campaign: string
+  assigned_cro_id?: string | null
+  current_status?: string
+  lead_entry_date?: string
+  last_contacted_date?: string | null
+  follow_up_result?: string | null
+  notes?: string | null
+  lost_reason?: string | null
   created_at?: string
   updated_at?: string
 }
-export type PlaybookItemUpdate = Partial<PlaybookItemInsert>
+export type LeadUpdate = Partial<LeadInsert>
+
+// Payments Types
+export type PaymentRow = {
+  id: string
+  lead_id: string
+  payment_type: string
+  amount: number
+  payment_method: string
+  payment_date: string
+  proof_url: string | null
+  verification_status: string
+  verified_by: string | null
+  verified_at: string | null
+  notes: string | null
+  created_at: string
+  updated_at: string
+}
+export type PaymentInsert = {
+  id?: string
+  lead_id: string
+  payment_type: string
+  amount: number
+  payment_method: string
+  payment_date: string
+  proof_url?: string | null
+  verification_status?: string
+  verified_by?: string | null
+  verified_at?: string | null
+  notes?: string | null
+  created_at?: string
+  updated_at?: string
+}
+export type PaymentUpdate = Partial<PaymentInsert>
+
+// Pemetaan Types
+export type PemetaanRow = {
+  id: string
+  lead_id: string
+  form_status: string
+  scheduled_at: string | null
+  completed_at: string | null
+  result_status: string
+  result_ready_at: string | null
+  result_notes: string | null
+  created_at: string
+  updated_at: string
+}
+export type PemetaanInsert = {
+  id?: string
+  lead_id: string
+  form_status?: string
+  scheduled_at?: string | null
+  completed_at?: string | null
+  result_status?: string
+  result_ready_at?: string | null
+  result_notes?: string | null
+  created_at?: string
+  updated_at?: string
+}
+export type PemetaanUpdate = Partial<PemetaanInsert>
+
+// Expert Consultations Types
+export type ExpertConsultationRow = {
+  id: string
+  lead_id: string
+  expert_name: string | null
+  scheduled_at: string | null
+  completed_at: string | null
+  consultation_result: string | null
+  recommendation: string | null
+  next_step: string | null
+  created_at: string
+  updated_at: string
+}
+export type ExpertConsultationInsert = {
+  id?: string
+  lead_id: string
+  expert_name?: string | null
+  scheduled_at?: string | null
+  completed_at?: string | null
+  consultation_result?: string | null
+  recommendation?: string | null
+  next_step?: string | null
+  created_at?: string
+  updated_at?: string
+}
+export type ExpertConsultationUpdate = Partial<ExpertConsultationInsert>
+
+// Lead Activities Types
+export type LeadActivityRow = {
+  id: string
+  lead_id: string
+  activity_type: string
+  description: string
+  created_by: string | null
+  created_at: string
+}
+export type LeadActivityInsert = {
+  id?: string
+  lead_id: string
+  activity_type: string
+  description: string
+  created_by?: string | null
+  created_at?: string
+}
+export type LeadActivityUpdate = never
+
+// Batch Targets Types
+export type BatchTargetRow = {
+  id: string
+  batch_name: string
+  target_seat_lock: number
+  start_date: string
+  closing_date: string
+  notes: string | null
+  created_at: string
+  updated_at: string
+}
+export type BatchTargetInsert = {
+  id?: string
+  batch_name: string
+  target_seat_lock: number
+  start_date: string
+  closing_date: string
+  notes?: string | null
+  created_at?: string
+  updated_at?: string
+}
+export type BatchTargetUpdate = Partial<BatchTargetInsert>
 
 export type Database = {
   public: {
@@ -240,30 +221,30 @@ export type Database = {
         Insert: LeadInsert
         Update: LeadUpdate
       }
-      follow_ups: {
-        Row: FollowUpRow
-        Insert: FollowUpInsert
-        Update: FollowUpUpdate
+      payments: {
+        Row: PaymentRow
+        Insert: PaymentInsert
+        Update: PaymentUpdate
       }
-      campaigns: {
-        Row: CampaignRow
-        Insert: CampaignInsert
-        Update: CampaignUpdate
+      pemetaan: {
+        Row: PemetaanRow
+        Insert: PemetaanInsert
+        Update: PemetaanUpdate
       }
-      conversions: {
-        Row: ConversionRow
-        Insert: ConversionInsert
-        Update: ConversionUpdate
+      expert_consultations: {
+        Row: ExpertConsultationRow
+        Insert: ExpertConsultationInsert
+        Update: ExpertConsultationUpdate
       }
-      activities: {
-        Row: ActivityRow
-        Insert: ActivityInsert
-        Update: ActivityUpdate
+      lead_activities: {
+        Row: LeadActivityRow
+        Insert: LeadActivityInsert
+        Update: LeadActivityUpdate
       }
-      playbook_items: {
-        Row: PlaybookItemRow
-        Insert: PlaybookItemInsert
-        Update: PlaybookItemUpdate
+      batch_targets: {
+        Row: BatchTargetRow
+        Insert: BatchTargetInsert
+        Update: BatchTargetUpdate
       }
     }
   }
@@ -271,8 +252,8 @@ export type Database = {
 
 export type Lead = LeadRow
 export type User = UserRow
-export type FollowUp = FollowUpRow
-export type Campaign = CampaignRow
-export type Conversion = ConversionRow
-export type Activity = ActivityRow
-export type PlaybookItem = PlaybookItemRow
+export type Payment = PaymentRow
+export type Pemetaan = PemetaanRow
+export type ExpertConsultation = ExpertConsultationRow
+export type LeadActivity = LeadActivityRow
+export type BatchTarget = BatchTargetRow

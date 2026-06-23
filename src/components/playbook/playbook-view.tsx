@@ -36,7 +36,7 @@ export function PlaybookView({ items }: PlaybookViewProps) {
     const matchSearch = !search || 
       item.title.toLowerCase().includes(search.toLowerCase()) ||
       item.content.toLowerCase().includes(search.toLowerCase()) ||
-      item.tags.some(t => t.toLowerCase().includes(search.toLowerCase()))
+      item.tags.some((t: string) => t.toLowerCase().includes(search.toLowerCase()))
     return matchCat && matchSearch
   })
 
@@ -138,7 +138,7 @@ export function PlaybookView({ items }: PlaybookViewProps) {
 
                 {item.tags.length > 0 && (
                   <div className="flex flex-wrap gap-1.5">
-                    {item.tags.map(tag => (
+                    {item.tags.map((tag: string) => (
                       <span
                         key={tag}
                         className="text-xs px-2 py-0.5 rounded-full text-white/40 cursor-pointer hover:text-white/60 transition-colors"

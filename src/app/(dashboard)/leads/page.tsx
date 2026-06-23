@@ -2,37 +2,35 @@ import { Header } from '@/components/layout/header'
 import { LeadsTable } from '@/components/leads/leads-table'
 import { createClient } from '@/lib/supabase/server'
 
+export const dynamic = 'force-dynamic'
+
 export default async function LeadsPage() {
   const supabase = await createClient()
 
+  // Fetch all leads with their related payment, pemetaan, expert_consultation and user data
   const { data: leads } = await supabase
     .from('leads')
     .select(`
       *,
-      users!leads_pic_id_fkey(id, full_name),
-      campaigns(id, name)
+      users:assigned_cro_id(id, name),
+      payments(*),
+      pemetaan(*),
+      expert_consultations(*)
     `)
-    .order('created_at', { ascending: false })
-    .limit(100)
+    .order('lead_entry_date', { ascending: false })
+    .limit(300)
 
   const { data: pics } = await supabase
     .from('users')
-    .select('id, full_name')
-    .eq('is_active', true)
-
-  const { data: campaigns } = await supabase
-    .from('campaigns')
     .select('id, name')
-    .eq('is_active', true)
 
   return (
     <>
-      <Header title="Leads" subtitle="Kelola semua leads inbound & outbound" />
-      <div className="p-6 animate-fade-in">
+      <Header title="Leads Table" subtitle="Daftar seluruh leads dengan filter lengkap" />
+      <div className="p-6 animate-fade-in max-w-7xl mx-auto">
         <LeadsTable
           initialLeads={leads || []}
           pics={pics || []}
-          campaigns={campaigns || []}
         />
       </div>
     </>

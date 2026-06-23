@@ -1,314 +1,498 @@
-import { Header } from '@/components/layout/header'
-import { createClient } from '@/lib/supabase/server'
+'use client'
+
+import { useState, useEffect, useCallback } from 'react'
+import { createClient } from '@/lib/supabase/client'
 import {
-  Users, Phone, TrendingUp, CheckSquare,
-  ArrowUpRight, ArrowDownRight, Clock,
-  Flame, Target, BarChart3, MessageCircle
+  Users,
+  Flame,
+  CheckCircle,
+  TrendingUp,
+  DollarSign,
+  Award,
+  Calendar,
+  Zap,
+  Edit2,
+  RefreshCw,
+  Percent,
+  CheckCircle2,
+  BookOpen,
+  Plus
 } from 'lucide-react'
-import { generateWALink } from '@/lib/utils'
-import { WhatsAppButton } from '@/components/leads/WhatsAppButton'
+import { Header } from '@/components/layout/header'
 
-async function getDashboardStats() {
-  const supabase = await createClient()
-
-  // Parallel queries
-  const totalLeadsRes = await supabase.from('leads').select('*', { count: 'exact', head: true })
-  const hotLeadsRes = await supabase.from('leads').select('*', { count: 'exact', head: true }).eq('stage', 'hot')
-  const conversionsRes = await supabase.from('leads').select('*', { count: 'exact', head: true }).eq('stage', 'converted')
-  const dueFuTodayRes = await supabase.from('follow_ups').select('*', { count: 'exact', head: true })
-    .eq('is_done', false)
-    .lte('scheduled_date', new Date().toISOString().split('T')[0])
-  const recentLeadsRes = await supabase.from('leads').select('id, name, phone_number, source, stage, inbound_date')
-    .order('created_at', { ascending: false }).limit(5)
-  const stageStatsRes = await supabase.from('leads').select('stage')
-  const dueFUsRes = await supabase.from('follow_ups')
-    .select(`
-      id,
-      fu_type,
-      scheduled_date,
-      leads(id, name, phone_number, stage)
-    `)
-    .eq('is_done', false)
-    .lte('scheduled_date', new Date().toISOString().split('T')[0])
-    .order('scheduled_date', { ascending: true })
-    .limit(5)
-
-  const totalLeads = totalLeadsRes.count
-  const hotLeads = hotLeadsRes.count
-  const conversions = conversionsRes.count
-  const dueFuToday = dueFuTodayRes.count
-  const recentLeads = recentLeadsRes.data as any
-  const stageStats = stageStatsRes.data as any
-  const dueFUs = dueFUsRes.data as any
-
-  // Count by stage
-  const stageCounts = (stageStats || []).reduce((acc: Record<string, number>, lead: any) => {
-    acc[lead.stage] = (acc[lead.stage] || 0) + 1
-    return acc
-  }, {})
-
-  return { totalLeads, hotLeads, conversions, dueFuToday, recentLeads, stageCounts, dueFUs }
+interface DashboardStats {
+  totalLeads: number
+  newLeads: number
+  interestedLeads: number
+  notInterested: number
+  pemetaanPaid: number
+  pemetaanDone: number
+  waitingResult: number
+  resultReady: number
+  expertScheduled: number
+  expertDone: number
+  seatLockOffered: number
+  seatLockPaid: number
+  onboarding: number
+  classStarted: number
+  
+  revenuePemetaan: number
+  revenueSeatLock: number
+  revenueCombined: number
 }
 
-const STAGE_CONFIG = {
-  new: { label: 'Baru', color: '#64748b', bg: 'rgba(100,116,139,0.15)' },
-  probing: { label: 'Probing', color: '#3b82f6', bg: 'rgba(59,130,246,0.15)' },
-  hot: { label: 'Hot', color: '#f97316', bg: 'rgba(249,115,22,0.15)' },
-  potential: { label: 'Potensial', color: '#eab308', bg: 'rgba(234,179,8,0.15)' },
-  converted: { label: 'Konversi', color: '#22c55e', bg: 'rgba(34,197,94,0.15)' },
-  rejected: { label: 'Reject', color: '#ef4444', bg: 'rgba(239,68,68,0.15)' },
+interface BatchTarget {
+  id: string
+  batch_name: string
+  target_seat_lock: number
+  start_date: string
+  closing_date: string
+  notes: string | null
 }
 
-const SOURCE_ICONS: Record<string, string> = {
-  ig: '📸', fb: '📘', linkedin: '💼', webinar: '🎓', manual: '✍️', referral: '🤝', other: '📌'
-}
+export default function DashboardPage() {
+  const [stats, setStats] = useState<DashboardStats>({
+    totalLeads: 0,
+    newLeads: 0,
+    interestedLeads: 0,
+    notInterested: 0,
+    pemetaanPaid: 0,
+    pemetaanDone: 0,
+    waitingResult: 0,
+    resultReady: 0,
+    expertScheduled: 0,
+    expertDone: 0,
+    seatLockOffered: 0,
+    seatLockPaid: 0,
+    onboarding: 0,
+    classStarted: 0,
+    revenuePemetaan: 0,
+    revenueSeatLock: 0,
+    revenueCombined: 0
+  })
+  
+  const [batchTarget, setBatchTarget] = useState<BatchTarget | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [userRole, setUserRole] = useState<string>('cro')
+  
+  // Edit Batch Target Modal
+  const [isEditingTarget, setIsEditingTarget] = useState(false)
+  const [newTarget, setNewTarget] = useState(0)
+  const [newBatchName, setNewBatchName] = useState('')
+  const [newStartDate, setNewStartDate] = useState('')
+  const [newEndDate, setNewEndDate] = useState('')
+  const [newNotes, setNewNotes] = useState('')
 
-export default async function DashboardPage() {
-  const { totalLeads, hotLeads, conversions, dueFuToday, recentLeads, stageCounts, dueFUs } = await getDashboardStats()
+  const supabase = createClient()
 
-  const conversionRate = totalLeads ? ((conversions || 0) / totalLeads * 100).toFixed(1) : '0'
+  const fetchStats = useCallback(async () => {
+    setLoading(true)
+    
+    // 1. Fetch user role
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      const { data: profile } = await supabase
+        .from('users')
+        .select('role')
+        .eq('id', user.id)
+        .maybeSingle()
+      if (profile) {
+        setUserRole(profile.role)
+      }
+    }
 
-  const stats = [
-    {
-      label: 'Total Leads',
-      value: totalLeads?.toLocaleString('id-ID') || '0',
-      icon: Users,
-      color: '#8b5cf6',
-      bg: 'rgba(139,92,246,0.15)',
-      trend: '+12%',
-      up: true,
-    },
-    {
-      label: 'Hot Leads',
-      value: hotLeads?.toLocaleString('id-ID') || '0',
-      icon: Flame,
-      color: '#f97316',
-      bg: 'rgba(249,115,22,0.15)',
-      trend: '+5%',
-      up: true,
-    },
-    {
-      label: 'FU Hari Ini',
-      value: dueFuToday?.toLocaleString('id-ID') || '0',
-      icon: Clock,
-      color: '#eab308',
-      bg: 'rgba(234,179,8,0.15)',
-      trend: 'Due today',
-      up: null,
-    },
-    {
-      label: 'Konversi',
-      value: conversions?.toLocaleString('id-ID') || '0',
-      icon: CheckSquare,
-      color: '#22c55e',
-      bg: 'rgba(34,197,94,0.15)',
-      trend: `${conversionRate}% rate`,
-      up: null,
-    },
+    // 2. Fetch all leads for status counting
+    const { data: leads } = await supabase
+      .from('leads')
+      .select('current_status')
+
+    // 3. Fetch verified payments for revenue
+    const { data: payments } = await supabase
+      .from('payments')
+      .select('payment_type, amount')
+      .eq('verification_status', 'verified')
+
+    // 4. Fetch latest batch target
+    const { data: targets } = await supabase
+      .from('batch_targets')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(1)
+
+    const latestTarget = targets && targets.length > 0 ? targets[0] : null
+    setBatchTarget(latestTarget)
+    
+    if (latestTarget) {
+      setNewTarget(latestTarget.target_seat_lock)
+      setNewBatchName(latestTarget.batch_name)
+      setNewStartDate(latestTarget.start_date)
+      setNewEndDate(latestTarget.closing_date)
+      setNewNotes(latestTarget.notes || '')
+    }
+
+    // Count states
+    let total = 0
+    let sc: Record<string, number> = {
+      'New Lead': 0,
+      'Follow Up': 0,
+      'Pitching': 0,
+      'Interested': 0,
+      'Not Interested': 0,
+      'Payment Pemetaan Pending': 0,
+      'Payment Pemetaan Paid': 0,
+      'Pemetaan Form Submitted': 0,
+      'Pemetaan Scheduled': 0,
+      'Pemetaan Done': 0,
+      'Waiting Result': 0,
+      'Result Ready': 0,
+      'Expert Consultation Scheduled': 0,
+      'Expert Consultation Done': 0,
+      'Seat Lock Offered': 0,
+      'Seat Lock Paid': 0,
+      'Onboarding': 0,
+      'Class Started': 0
+    }
+
+    if (leads) {
+      total = leads.length
+      leads.forEach((lead: any) => {
+        const s = lead.current_status
+        sc[s] = (sc[s] || 0) + 1
+      })
+    }
+
+    // Calculate revenue
+    let revPemetaan = 0
+    let revSeatLock = 0
+    if (payments) {
+      payments.forEach((p: any) => {
+        const amt = Number(p.amount)
+        if (p.payment_type === 'pemetaan' || p.payment_type === 'roadmap_session') {
+          revPemetaan += amt
+        } else if (p.payment_type === 'seat_lock') {
+          revSeatLock += amt
+        }
+      })
+    }
+
+    setStats({
+      totalLeads: total,
+      newLeads: sc['New Lead'] || 0,
+      interestedLeads: sc['Interested'] || 0,
+      notInterested: (sc['Not Interested'] || 0) + (sc['Failed Closing'] || 0) + (sc['Not Qualified'] || 0) + (sc['No Response'] || 0) + (sc['Need Follow Up Later'] || 0),
+      pemetaanPaid: sc['Payment Pemetaan Paid'] || 0,
+      pemetaanDone: sc['Pemetaan Done'] || 0,
+      waitingResult: sc['Waiting Result'] || 0,
+      resultReady: sc['Result Ready'] || 0,
+      expertScheduled: sc['Expert Consultation Scheduled'] || 0,
+      expertDone: sc['Expert Consultation Done'] || 0,
+      seatLockOffered: sc['Seat Lock Offered'] || 0,
+      seatLockPaid: sc['Seat Lock Paid'] || 0,
+      onboarding: sc['Onboarding'] || 0,
+      classStarted: sc['Class Started'] || 0,
+      revenuePemetaan: revPemetaan,
+      revenueSeatLock: revSeatLock,
+      revenueCombined: revPemetaan + revSeatLock
+    })
+
+    setLoading(false)
+  }, [supabase])
+
+  useEffect(() => {
+    fetchStats()
+  }, [fetchStats])
+
+  // Update target in Supabase
+  const handleSaveTarget = async () => {
+    if (!batchTarget) {
+      // Create new
+      const { error } = await supabase
+        .from('batch_targets')
+        .insert({
+          batch_name: newBatchName || 'Batch 1',
+          target_seat_lock: newTarget,
+          start_date: newStartDate || new Date().toISOString().split('T')[0],
+          closing_date: newEndDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          notes: newNotes
+        })
+      if (!error) fetchStats()
+    } else {
+      // Update existing
+      const { error } = await supabase
+        .from('batch_targets')
+        .update({
+          batch_name: newBatchName,
+          target_seat_lock: newTarget,
+          start_date: newStartDate,
+          closing_date: newEndDate,
+          notes: newNotes,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', batchTarget.id)
+      if (!error) fetchStats()
+    }
+    setIsEditingTarget(false)
+  }
+
+  // Count leads that represent seat lock conversion
+  // These are leads that have actually paid seat lock or onwards (Onboarding, Class Started)
+  const currentSeatLocks = stats.seatLockPaid + stats.onboarding + stats.classStarted
+  const targetVal = batchTarget?.target_seat_lock || 1
+  const progressPct = Math.min(Math.round((currentSeatLocks / targetVal) * 100), 100)
+
+  const summaryCards = [
+    { label: 'Total Leads', value: stats.totalLeads, color: '#a78bfa', bg: 'rgba(167,139,250,0.1)' },
+    { label: 'New Leads', value: stats.newLeads, color: '#60a5fa', bg: 'rgba(96,165,250,0.1)' },
+    { label: 'Interested Leads', value: stats.interestedLeads, color: '#34d399', bg: 'rgba(52,211,153,0.1)' },
+    { label: 'Not Interested / Lost', value: stats.notInterested, color: '#f87171', bg: 'rgba(248,113,113,0.1)' },
+    { label: 'Pemetaan Paid', value: stats.pemetaanPaid, color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' },
+    { label: 'Pemetaan Done', value: stats.pemetaanDone, color: '#10b981', bg: 'rgba(16,185,129,0.1)' },
+    { label: 'Waiting Result', value: stats.waitingResult, color: '#06b6d4', bg: 'rgba(6,182,212,0.1)' },
+    { label: 'Result Ready', value: stats.resultReady, color: '#3b82f6', bg: 'rgba(59,130,246,0.1)' },
+    { label: 'Expert Consult Scheduled', value: stats.expertScheduled, color: '#8b5cf6', bg: 'rgba(139,92,246,0.1)' },
+    { label: 'Expert Consult Done', value: stats.expertDone, color: '#ec4899', bg: 'rgba(236,72,153,0.1)' },
+    { label: 'Seat Lock Offered', value: stats.seatLockOffered, color: '#f43f5e', bg: 'rgba(244,63,94,0.1)' },
+    { label: 'Seat Lock Paid', value: stats.seatLockPaid, color: '#10b981', bg: 'rgba(16,185,129,0.1)' },
+    { label: 'Onboarding', value: stats.onboarding, color: '#d97706', bg: 'rgba(217,119,6,0.1)' },
+    { label: 'Class Started', value: stats.classStarted, color: '#2563eb', bg: 'rgba(37,99,235,0.1)' },
   ]
 
   return (
     <>
-      <Header title="Dashboard" subtitle={`Selamat datang kembali 👋`} />
-      <div className="p-6 space-y-6 animate-fade-in">
-
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {stats.map((stat) => {
-            const Icon = stat.icon
-            return (
-              <div
-                key={stat.label}
-                className="glass-card rounded-2xl p-5 hover:scale-[1.02] transition-transform duration-200"
-              >
-                <div className="flex items-center justify-between mb-4">
-                  <div
-                    className="w-10 h-10 rounded-xl flex items-center justify-center"
-                    style={{ background: stat.bg }}
-                  >
-                    <Icon size={18} style={{ color: stat.color }} />
-                  </div>
-                  <span className="flex items-center gap-1 text-xs font-medium"
-                    style={{ color: stat.up === true ? '#22c55e' : stat.up === false ? '#ef4444' : '#64748b' }}
-                  >
-                    {stat.up === true && <ArrowUpRight size={12} />}
-                    {stat.up === false && <ArrowDownRight size={12} />}
-                    {stat.trend}
-                  </span>
+      <Header title="Dashboard" subtitle={`Monitor progres leads dan pencapaian target CRO`} />
+      
+      <div className="p-6 space-y-6 max-w-7xl mx-auto animate-fade-in">
+        
+        {/* Top Section: Revenue & Batch Target Progress */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          
+          {/* Revenue Cards */}
+          <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-4">
+            
+            {/* Revenue Pemetaan */}
+            <div className="glass-card rounded-2xl p-5 border border-white/5 relative overflow-hidden flex flex-col justify-between">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-white/40 text-xs font-medium">Revenue Pemetaan</span>
+                <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-400">
+                  <DollarSign size={15} />
                 </div>
-                <p className="text-2xl font-bold text-white">{stat.value}</p>
-                <p className="text-xs text-white/40 mt-1">{stat.label}</p>
               </div>
-            )
-          })}
+              <div>
+                <p className="text-2xl font-bold text-white tracking-tight">
+                  Rp {stats.revenuePemetaan.toLocaleString('id-ID')}
+                </p>
+                <p className="text-[10px] text-white/30 mt-1">Total pembayaran sesi pemetaan verified</p>
+              </div>
+            </div>
+
+            {/* Revenue Seat Lock */}
+            <div className="glass-card rounded-2xl p-5 border border-white/5 relative overflow-hidden flex flex-col justify-between">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-white/40 text-xs font-medium">Revenue Seat Lock</span>
+                <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-400">
+                  <DollarSign size={15} />
+                </div>
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-white tracking-tight">
+                  Rp {stats.revenueSeatLock.toLocaleString('id-ID')}
+                </p>
+                <p className="text-[10px] text-white/30 mt-1">Total pembayaran seat lock verified</p>
+              </div>
+            </div>
+
+            {/* Combined Revenue */}
+            <div className="glass-card rounded-2xl p-5 border border-purple-500/10 relative overflow-hidden flex flex-col justify-between" style={{ background: 'linear-gradient(135deg, rgba(139,92,246,0.05), rgba(168,85,247,0.02))' }}>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-purple-300 text-xs font-bold">Revenue Combined</span>
+                <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center text-purple-300">
+                  <TrendingUp size={15} />
+                </div>
+              </div>
+              <div>
+                <p className="text-2xl font-black text-purple-300 tracking-tight">
+                  Rp {stats.revenueCombined.toLocaleString('id-ID')}
+                </p>
+                <p className="text-[10px] text-purple-300/40 mt-1 font-medium">Total Akumulasi Pendapatan</p>
+              </div>
+            </div>
+
+          </div>
+
+          {/* Batch Target Progress Bar */}
+          <div className="glass-card rounded-2xl p-5 border border-white/5 flex flex-col justify-between">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <span className="text-white/40 text-[10px] uppercase font-bold tracking-wider">Target Progres</span>
+                <h3 className="text-sm font-extrabold text-white">{batchTarget?.batch_name || 'Batch 1'}</h3>
+              </div>
+              {(userRole === 'admin' || userRole === 'owner') && (
+                <button
+                  onClick={() => setIsEditingTarget(true)}
+                  className="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/5 transition-all border border-white/5"
+                >
+                  <Edit2 size={13} />
+                </button>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex justify-between items-end text-xs">
+                <span className="text-white/50">Seat Lock: {currentSeatLocks} / {targetVal}</span>
+                <span className="font-extrabold text-purple-400">{progressPct}%</span>
+              </div>
+              
+              <div className="h-2.5 rounded-full overflow-hidden w-full" style={{ background: 'hsl(222,47%,12%)' }}>
+                <div 
+                  className="h-full rounded-full transition-all duration-700 glow-purple" 
+                  style={{ width: `${progressPct}%`, background: 'linear-gradient(90deg, hsl(250,84%,60%), hsl(280,60%,55%))' }}
+                />
+              </div>
+            </div>
+
+            <p className="text-[10px] text-white/30 mt-3 italic">
+              {batchTarget?.notes || 'Tidak ada catatan tambahan untuk batch ini.'}
+            </p>
+          </div>
+
         </div>
 
-        {/* Pipeline Funnel + Recent Leads */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-
-          {/* Pipeline Funnel */}
-          <div className="glass-card rounded-2xl p-5 lg:col-span-1">
-            <div className="flex items-center gap-2 mb-4">
-              <Target size={16} className="text-purple-400" />
-              <h2 className="text-sm font-semibold text-white">Pipeline Funnel</h2>
-            </div>
-            <div className="space-y-2">
-              {Object.entries(STAGE_CONFIG).map(([stage, config]) => {
-                const count = stageCounts[stage] || 0
-                const total = totalLeads || 1
-                const pct = Math.round((count / total) * 100)
-                return (
-                  <div key={stage}>
-                    <div className="flex items-center justify-between text-xs mb-1">
-                      <span style={{ color: config.color }}>{config.label}</span>
-                      <span className="text-white/50">{count} leads</span>
-                    </div>
-                    <div className="h-2 rounded-full overflow-hidden" style={{ background: 'hsl(222,47%,14%)' }}>
-                      <div
-                        className="h-full rounded-full transition-all duration-700"
-                        style={{ width: `${pct}%`, background: config.color }}
-                      />
-                    </div>
+        {/* 14 Summary Cards Grid */}
+        <div>
+          <h2 className="text-white font-extrabold text-sm uppercase tracking-wider mb-4 flex items-center gap-2">
+            <Award size={16} className="text-purple-400" />
+            Summary Pipeline Leads
+          </h2>
+          
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-4">
+            {summaryCards.map(card => (
+              <div 
+                key={card.label} 
+                className="glass-card rounded-2xl p-4 border border-white/5 flex flex-col justify-between hover:scale-[1.03] transition-transform duration-200"
+              >
+                <span className="text-white/40 text-[10px] font-bold uppercase tracking-wide truncate">{card.label}</span>
+                <div className="flex items-baseline justify-between mt-3">
+                  <span className="text-2xl font-black text-white">{card.value}</span>
+                  <div className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: card.bg }}>
+                    <div className="w-2 h-2 rounded-full" style={{ background: card.color }} />
                   </div>
-                )
-              })}
-            </div>
-          </div>
-
-          {/* Follow-Up Hari Ini */}
-          <div className="glass-card rounded-2xl p-5 lg:col-span-1">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Clock size={16} className="text-purple-400" />
-                <h2 className="text-sm font-semibold text-white">FU Hari Ini / Overdue</h2>
+                </div>
               </div>
-              <a href="/follow-ups" className="text-xs text-purple-400 hover:text-purple-300 transition-colors">
-                Lihat semua →
-              </a>
-            </div>
-            <div className="space-y-3">
-              {(dueFUs || []).length === 0 ? (
-                <p className="text-sm text-white/30 text-center py-8">Tidak ada follow-up hari ini. 👍</p>
-              ) : (
-                dueFUs.map((fu: any) => {
-                  const lead = fu.leads
-                  if (!lead) return null
-                  const stageConfig = STAGE_CONFIG[lead.stage as keyof typeof STAGE_CONFIG] || STAGE_CONFIG.new
-                  return (
-                    <div
-                      key={fu.id}
-                      className="flex items-center justify-between gap-2 p-2.5 rounded-xl hover:bg-white/5 transition-colors group"
-                    >
-                      <a href={`/leads/${lead.id}`} className="flex items-center gap-3 min-w-0 flex-1">
-                        <div
-                          className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
-                          style={{ background: stageConfig.bg, color: stageConfig.color }}
-                        >
-                          {(lead.name || '?')[0].toUpperCase()}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium text-white truncate group-hover:text-purple-300 transition-colors">
-                            {lead.name || 'Tanpa Nama'}
-                          </p>
-                          <p className="text-xs text-white/40 font-mono truncate">{lead.phone_number}</p>
-                        </div>
-                      </a>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 font-semibold uppercase">
-                          {fu.fu_type}
-                        </span>
-                        <WhatsAppButton
-                          leadName={lead.name || 'Tanpa Nama'}
-                          leadPhone={lead.phone_number}
-                          iconOnly
-                        />
-                      </div>
-                    </div>
-                  )
-                })
-              )}
-            </div>
-          </div>
-
-          {/* Recent Leads */}
-          <div className="glass-card rounded-2xl p-5 lg:col-span-1">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <BarChart3 size={16} className="text-purple-400" />
-                <h2 className="text-sm font-semibold text-white">Leads Terbaru</h2>
-              </div>
-              <a href="/leads" className="text-xs text-purple-400 hover:text-purple-300 transition-colors">
-                Lihat semua →
-              </a>
-            </div>
-            <div className="space-y-3">
-              {(recentLeads || []).length === 0 ? (
-                <p className="text-sm text-white/30 text-center py-8">Belum ada leads. Tambahkan leads pertama!</p>
-              ) : (
-                recentLeads!.map((lead: any) => {
-                  const stageConfig = STAGE_CONFIG[lead.stage as keyof typeof STAGE_CONFIG] || STAGE_CONFIG.new
-                  return (
-                    <a
-                      key={lead.id}
-                      href={`/leads/${lead.id}`}
-                      className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-white/5 transition-colors group"
-                    >
-                      <div
-                        className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
-                        style={{ background: stageConfig.bg, color: stageConfig.color }}
-                      >
-                        {(lead.name || '?')[0].toUpperCase()}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-white truncate group-hover:text-purple-300 transition-colors">
-                          {lead.name || 'Tanpa Nama'}
-                        </p>
-                        <p className="text-xs text-white/40">{lead.phone_number}</p>
-                      </div>
-                      <div className="flex items-center gap-1.5 flex-shrink-0">
-                        <span className="text-sm">{SOURCE_ICONS[lead.source] || '📌'}</span>
-                        <span
-                          className="text-[10px] px-1.5 py-0.5 rounded-full font-medium"
-                          style={{ background: stageConfig.bg, color: stageConfig.color }}
-                        >
-                          {stageConfig.label}
-                        </span>
-                      </div>
-                    </a>
-                  )
-                })
-              )}
-            </div>
+            ))}
           </div>
         </div>
 
         {/* Quick Actions */}
-        <div className="glass-card rounded-2xl p-5">
+        <div className="glass-card rounded-2xl p-5 border border-white/5">
           <h2 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
-            <TrendingUp size={16} className="text-purple-400" />
-            Quick Actions
+            <Zap size={16} className="text-purple-400" />
+            Aksi Cepat
           </h2>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {[
-              { href: '/leads/new', label: 'Tambah Lead', emoji: '➕', color: '#8b5cf6', bg: 'rgba(139,92,246,0.12)' },
-              { href: '/follow-ups', label: 'Lihat FU Hari Ini', emoji: '📞', color: '#f97316', bg: 'rgba(249,115,22,0.12)' },
-              { href: '/pipeline', label: 'Pipeline Board', emoji: '🗂️', color: '#3b82f6', bg: 'rgba(59,130,246,0.12)' },
-              { href: '/playbook', label: 'Buka Playbook', emoji: '📋', color: '#22c55e', bg: 'rgba(34,197,94,0.12)' },
-            ].map((action) => (
+              { href: '/leads/new', label: 'Tambah Lead Baru', emoji: <Plus size={16} />, color: '#a78bfa', bg: 'rgba(167,139,250,0.1)' },
+              { href: '/needs-action', label: 'Needs Action Dashboard', emoji: <CheckCircle2 size={16} />, color: '#10b981', bg: 'rgba(16,185,129,0.1)' },
+              { href: '/leads', label: 'Tabel Seluruh Leads', emoji: <BookOpen size={16} />, color: '#3b82f6', bg: 'rgba(59,130,246,0.1)' },
+            ].map((action, idx) => (
               <a
-                key={action.href}
+                key={idx}
                 href={action.href}
-                className="flex flex-col items-center gap-2 p-4 rounded-xl text-center transition-all duration-200 hover:scale-[1.03]"
-                style={{ background: action.bg, border: `1px solid ${action.color}25` }}
+                className="flex items-center gap-3 p-4 rounded-xl transition-all duration-200 hover:scale-[1.02]"
+                style={{ background: action.bg, border: `1px solid ${action.color}20` }}
               >
-                <span className="text-2xl">{action.emoji}</span>
-                <span className="text-xs font-medium" style={{ color: action.color }}>{action.label}</span>
+                <div className="p-2 rounded-lg bg-white/5 text-white">
+                  {action.emoji}
+                </div>
+                <span className="text-xs font-bold text-white">{action.label}</span>
               </a>
             ))}
           </div>
         </div>
 
       </div>
+
+      {/* Edit Target Modal */}
+      {isEditingTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="relative w-full max-w-md glass-card rounded-2xl p-6 border border-white/10 shadow-2xl">
+            <h3 className="text-lg font-bold text-white mb-4">Edit Target Progres Batch</h3>
+
+            <div className="space-y-4 mb-6">
+              <div>
+                <label className="block text-xs text-white/40 mb-1">Nama Batch</label>
+                <input
+                  type="text"
+                  value={newBatchName}
+                  onChange={(e) => setNewBatchName(e.target.value)}
+                  className="w-full px-3 py-2 text-sm text-white outline-none rounded-xl"
+                  style={{ background: 'hsl(222,47%,12%)', border: '1px solid hsl(222,47%,20%)' }}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs text-white/40 mb-1">Target Seat Lock</label>
+                <input
+                  type="number"
+                  value={newTarget}
+                  onChange={(e) => setNewTarget(Number(e.target.value))}
+                  className="w-full px-3 py-2 text-sm text-white outline-none rounded-xl"
+                  style={{ background: 'hsl(222,47%,12%)', border: '1px solid hsl(222,47%,20%)' }}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-white/40 mb-1">Tanggal Mulai</label>
+                  <input
+                    type="date"
+                    value={newStartDate}
+                    onChange={(e) => setNewStartDate(e.target.value)}
+                    className="w-full px-3 py-2 text-sm text-white outline-none rounded-xl"
+                    style={{ background: 'hsl(222,47%,12%)', border: '1px solid hsl(222,47%,20%)' }}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-white/40 mb-1">Tanggal Selesai</label>
+                  <input
+                    type="date"
+                    value={newEndDate}
+                    onChange={(e) => setNewEndDate(e.target.value)}
+                    className="w-full px-3 py-2 text-sm text-white outline-none rounded-xl"
+                    style={{ background: 'hsl(222,47%,12%)', border: '1px solid hsl(222,47%,20%)' }}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs text-white/40 mb-1">Catatan Tambahan</label>
+                <textarea
+                  placeholder="Catatan tambahan target..."
+                  value={newNotes}
+                  onChange={(e) => setNewNotes(e.target.value)}
+                  className="w-full px-3 py-2 text-sm text-white outline-none rounded-xl h-20"
+                  style={{ background: 'hsl(222,47%,12%)', border: '1px solid hsl(222,47%,20%)' }}
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 border-t border-white/5 pt-4">
+              <button
+                onClick={() => setIsEditingTarget(false)}
+                className="px-4 py-2 text-xs font-semibold rounded-xl text-white/60 hover:text-white hover:bg-white/5 transition-all"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleSaveTarget}
+                className="px-4 py-2 text-xs font-bold rounded-xl text-white hover:glow-purple transition-all duration-300"
+                style={{ background: 'linear-gradient(135deg, hsl(250,84%,60%), hsl(280,60%,55%))' }}
+              >
+                Simpan Target
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }

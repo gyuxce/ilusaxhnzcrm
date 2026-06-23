@@ -4,47 +4,57 @@ import { useState, useMemo } from 'react'
 import Link from 'next/link'
 import {
   Search, Filter, ExternalLink, MessageCircle,
-  ChevronUp, ChevronDown, Copy, AlertTriangle
+  ChevronUp, ChevronDown, Copy, Calendar, RefreshCw
 } from 'lucide-react'
-import { cn, STAGE_LABELS, SOURCE_LABELS, SOURCE_ICONS, generateWALink, formatDate } from '@/lib/utils'
-import type { Lead, LeadStage, LeadSource } from '@/lib/supabase/types'
+import { cn } from '@/lib/utils'
+import type { Lead } from '@/lib/supabase/types'
 import { WhatsAppModal } from './WhatsAppModal'
 
-// @ts-ignore - extended type with joins
 type LeadWithRelations = Lead & {
-  users?: { id: string; full_name: string } | null
-  campaigns?: { id: string; name: string } | null
-}
-
-const STAGE_CONFIG = {
-  new: { label: 'Baru', textColor: 'text-slate-400', bg: 'rgba(100,116,139,0.15)', border: 'rgba(100,116,139,0.3)' },
-  probing: { label: 'Probing', textColor: 'text-blue-400', bg: 'rgba(59,130,246,0.15)', border: 'rgba(59,130,246,0.3)' },
-  hot: { label: 'Hot', textColor: 'text-orange-400', bg: 'rgba(249,115,22,0.15)', border: 'rgba(249,115,22,0.3)' },
-  potential: { label: 'Potensial', textColor: 'text-yellow-400', bg: 'rgba(234,179,8,0.15)', border: 'rgba(234,179,8,0.3)' },
-  converted: { label: 'Konversi', textColor: 'text-green-400', bg: 'rgba(34,197,94,0.15)', border: 'rgba(34,197,94,0.3)' },
-  rejected: { label: 'Reject', textColor: 'text-red-400', bg: 'rgba(239,68,68,0.15)', border: 'rgba(239,68,68,0.3)' },
-}
-
-const SOURCE_ICON_MAP: Record<string, string> = {
-  ig: '📸', fb: '📘', linkedin: '💼', webinar: '🎓', manual: '✍️', referral: '🤝', other: '📌'
+  users?: { id: string; name: string } | null
+  payments?: any[]
+  pemetaan?: any[]
+  expert_consultations?: any[]
 }
 
 interface LeadsTableProps {
   initialLeads: LeadWithRelations[]
-  pics: { id: string; full_name: string }[]
-  campaigns: { id: string; name: string }[]
+  pics: { id: string; name: string }[]
 }
 
-export function LeadsTable({ initialLeads, pics, campaigns }: LeadsTableProps) {
+export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
   const [search, setSearch] = useState('')
-  const [filterStage, setFilterStage] = useState<LeadStage | 'all'>('all')
-  const [filterSource, setFilterSource] = useState<LeadSource | 'all'>('all')
+  const [filterStatus, setFilterStatus] = useState('all')
   const [filterPic, setFilterPic] = useState('all')
-  const [sortField, setSortField] = useState<'created_at' | 'name' | 'stage'>('created_at')
+  const [filterCampaign, setFilterCampaign] = useState('all')
+  const [filterPayment, setFilterPayment] = useState('all')
+  const [filterSeatLock, setFilterSeatLock] = useState('all')
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
+  
+  const [sortField, setSortField] = useState<'full_name' | 'lead_entry_date' | 'current_status'>('lead_entry_date')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
   const [showFilters, setShowFilters] = useState(false)
   const [waModalOpen, setWaModalOpen] = useState(false)
   const [activeLead, setActiveLead] = useState<any>(null)
+
+  // Get unique campaigns for filter dropdown
+  const campaignsList = useMemo(() => {
+    const set = new Set<string>()
+    initialLeads.forEach(l => {
+      if (l.source_campaign) set.add(l.source_campaign)
+    })
+    return Array.from(set)
+  }, [initialLeads])
+
+  // Get unique statuses for filter dropdown
+  const statusesList = useMemo(() => {
+    const set = new Set<string>()
+    initialLeads.forEach(l => {
+      if (l.current_status) set.add(l.current_status)
+    })
+    return Array.from(set)
+  }, [initialLeads])
 
   const filtered = useMemo(() => {
     let data = [...initialLeads]
@@ -52,23 +62,61 @@ export function LeadsTable({ initialLeads, pics, campaigns }: LeadsTableProps) {
     if (search) {
       const q = search.toLowerCase()
       data = data.filter(l =>
-        l.name?.toLowerCase().includes(q) ||
-        l.phone_number.includes(q) ||
+        l.full_name.toLowerCase().includes(q) ||
+        l.whatsapp_number.includes(q) ||
+        l.email?.toLowerCase().includes(q) ||
         l.notes?.toLowerCase().includes(q)
       )
     }
-    if (filterStage !== 'all') data = data.filter(l => l.stage === filterStage)
-    if (filterSource !== 'all') data = data.filter(l => l.source === filterSource)
-    if (filterPic !== 'all') data = data.filter(l => l.pic_id === filterPic)
 
+    if (filterStatus !== 'all') {
+      data = data.filter(l => l.current_status === filterStatus)
+    }
+
+    if (filterPic !== 'all') {
+      data = data.filter(l => l.assigned_cro_id === filterPic)
+    }
+
+    if (filterCampaign !== 'all') {
+      data = data.filter(l => l.source_campaign === filterCampaign)
+    }
+
+    if (filterPayment !== 'all') {
+      data = data.filter(l => {
+        const pm = l.payments?.find(p => p.payment_type === 'pemetaan')
+        const status = pm ? pm.verification_status : 'pending_payment'
+        return status === filterPayment
+      })
+    }
+
+    if (filterSeatLock !== 'all') {
+      data = data.filter(l => {
+        const pm = l.payments?.find(p => p.payment_type === 'seat_lock')
+        const status = pm ? pm.verification_status : 'not_paid'
+        return status === filterSeatLock
+      })
+    }
+
+    if (startDate) {
+      data = data.filter(l => new Date(l.lead_entry_date) >= new Date(startDate))
+    }
+
+    if (endDate) {
+      // Add 1 day to end date to make it inclusive
+      const end = new Date(endDate)
+      end.setDate(end.getDate() + 1)
+      data = data.filter(l => new Date(l.lead_entry_date) <= end)
+    }
+
+    // Sorting
     data.sort((a, b) => {
-      let av = sortField === 'created_at' ? a.created_at : sortField === 'name' ? (a.name || '') : a.stage
-      let bv = sortField === 'created_at' ? b.created_at : sortField === 'name' ? (b.name || '') : b.stage
+      let av = sortField === 'lead_entry_date' ? a.lead_entry_date : sortField === 'full_name' ? a.full_name : a.current_status
+      let bv = sortField === 'lead_entry_date' ? b.lead_entry_date : sortField === 'full_name' ? b.full_name : b.current_status
       return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av)
     })
 
     return data
-  }, [initialLeads, search, filterStage, filterSource, filterPic, sortField, sortDir])
+  }, [initialLeads, search, filterStatus, filterPic, filterCampaign, filterPayment, filterSeatLock, startDate, endDate, sortField, sortDir])
 
   function toggleSort(field: typeof sortField) {
     if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
@@ -82,111 +130,190 @@ export function LeadsTable({ initialLeads, pics, campaigns }: LeadsTableProps) {
       : <ChevronDown size={12} className="text-purple-400" />
   }
 
+  // Format Helper
+  const formatCellDate = (dateStr: string | null) => {
+    if (!dateStr) return '-'
+    const d = new Date(dateStr)
+    return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
+  }
+
   return (
     <div className="space-y-4">
-      {/* Summary bar */}
+      {/* Top bar info */}
       <div className="flex items-center justify-between">
         <p className="text-sm text-white/50">
-          <span className="text-white font-semibold">{filtered.length}</span> leads ditemukan
+          Ditemukan <span className="text-white font-bold">{filtered.length}</span> dari {initialLeads.length} leads
         </p>
         <Link
           href="/leads/new"
-          className="px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90"
+          className="px-4 py-2 rounded-xl text-xs font-bold text-white transition-all hover:glow-purple"
           style={{ background: 'linear-gradient(135deg, hsl(250,84%,60%), hsl(280,60%,55%))' }}
         >
           + Tambah Lead
         </Link>
       </div>
 
-      {/* Search & Filter Bar */}
-      <div className="glass-card rounded-2xl p-4 space-y-3">
-        <div className="flex gap-3">
+      {/* Search & Filter Component */}
+      <div className="glass-card rounded-2xl p-4 space-y-4 border border-white/5">
+        <div className="flex flex-col sm:flex-row gap-3">
           <div className="flex-1 relative">
-            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
+            <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30" />
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Cari nama, nomor HP..."
-              className="w-full pl-9 pr-4 py-2 rounded-xl text-sm text-white placeholder-white/25 outline-none"
-              style={{ background: 'hsl(222,47%,12%)', border: '1px solid hsl(222,47%,20%)' }}
+              placeholder="Cari nama, WhatsApp, email..."
+              className="w-full pl-10 pr-4 py-2 rounded-xl text-xs text-white placeholder-white/20 outline-none"
+              style={{ background: 'hsl(222,47%,10%)', border: '1px solid hsl(222,47%,18%)' }}
             />
           </div>
           <button
             onClick={() => setShowFilters(!showFilters)}
             className={cn(
-              'flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-all',
-              showFilters ? 'text-purple-400' : 'text-white/50 hover:text-white/70'
+              'flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all border border-white/5 cursor-pointer',
+              showFilters ? 'text-purple-400 bg-purple-500/10' : 'text-white/60 hover:text-white hover:bg-white/5'
             )}
-            style={{ border: '1px solid hsl(222,47%,20%)', background: 'hsl(222,47%,12%)' }}
+            style={{ background: 'hsl(222,47%,10%)' }}
           >
             <Filter size={14} />
-            Filter
+            Filter Lanjutan
           </button>
         </div>
 
         {showFilters && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-2 border-t border-white/5">
-            {/* Stage filter */}
-            <select
-              value={filterStage}
-              onChange={e => setFilterStage(e.target.value as LeadStage | 'all')}
-              className="px-3 py-2 rounded-xl text-sm text-white outline-none"
-              style={{ background: 'hsl(222,47%,12%)', border: '1px solid hsl(222,47%,20%)' }}
-            >
-              <option value="all">Semua Stage</option>
-              {Object.entries(STAGE_LABELS).map(([v, l]) => (
-                <option key={v} value={v}>{l}</option>
-              ))}
-            </select>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-white/5">
+            {/* Status */}
+            <div>
+              <label className="block text-[10px] text-white/40 font-bold uppercase mb-1.5">Status Pipeline</label>
+              <select
+                value={filterStatus}
+                onChange={e => setFilterStatus(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl text-xs text-white outline-none cursor-pointer"
+                style={{ background: 'hsl(222,47%,12%)', border: '1px solid hsl(222,47%,20%)' }}
+              >
+                <option value="all">Semua Status</option>
+                {statusesList.map(s => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </div>
 
-            {/* Source filter */}
-            <select
-              value={filterSource}
-              onChange={e => setFilterSource(e.target.value as LeadSource | 'all')}
-              className="px-3 py-2 rounded-xl text-sm text-white outline-none"
-              style={{ background: 'hsl(222,47%,12%)', border: '1px solid hsl(222,47%,20%)' }}
-            >
-              <option value="all">Semua Source</option>
-              {Object.entries(SOURCE_LABELS).map(([v, l]) => (
-                <option key={v} value={v}>{SOURCE_ICON_MAP[v]} {l}</option>
-              ))}
-            </select>
+            {/* PIC */}
+            <div>
+              <label className="block text-[10px] text-white/40 font-bold uppercase mb-1.5">PIC CRO</label>
+              <select
+                value={filterPic}
+                onChange={e => setFilterPic(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl text-xs text-white outline-none cursor-pointer"
+                style={{ background: 'hsl(222,47%,12%)', border: '1px solid hsl(222,47%,20%)' }}
+              >
+                <option value="all">Semua PIC</option>
+                {pics.map(p => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+            </div>
 
-            {/* PIC filter */}
-            <select
-              value={filterPic}
-              onChange={e => setFilterPic(e.target.value)}
-              className="px-3 py-2 rounded-xl text-sm text-white outline-none"
-              style={{ background: 'hsl(222,47%,12%)', border: '1px solid hsl(222,47%,20%)' }}
-            >
-              <option value="all">Semua PIC</option>
-              {pics.map(p => (
-                <option key={p.id} value={p.id}>{p.full_name}</option>
-              ))}
-            </select>
+            {/* Campaign Source */}
+            <div>
+              <label className="block text-[10px] text-white/40 font-bold uppercase mb-1.5">Source Campaign</label>
+              <select
+                value={filterCampaign}
+                onChange={e => setFilterCampaign(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl text-xs text-white outline-none cursor-pointer"
+                style={{ background: 'hsl(222,47%,12%)', border: '1px solid hsl(222,47%,20%)' }}
+              >
+                <option value="all">Semua Campaign</option>
+                {campaignsList.map(c => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Payment Status */}
+            <div>
+              <label className="block text-[10px] text-white/40 font-bold uppercase mb-1.5">Status Pembayaran</label>
+              <select
+                value={filterPayment}
+                onChange={e => setFilterPayment(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl text-xs text-white outline-none cursor-pointer"
+                style={{ background: 'hsl(222,47%,12%)', border: '1px solid hsl(222,47%,20%)' }}
+              >
+                <option value="all">Semua Status</option>
+                <option value="verified">Verified</option>
+                <option value="pending">Pending</option>
+                <option value="rejected">Rejected</option>
+                <option value="pending_payment">Belum Bayar</option>
+              </select>
+            </div>
+
+            {/* Seat Lock Status */}
+            <div>
+              <label className="block text-[10px] text-white/40 font-bold uppercase mb-1.5">Status Seat Lock</label>
+              <select
+                value={filterSeatLock}
+                onChange={e => setFilterSeatLock(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl text-xs text-white outline-none cursor-pointer"
+                style={{ background: 'hsl(222,47%,12%)', border: '1px solid hsl(222,47%,20%)' }}
+              >
+                <option value="all">Semua Status</option>
+                <option value="verified">Paid / Verified</option>
+                <option value="pending">Pending Verification</option>
+                <option value="not_paid">Belum Seat Lock</option>
+              </select>
+            </div>
+
+            {/* Date Range Start */}
+            <div>
+              <label className="block text-[10px] text-white/40 font-bold uppercase mb-1.5">Mulai Tanggal</label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={e => setStartDate(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl text-xs text-white outline-none"
+                style={{ background: 'hsl(222,47%,12%)', border: '1px solid hsl(222,47%,20%)' }}
+              />
+            </div>
+
+            {/* Date Range End */}
+            <div>
+              <label className="block text-[10px] text-white/40 font-bold uppercase mb-1.5">Hingga Tanggal</label>
+              <input
+                type="date"
+                value={endDate}
+                onChange={e => setEndDate(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl text-xs text-white outline-none"
+                style={{ background: 'hsl(222,47%,12%)', border: '1px solid hsl(222,47%,20%)' }}
+              />
+            </div>
           </div>
         )}
       </div>
 
-      {/* Table */}
-      <div className="glass-card rounded-2xl overflow-hidden">
+      {/* Table Data */}
+      <div className="glass-card rounded-2xl overflow-hidden border border-white/5">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-xs text-left">
             <thead>
-              <tr style={{ borderBottom: '1px solid hsl(222,47%,14%)' }}>
+              <tr className="border-b border-white/10" style={{ background: 'rgba(255,255,255,0.01)' }}>
                 {[
-                  { label: 'Nama', field: 'name' as const },
-                  { label: 'Nomor HP', field: null },
-                  { label: 'Source', field: null },
-                  { label: 'Stage', field: 'stage' as const },
-                  { label: 'PIC', field: null },
-                  { label: 'Tanggal', field: 'created_at' as const },
-                  { label: 'Aksi', field: null },
+                  { label: 'Nama', field: 'full_name' as const },
+                  { label: 'WhatsApp', field: null },
+                  { label: 'Source Campaign', field: null },
+                  { label: 'Tanggal Masuk', field: 'lead_entry_date' as const },
+                  { label: 'PIC CRO', field: null },
+                  { label: 'Status Saat Ini', field: 'current_status' as const },
+                  { label: 'Last Contacted', field: null },
+                  { label: 'Follow-up Result', field: null },
+                  { label: 'Payment Status', field: null },
+                  { label: 'Pemetaan Status', field: null },
+                  { label: 'Expert Status', field: null },
+                  { label: 'Seat Lock Status', field: null },
+                  { label: 'Aksi', field: null }
                 ].map(col => (
                   <th
                     key={col.label}
                     className={cn(
-                      'px-4 py-3 text-left text-xs font-medium text-white/40 whitespace-nowrap',
+                      'px-4 py-3 font-semibold text-white/40 whitespace-nowrap',
                       col.field && 'cursor-pointer hover:text-white/70 select-none'
                     )}
                     onClick={() => col.field && toggleSort(col.field)}
@@ -199,114 +326,140 @@ export function LeadsTable({ initialLeads, pics, campaigns }: LeadsTableProps) {
                 ))}
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-white/5">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-12 text-center text-white/30 text-sm">
-                    Tidak ada leads yang ditemukan
+                  <td colSpan={13} className="px-4 py-16 text-center text-white/20 text-sm">
+                    Tidak ada data leads yang cocok dengan filter.
                   </td>
                 </tr>
               ) : (
-                filtered.map((lead, i) => {
-                  const stageConf = STAGE_CONFIG[lead.stage] || STAGE_CONFIG.new
+                filtered.map(lead => {
+                  // Resolve Relations Statuses
+                  const pemetaanPayment = lead.payments?.find(p => p.payment_type === 'pemetaan')
+                  const seatLockPayment = lead.payments?.find(p => p.payment_type === 'seat_lock')
+                  const pemRecord = lead.pemetaan && lead.pemetaan.length > 0 ? lead.pemetaan[0] : null
+                  const expRecord = lead.expert_consultations && lead.expert_consultations.length > 0 ? lead.expert_consultations[0] : null
+
                   return (
-                    <tr
-                      key={lead.id}
-                      className="group hover:bg-white/[0.02] transition-colors"
-                      style={{ borderBottom: i < filtered.length - 1 ? '1px solid hsl(222,47%,11%)' : 'none' }}
-                    >
-                      {/* Nama */}
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <div
-                            className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
-                            style={{ background: stageConf.bg, color: stageConf.textColor.replace('text-', '') }}
-                          >
-                            {(lead.name || '?')[0].toUpperCase()}
-                          </div>
-                          <div>
-                            <Link
-                              href={`/leads/${lead.id}`}
-                              className="font-medium text-white hover:text-purple-300 transition-colors flex items-center gap-1"
-                            >
-                              {lead.name || 'Tanpa Nama'}
-                              {lead.is_duplicate && (
-                                <span title="Duplikat terdeteksi">
-                                  <AlertTriangle size={11} className="text-yellow-400" />
-                                </span>
-                              )}
-                            </Link>
-                            {lead.notes && (
-                              <p className="text-xs text-white/30 truncate max-w-[180px]">{lead.notes}</p>
-                            )}
-                          </div>
-                        </div>
+                    <tr key={lead.id} className="hover:bg-white/[0.01] transition-colors group">
+                      {/* Name */}
+                      <td className="px-4 py-3 font-bold text-white whitespace-nowrap">
+                        <Link href={`/leads/${lead.id}`} className="hover:text-purple-300 transition-colors">
+                          {lead.full_name}
+                        </Link>
                       </td>
 
-                      {/* Phone */}
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-white/70 font-mono text-xs">{lead.phone_number}</span>
-                          <button
-                            onClick={() => navigator.clipboard.writeText(lead.phone_number)}
-                            className="opacity-0 group-hover:opacity-100 text-white/30 hover:text-white/60 transition-all"
-                            title="Salin nomor"
-                          >
-                            <Copy size={11} />
-                          </button>
-                        </div>
+                      {/* WhatsApp */}
+                      <td className="px-4 py-3 font-mono text-white/70 whitespace-nowrap">
+                        {lead.whatsapp_number}
                       </td>
 
-                      {/* Source */}
-                      <td className="px-4 py-3">
-                        <span className="flex items-center gap-1.5 text-xs text-white/60">
-                          <span>{SOURCE_ICON_MAP[lead.source] || '📌'}</span>
-                          {SOURCE_LABELS[lead.source] || lead.source}
+                      {/* Source Campaign */}
+                      <td className="px-4 py-3 text-white/60 whitespace-nowrap">
+                        {lead.source_campaign}
+                      </td>
+
+                      {/* Tanggal Masuk */}
+                      <td className="px-4 py-3 text-white/50 whitespace-nowrap">
+                        {formatCellDate(lead.lead_entry_date)}
+                      </td>
+
+                      {/* PIC CRO */}
+                      <td className="px-4 py-3 text-white/60 whitespace-nowrap">
+                        {lead.users?.name || '-'}
+                      </td>
+
+                      {/* Status Saat Ini */}
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <span className="px-2 py-0.5 rounded-full font-semibold bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                          {lead.current_status}
                         </span>
                       </td>
 
-                      {/* Stage */}
-                      <td className="px-4 py-3">
-                        <span
-                          className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
-                          style={{
-                            background: stageConf.bg,
-                            color: stageConf.textColor.replace('text-', 'hsl') || '#64748b',
-                            border: `1px solid ${stageConf.border}`,
-                          }}
-                        >
-                          {stageConf.label}
-                        </span>
+                      {/* Last Contacted */}
+                      <td className="px-4 py-3 text-white/50 whitespace-nowrap">
+                        {formatCellDate(lead.last_contacted_date)}
                       </td>
 
-                      {/* PIC */}
-                      <td className="px-4 py-3 text-xs text-white/50">
-                        {/* @ts-ignore */}
-                        {lead.users?.full_name || '-'}
+                      {/* Follow-up Result */}
+                      <td className="px-4 py-3 text-white/60 max-w-[150px] truncate" title={lead.follow_up_result || ''}>
+                        {lead.follow_up_result || '-'}
                       </td>
 
-                      {/* Date */}
-                      <td className="px-4 py-3 text-xs text-white/40 whitespace-nowrap">
-                        {formatDate(lead.inbound_date || lead.created_at)}
+                      {/* Payment Status (Pemetaan) */}
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        {pemetaanPayment ? (
+                          <span className={cn(
+                            "px-2 py-0.5 rounded-full font-semibold border text-[10px]",
+                            pemetaanPayment.verification_status === 'verified' && "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+                            pemetaanPayment.verification_status === 'pending' && "bg-amber-500/10 text-amber-400 border-amber-500/20",
+                            pemetaanPayment.verification_status === 'rejected' && "bg-red-500/10 text-red-400 border-red-500/20"
+                          )}>
+                            {pemetaanPayment.verification_status.toUpperCase()}
+                          </span>
+                        ) : (
+                          <span className="text-white/20">-</span>
+                        )}
                       </td>
 
-                      {/* Actions */}
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      {/* Pemetaan Status */}
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        {pemRecord ? (
+                          <span className="text-white/70">
+                            Form: <span className="font-semibold text-purple-400">{pemRecord.form_status}</span> | Result: <span className="font-semibold text-purple-400">{pemRecord.result_status}</span>
+                          </span>
+                        ) : (
+                          <span className="text-white/25">Not Created</span>
+                        )}
+                      </td>
+
+                      {/* Expert Status */}
+                      <td className="px-4 py-3 whitespace-nowrap text-white/60">
+                        {expRecord ? (
+                          expRecord.consultation_result ? (
+                            <span className="text-emerald-400 font-bold">{expRecord.consultation_result}</span>
+                          ) : (
+                            <span className="text-white/40">Scheduled</span>
+                          )
+                        ) : (
+                          <span className="text-white/20">-</span>
+                        )}
+                      </td>
+
+                      {/* Seat Lock Status */}
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        {seatLockPayment ? (
+                          <span className={cn(
+                            "px-2 py-0.5 rounded-full font-semibold border text-[10px]",
+                            seatLockPayment.verification_status === 'verified' && "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+                            seatLockPayment.verification_status === 'pending' && "bg-amber-500/10 text-amber-400 border-amber-500/20",
+                            seatLockPayment.verification_status === 'rejected' && "bg-red-500/10 text-red-400 border-red-500/20"
+                          )}>
+                            PAID
+                          </span>
+                        ) : (
+                          <span className="text-white/20">UNPAID</span>
+                        )}
+                      </td>
+
+                      {/* Action buttons */}
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button
                             onClick={() => {
                               setActiveLead(lead)
                               setWaModalOpen(true)
                             }}
-                            className="w-7 h-7 rounded-lg flex items-center justify-center text-green-400 hover:bg-green-500/10 transition-colors"
-                            title="Kirim Template WA"
+                            className="p-1 rounded-lg text-emerald-400 hover:bg-emerald-500/10 transition-colors"
+                            title="Kirim Pesan WhatsApp"
                           >
                             <MessageCircle size={14} />
                           </button>
                           <Link
                             href={`/leads/${lead.id}`}
-                            className="w-7 h-7 rounded-lg flex items-center justify-center text-purple-400 hover:bg-purple-500/10 transition-colors"
-                            title="Detail"
+                            className="p-1 rounded-lg text-purple-400 hover:bg-purple-500/10 transition-colors"
+                            title="Lihat Detail"
                           >
                             <ExternalLink size={14} />
                           </Link>
@@ -320,6 +473,7 @@ export function LeadsTable({ initialLeads, pics, campaigns }: LeadsTableProps) {
           </table>
         </div>
       </div>
+
       {activeLead && (
         <WhatsAppModal
           isOpen={waModalOpen}
@@ -327,8 +481,8 @@ export function LeadsTable({ initialLeads, pics, campaigns }: LeadsTableProps) {
             setWaModalOpen(false)
             setActiveLead(null)
           }}
-          leadName={activeLead.name || 'Tanpa Nama'}
-          leadPhone={activeLead.phone_number}
+          leadName={activeLead.full_name}
+          leadPhone={activeLead.whatsapp_number}
         />
       )}
     </div>
