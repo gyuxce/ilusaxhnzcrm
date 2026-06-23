@@ -25,6 +25,115 @@ interface LeadsTableProps {
   pics: { id: string; name: string }[]
 }
 
+const renderMilestones = (lead: LeadWithRelations) => {
+  const pemetaanPayment = lead.payments?.find(p => p.payment_type === 'pemetaan')
+  const seatLockPayment = lead.payments?.find(p => p.payment_type === 'seat_lock')
+  const pemRecord = lead.pemetaan && lead.pemetaan.length > 0 ? lead.pemetaan[0] : null
+  const expRecord = lead.expert_consultations && lead.expert_consultations.length > 0 ? lead.expert_consultations[0] : null
+
+  // Step 1: Payment Pemetaan
+  let step1: 'success' | 'warning' | 'empty' = 'empty'
+  let step1Text = 'Payment Pemetaan: Belum Bayar'
+  if (pemetaanPayment) {
+    if (pemetaanPayment.verification_status === 'verified') {
+      step1 = 'success'
+      step1Text = 'Payment Pemetaan: Lunas & Terverifikasi'
+    } else if (pemetaanPayment.verification_status === 'pending') {
+      step1 = 'warning'
+      step1Text = 'Payment Pemetaan: Menunggu Verifikasi'
+    } else {
+      step1 = 'empty'
+      step1Text = 'Payment Pemetaan: Ditolak'
+    }
+  }
+
+  // Step 2: Pemetaan Session
+  let step2: 'success' | 'warning' | 'empty' = 'empty'
+  let step2Text = 'Sesi Pemetaan: Belum Dimulai'
+  if (pemRecord) {
+    if (pemRecord.result_status === 'ready') {
+      step2 = 'success'
+      step2Text = 'Sesi Pemetaan: Hasil Siap (Ready)'
+    } else if (pemRecord.scheduled_at) {
+      step2 = 'warning'
+      const date = new Date(pemRecord.scheduled_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })
+      step2Text = `Sesi Pemetaan: Terjadwal (${date})`
+    } else if (pemRecord.form_status === 'submitted') {
+      step2 = 'warning'
+      step2Text = 'Sesi Pemetaan: Form Diisi'
+    } else if (pemRecord.form_status === 'sent') {
+      step2 = 'warning'
+      step2Text = 'Sesi Pemetaan: Form Dikirim'
+    }
+  }
+
+  // Step 3: Expert Consultation
+  let step3: 'success' | 'warning' | 'empty' = 'empty'
+  let step3Text = 'Konsultasi Expert: Belum Terjadwal'
+  if (expRecord) {
+    if (expRecord.consultation_result) {
+      step3 = 'success'
+      step3Text = `Konsultasi Expert: Selesai (${expRecord.consultation_result})`
+    } else if (expRecord.scheduled_at) {
+      step3 = 'warning'
+      const date = new Date(expRecord.scheduled_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })
+      step3Text = `Konsultasi Expert: Terjadwal (${date})`
+    }
+  }
+
+  // Step 4: Seat Lock Payment
+  let step4: 'success' | 'warning' | 'empty' = 'empty'
+  let step4Text = 'Seat Lock: Belum Bayar'
+  if (seatLockPayment) {
+    if (seatLockPayment.verification_status === 'verified') {
+      step4 = 'success'
+      step4Text = 'Seat Lock: Lunas (Verified)'
+    } else if (seatLockPayment.verification_status === 'pending') {
+      step4 = 'warning'
+      step4Text = 'Seat Lock: Menunggu Verifikasi'
+    }
+  }
+
+  const steps = [
+    { id: 1, label: 'Payment', icon: '💰', status: step1, tooltip: step1Text },
+    { id: 2, label: 'Pemetaan', icon: '📋', status: step2, tooltip: step2Text },
+    { id: 3, label: 'Expert', icon: '🤝', status: step3, tooltip: step3Text },
+    { id: 4, label: 'Seat Lock', icon: '🔒', status: step4, tooltip: step4Text }
+  ]
+
+  return (
+    <div className="flex items-center gap-1.5 py-1">
+      {steps.map((step, idx) => (
+        <div key={step.id} className="flex items-center">
+          <div
+            className={cn(
+              "w-6 h-6 rounded-full flex items-center justify-center text-[10px] border transition-all duration-300 relative group/step cursor-help select-none",
+              step.status === 'success' && "bg-emerald-500/10 border-emerald-500/30 text-emerald-400 font-bold shadow-lg shadow-emerald-500/5",
+              step.status === 'warning' && "bg-amber-500/10 border-amber-500/30 text-amber-400 font-bold shadow-lg shadow-amber-500/5",
+              step.status === 'empty' && "bg-white/[0.02] border-white/5 text-white/20"
+            )}
+          >
+            <span>{step.icon}</span>
+            {/* Custom Tooltip on hover */}
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover/step:block z-50 bg-slate-950 border border-white/10 text-white text-[10px] px-2.5 py-1.5 rounded-lg whitespace-nowrap shadow-2xl pointer-events-none">
+              {step.tooltip}
+            </div>
+          </div>
+          {idx < steps.length - 1 && (
+            <div
+              className={cn(
+                "w-3 h-0.5 transition-all duration-300",
+                steps[idx + 1].status !== 'empty' ? "bg-purple-500/30" : "bg-white/5"
+              )}
+            />
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+
 export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
   const router = useRouter()
   const [deletingId, setDeletingId] = useState<string | null>(null)
@@ -326,18 +435,12 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
             <thead>
               <tr className="border-b border-white/10" style={{ background: 'rgba(255,255,255,0.01)' }}>
                 {[
-                  { label: 'Nama', field: 'full_name' as const },
+                  { label: 'Nama & Campaign', field: 'full_name' as const },
                   { label: 'WhatsApp', field: null },
-                  { label: 'Source Campaign', field: null },
                   { label: 'Tanggal Masuk', field: 'lead_entry_date' as const },
                   { label: 'PIC CRO', field: null },
-                  { label: 'Status Saat Ini', field: 'current_status' as const },
-                  { label: 'Last Contacted', field: null },
-                  { label: 'Follow-up Result', field: null },
-                  { label: 'Payment Status', field: null },
-                  { label: 'Pemetaan Status', field: null },
-                  { label: 'Expert Status', field: null },
-                  { label: 'Seat Lock Status', field: null },
+                  { label: 'Status Pipeline', field: 'current_status' as const },
+                  { label: 'Progress Milestone', field: null },
                   { label: 'Aksi', field: null }
                 ].map(col => (
                   <th
@@ -359,35 +462,27 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
             <tbody className="divide-y divide-white/5">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={13} className="px-4 py-16 text-center text-white/20 text-sm">
+                  <td colSpan={7} className="px-4 py-16 text-center text-white/20 text-sm">
                     Tidak ada data leads yang cocok dengan filter.
                   </td>
                 </tr>
               ) : (
                 filtered.map(lead => {
-                  // Resolve Relations Statuses
-                  const pemetaanPayment = lead.payments?.find(p => p.payment_type === 'pemetaan')
-                  const seatLockPayment = lead.payments?.find(p => p.payment_type === 'seat_lock')
-                  const pemRecord = lead.pemetaan && lead.pemetaan.length > 0 ? lead.pemetaan[0] : null
-                  const expRecord = lead.expert_consultations && lead.expert_consultations.length > 0 ? lead.expert_consultations[0] : null
-
                   return (
                     <tr key={lead.id} className="hover:bg-white/[0.01] transition-colors group">
-                      {/* Name */}
-                      <td className="px-4 py-3 font-bold text-white whitespace-nowrap">
-                        <Link href={`/leads/${lead.id}`} className="hover:text-purple-300 transition-colors">
-                          {lead.full_name}
-                        </Link>
+                      {/* Name & Campaign */}
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <div className="flex flex-col">
+                          <Link href={`/leads/${lead.id}`} className="font-bold text-white hover:text-purple-300 transition-colors">
+                            {lead.full_name}
+                          </Link>
+                          <span className="text-[10px] text-white/35 mt-0.5">{lead.source_campaign || 'No Campaign'}</span>
+                        </div>
                       </td>
 
                       {/* WhatsApp */}
                       <td className="px-4 py-3 font-mono text-white/70 whitespace-nowrap">
                         {lead.whatsapp_number}
-                      </td>
-
-                      {/* Source Campaign */}
-                      <td className="px-4 py-3 text-white/60 whitespace-nowrap">
-                        {lead.source_campaign}
                       </td>
 
                       {/* Tanggal Masuk */}
@@ -400,77 +495,16 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
                         {lead.users?.name || '-'}
                       </td>
 
-                      {/* Status Saat Ini */}
+                      {/* Status Pipeline */}
                       <td className="px-4 py-3 whitespace-nowrap">
                         <span className="px-2 py-0.5 rounded-full font-semibold bg-purple-500/10 text-purple-400 border border-purple-500/20">
                           {lead.current_status}
                         </span>
                       </td>
 
-                      {/* Last Contacted */}
-                      <td className="px-4 py-3 text-white/50 whitespace-nowrap">
-                        {formatCellDate(lead.last_contacted_date)}
-                      </td>
-
-                      {/* Follow-up Result */}
-                      <td className="px-4 py-3 text-white/60 max-w-[150px] truncate" title={lead.follow_up_result || ''}>
-                        {lead.follow_up_result || '-'}
-                      </td>
-
-                      {/* Payment Status (Pemetaan) */}
+                      {/* Progress Milestone */}
                       <td className="px-4 py-3 whitespace-nowrap">
-                        {pemetaanPayment ? (
-                          <span className={cn(
-                            "px-2 py-0.5 rounded-full font-semibold border text-[10px]",
-                            pemetaanPayment.verification_status === 'verified' && "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-                            pemetaanPayment.verification_status === 'pending' && "bg-amber-500/10 text-amber-400 border-amber-500/20",
-                            pemetaanPayment.verification_status === 'rejected' && "bg-red-500/10 text-red-400 border-red-500/20"
-                          )}>
-                            {pemetaanPayment.verification_status.toUpperCase()}
-                          </span>
-                        ) : (
-                          <span className="text-white/20">-</span>
-                        )}
-                      </td>
-
-                      {/* Pemetaan Status */}
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        {pemRecord ? (
-                          <span className="text-white/70">
-                            Form: <span className="font-semibold text-purple-400">{pemRecord.form_status}</span> | Result: <span className="font-semibold text-purple-400">{pemRecord.result_status}</span>
-                          </span>
-                        ) : (
-                          <span className="text-white/25">Not Created</span>
-                        )}
-                      </td>
-
-                      {/* Expert Status */}
-                      <td className="px-4 py-3 whitespace-nowrap text-white/60">
-                        {expRecord ? (
-                          expRecord.consultation_result ? (
-                            <span className="text-emerald-400 font-bold">{expRecord.consultation_result}</span>
-                          ) : (
-                            <span className="text-white/40">Scheduled</span>
-                          )
-                        ) : (
-                          <span className="text-white/20">-</span>
-                        )}
-                      </td>
-
-                      {/* Seat Lock Status */}
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        {seatLockPayment ? (
-                          <span className={cn(
-                            "px-2 py-0.5 rounded-full font-semibold border text-[10px]",
-                            seatLockPayment.verification_status === 'verified' && "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-                            seatLockPayment.verification_status === 'pending' && "bg-amber-500/10 text-amber-400 border-amber-500/20",
-                            seatLockPayment.verification_status === 'rejected' && "bg-red-500/10 text-red-400 border-red-500/20"
-                          )}>
-                            PAID
-                          </span>
-                        ) : (
-                          <span className="text-white/20">UNPAID</span>
-                        )}
+                        {renderMilestones(lead)}
                       </td>
 
                       {/* Action buttons */}
