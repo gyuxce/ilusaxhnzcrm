@@ -3,13 +3,7 @@
 -- Run this in Supabase SQL Editor
 -- ============================================================
 
--- Drop old triggers first
-DROP TRIGGER IF EXISTS trg_leads_updated_at ON public.leads CASCADE;
-DROP TRIGGER IF EXISTS trg_follow_ups_updated_at ON public.follow_ups CASCADE;
-DROP TRIGGER IF EXISTS trg_conversions_updated_at ON public.conversions CASCADE;
-DROP TRIGGER IF EXISTS trg_playbook_updated_at ON public.playbook_items CASCADE;
-DROP TRIGGER IF EXISTS trg_auto_schedule_fu ON public.leads CASCADE;
-DROP TRIGGER IF EXISTS trg_check_duplicate ON public.leads CASCADE;
+-- Drop old triggers first (triggers on public tables are dropped automatically when tables are dropped)
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users CASCADE;
 
 -- Drop old tables
