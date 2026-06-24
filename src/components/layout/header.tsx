@@ -162,6 +162,29 @@ export function Header({ title, subtitle }: HeaderProps) {
   const searchModalRef = useRef<HTMLDivElement>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
 
+  const closeSearch = () => {
+    setSearchOpen(false)
+    setGlobalQuery('')
+    setGlobalResults([])
+    setGlobalLoading(false)
+  }
+
+  const normalizeSearchQuery = (value: string) => {
+    return value.trim().replace(/[,%()]/g, ' ')
+  }
+
+  const handleGlobalQueryChange = (value: string) => {
+    setGlobalQuery(value)
+
+    if (normalizeSearchQuery(value).length < 2) {
+      setGlobalResults([])
+      setGlobalLoading(false)
+      return
+    }
+
+    setGlobalLoading(true)
+  }
+
   // Listen to keyboard shortcut (Ctrl+K or Cmd+K)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -170,7 +193,7 @@ export function Header({ title, subtitle }: HeaderProps) {
         setSearchOpen(prev => !prev)
       }
       if (e.key === 'Escape') {
-        setSearchOpen(false)
+        closeSearch()
       }
     }
     window.addEventListener('keydown', handleKeyDown)
@@ -181,9 +204,6 @@ export function Header({ title, subtitle }: HeaderProps) {
   useEffect(() => {
     if (searchOpen) {
       setTimeout(() => searchInputRef.current?.focus(), 100)
-    } else {
-      setGlobalQuery('')
-      setGlobalResults([])
     }
   }, [searchOpen])
 
@@ -191,7 +211,7 @@ export function Header({ title, subtitle }: HeaderProps) {
   useEffect(() => {
     function handleOutside(e: MouseEvent) {
       if (searchModalRef.current && !searchModalRef.current.contains(e.target as Node)) {
-        setSearchOpen(false)
+        closeSearch()
       }
     }
     if (searchOpen) document.addEventListener('mousedown', handleOutside)
@@ -200,17 +220,17 @@ export function Header({ title, subtitle }: HeaderProps) {
 
   // Fetch search results with 300ms debounce
   useEffect(() => {
-    if (!globalQuery.trim()) {
-      setGlobalResults([])
+    const searchTerm = normalizeSearchQuery(globalQuery)
+
+    if (searchTerm.length < 2) {
       return
     }
 
     const delayDebounce = setTimeout(async () => {
-      setGlobalLoading(true)
       const { data, error } = await supabase
         .from('leads')
         .select('id, full_name, whatsapp_number, source_campaign, current_status')
-        .or(`full_name.ilike.%${globalQuery}%,whatsapp_number.ilike.%${globalQuery}%,email.ilike.%${globalQuery}%`)
+        .or(`full_name.ilike.%${searchTerm}%,whatsapp_number.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`)
         .limit(10)
 
       if (!error && data) {
@@ -405,10 +425,10 @@ export function Header({ title, subtitle }: HeaderProps) {
 
       {/* Global Spotlight Search Modal */}
       {searchOpen && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-[15vh] bg-black/30 backdrop-blur-xs">
+        <div className="fixed inset-0 z-[100] flex items-start justify-center p-4 pt-[15vh] bg-slate-950/15 dark:bg-slate-950/45">
           <div 
             ref={searchModalRef}
-            className="w-full max-w-lg bg-card border border-border rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[60vh] animate-scale-in"
+            className="w-full max-w-xl bg-card border border-border rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[60vh] animate-scale-in"
           >
             {/* Input field */}
             <div className="relative border-b border-border p-4 flex items-center">
@@ -418,7 +438,7 @@ export function Header({ title, subtitle }: HeaderProps) {
                 type="text"
                 placeholder="Cari lead berdasarkan nama, WhatsApp, atau email..."
                 value={globalQuery}
-                onChange={(e) => setGlobalQuery(e.target.value)}
+                onChange={(e) => handleGlobalQueryChange(e.target.value)}
                 className="w-full pl-10 pr-10 py-2 text-sm text-foreground bg-transparent border-0 outline-none placeholder:text-muted-foreground/60"
               />
               {globalQuery && (
@@ -440,7 +460,7 @@ export function Header({ title, subtitle }: HeaderProps) {
                 </div>
               ) : globalResults.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground/50 text-xs">
-                  {globalQuery ? 'Tidak ada lead ditemukan.' : 'Ketik sesuatu untuk memulai pencarian...'}
+                  {globalQuery.trim().length >= 2 ? 'Tidak ada lead ditemukan.' : 'Ketik minimal 2 karakter untuk memulai pencarian...'}
                 </div>
               ) : (
                 <div className="space-y-1">
@@ -448,7 +468,7 @@ export function Header({ title, subtitle }: HeaderProps) {
                     <Link
                       key={lead.id}
                       href={`/leads/${lead.id}`}
-                      onClick={() => setSearchOpen(false)}
+                      onClick={closeSearch}
                       className="flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 transition-all group"
                     >
                       <div>

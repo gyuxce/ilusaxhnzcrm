@@ -50,6 +50,17 @@ interface BatchTarget {
   notes: string | null
 }
 
+interface CampaignProgress {
+  name: string
+  totalLeads: number
+  seatLocks: number
+  targetSeatLock: number
+  progressPct: number
+  closingDate: string | null
+  notes: string | null
+  hasManualTarget: boolean
+}
+
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats>({
     totalLeads: 0,
@@ -72,6 +83,7 @@ export default function DashboardPage() {
   })
   
   const [batchTarget, setBatchTarget] = useState<BatchTarget | null>(null)
+  const [campaignProgress, setCampaignProgress] = useState<CampaignProgress[]>([])
   const [loading, setLoading] = useState(true)
   const [userRole, setUserRole] = useState<string>('cro')
   const [recentLeads, setRecentLeads] = useState<any[]>([])
@@ -106,7 +118,7 @@ export default function DashboardPage() {
     // 2. Fetch all leads for status counting
     const { data: leads } = await supabase
       .from('leads')
-      .select('current_status')
+      .select('current_status, source_campaign')
 
     // 3. Fetch verified payments for revenue
     const { data: payments } = await supabase
@@ -114,12 +126,11 @@ export default function DashboardPage() {
       .select('payment_type, amount')
       .eq('verification_status', 'verified')
 
-    // 4. Fetch latest batch target
+    // 4. Fetch all batch targets
     const { data: targets } = await supabase
       .from('batch_targets')
       .select('*')
       .order('created_at', { ascending: false })
-      .limit(1)
 
     // 5. Fetch 6 most recent leads for activity feed
     const { data: recent } = await supabase
@@ -151,7 +162,7 @@ export default function DashboardPage() {
 
     // Count states
     let total = 0
-    let sc: Record<string, number> = {
+    const sc: Record<string, number> = {
       'New Lead': 0,
       'Follow Up': 0,
       'Pitching': 0,
@@ -179,6 +190,51 @@ export default function DashboardPage() {
         sc[s] = (sc[s] || 0) + 1
       })
     }
+
+    const targetByName = new Map<string, BatchTarget>()
+    ;(targets || []).forEach((target: BatchTarget) => {
+      targetByName.set(target.batch_name, target)
+    })
+
+    const campaignMap = new Map<string, { totalLeads: number; seatLocks: number }>()
+    ;(leads || []).forEach((lead: any) => {
+      const campaignName = lead.source_campaign?.trim() || 'No Campaign'
+      const current = campaignMap.get(campaignName) || { totalLeads: 0, seatLocks: 0 }
+      current.totalLeads += 1
+
+      if (['Seat Lock Paid', 'Onboarding', 'Class Started'].includes(lead.current_status)) {
+        current.seatLocks += 1
+      }
+
+      campaignMap.set(campaignName, current)
+    })
+
+    ;(targets || []).forEach((target: BatchTarget) => {
+      if (!campaignMap.has(target.batch_name)) {
+        campaignMap.set(target.batch_name, { totalLeads: 0, seatLocks: 0 })
+      }
+    })
+
+    const progressRows = Array.from(campaignMap.entries())
+      .map(([name, value]) => {
+        const target = targetByName.get(name)
+        const targetSeatLock = target?.target_seat_lock || Math.max(value.totalLeads, 1)
+        const progressPct = Math.min(Math.round((value.seatLocks / targetSeatLock) * 100), 100)
+
+        return {
+          name,
+          totalLeads: value.totalLeads,
+          seatLocks: value.seatLocks,
+          targetSeatLock,
+          progressPct,
+          closingDate: target?.closing_date || null,
+          notes: target?.notes || null,
+          hasManualTarget: Boolean(target),
+        }
+      })
+      .sort((a, b) => b.totalLeads - a.totalLeads || a.name.localeCompare(b.name))
+
+    setCampaignProgress(progressRows)
 
     // Calculate revenue
     let revPemetaan = 0
@@ -253,12 +309,6 @@ export default function DashboardPage() {
     setIsEditingTarget(false)
   }
 
-  // Count leads that represent seat lock conversion
-  // These are leads that have actually paid seat lock or onwards (Onboarding, Class Started)
-  const currentSeatLocks = stats.seatLockPaid + stats.onboarding + stats.classStarted
-  const targetVal = batchTarget?.target_seat_lock || 1
-  const progressPct = Math.min(Math.round((currentSeatLocks / targetVal) * 100), 100)
-
   const funnelPhases = [
     {
       title: 'Acquisition (Lead Masuk)',
@@ -306,11 +356,11 @@ export default function DashboardPage() {
       
       <div className="p-6 space-y-6 max-w-7xl mx-auto animate-fade-in">
         
-        {/* Top Section: Revenue & Batch Target Progress */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Top Section: Revenue & Campaign Target Progress */}
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
           
           {/* Revenue Cards */}
-          <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="xl:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-4">
             
             {/* Revenue Pemetaan */}
             <div className="glass-card rounded-2xl p-5 border border-border relative overflow-hidden flex flex-col justify-between">
@@ -362,12 +412,12 @@ export default function DashboardPage() {
 
           </div>
 
-          {/* Batch Target Progress Bar */}
-          <div className="glass-card rounded-2xl p-5 border border-border flex flex-col justify-between">
-            <div className="flex items-center justify-between mb-3">
+          {/* Campaign Target Progress */}
+          <div className="glass-card rounded-2xl p-5 border border-border flex flex-col min-h-[196px]">
+            <div className="flex items-center justify-between gap-3 mb-4">
               <div>
                 <span className="text-muted-foreground text-[10px] uppercase font-bold tracking-wider">Target Progres</span>
-                <h3 className="text-sm font-extrabold text-foreground">{batchTarget?.batch_name || 'Batch 1'}</h3>
+                <h3 className="text-sm font-extrabold text-foreground">Semua Campaign</h3>
               </div>
               {(userRole === 'admin' || userRole === 'owner') && (
                 <button
@@ -379,23 +429,41 @@ export default function DashboardPage() {
               )}
             </div>
 
-            <div className="space-y-2">
-              <div className="flex justify-between items-end text-xs">
-                <span className="text-muted-foreground">Seat Lock: {currentSeatLocks} / {targetVal}</span>
-                <span className="font-extrabold text-purple-600 dark:text-purple-400">{progressPct}%</span>
+            {campaignProgress.length === 0 ? (
+              <div className="flex flex-1 items-center justify-center rounded-xl border border-dashed border-border bg-slate-50/50 dark:bg-white/[0.02] px-4 py-8 text-center">
+                <p className="text-xs text-muted-foreground">Belum ada campaign dari data lead.</p>
               </div>
-              
-              <div className="h-2.5 rounded-full overflow-hidden w-full bg-slate-100 dark:bg-slate-800">
-                <div 
-                  className="h-full rounded-full transition-all duration-700 glow-purple" 
-                  style={{ width: `${progressPct}%`, background: 'linear-gradient(90deg, hsl(250,84%,60%), hsl(280,60%,55%))' }}
-                />
-              </div>
-            </div>
+            ) : (
+              <div className="space-y-3 max-h-[168px] overflow-y-auto pr-1">
+                {campaignProgress.map((campaign) => (
+                  <div key={campaign.name} className="rounded-xl border border-border/70 bg-slate-50/60 dark:bg-white/[0.03] p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-xs font-extrabold text-foreground truncate">{campaign.name}</p>
+                        <p className="mt-1 text-[10px] text-muted-foreground">
+                          {campaign.hasManualTarget
+                            ? `Seat Lock: ${campaign.seatLocks} / ${campaign.targetSeatLock}`
+                            : `Lead: ${campaign.totalLeads} / target otomatis`}
+                        </p>
+                      </div>
+                      <span className="text-xs font-extrabold text-purple-600 dark:text-purple-400 flex-shrink-0">
+                        {campaign.progressPct}%
+                      </span>
+                    </div>
 
-            <p className="text-[10px] text-muted-foreground/75 mt-3 italic">
-              {batchTarget?.notes || 'Tidak ada catatan tambahan untuk batch ini.'}
-            </p>
+                    <div className="mt-2 h-2 rounded-full overflow-hidden w-full bg-slate-100 dark:bg-slate-800">
+                      <div
+                        className="h-full rounded-full transition-all duration-700 glow-purple"
+                        style={{
+                          width: `${campaign.progressPct}%`,
+                          background: 'linear-gradient(90deg, hsl(250,84%,60%), hsl(280,60%,55%))',
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
         </div>
