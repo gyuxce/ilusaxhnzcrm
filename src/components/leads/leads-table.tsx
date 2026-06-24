@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation'
 import {
   Search, Filter, ExternalLink, MessageCircle,
   ChevronUp, ChevronDown, Copy, Calendar, RefreshCw,
+  ChevronLeft, ChevronRight,
   Edit, Trash2, CreditCard, ClipboardList, UserCheck, Lock
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -201,6 +202,8 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
   const [showFilters, setShowFilters] = useState(false)
   const [waModalOpen, setWaModalOpen] = useState(false)
   const [activeLead, setActiveLead] = useState<any>(null)
+  const [currentPage, setCurrentPage] = useState(1)
+  const pageSize = 25
 
   // Get unique campaigns for filter dropdown
   const campaignsList = useMemo(() => {
@@ -282,6 +285,15 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
     return data
   }, [initialLeads, search, filterStatus, filterPic, filterCampaign, filterPayment, filterSeatLock, startDate, endDate, sortField, sortDir])
 
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
+  const safeCurrentPage = Math.min(currentPage, totalPages)
+  const pageStartIndex = filtered.length === 0 ? 0 : (safeCurrentPage - 1) * pageSize + 1
+  const pageEndIndex = Math.min(safeCurrentPage * pageSize, filtered.length)
+  const paginatedLeads = useMemo(() => {
+    const start = (safeCurrentPage - 1) * pageSize
+    return filtered.slice(start, start + pageSize)
+  }, [filtered, safeCurrentPage])
+
   function toggleSort(field: typeof sortField) {
     if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
     else { setSortField(field); setSortDir('asc') }
@@ -307,6 +319,11 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
           Ditemukan <span className="text-foreground font-bold">{filtered.length}</span> dari {initialLeads.length} leads
+          {filtered.length > 0 && (
+            <span className="ml-2 text-xs">
+              Menampilkan {pageStartIndex}-{pageEndIndex}
+            </span>
+          )}
         </p>
         <Link
           href="/leads/new"
@@ -485,7 +502,7 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
                   </td>
                 </tr>
               ) : (
-                filtered.map(lead => {
+                paginatedLeads.map(lead => {
                   return (
                     <tr key={lead.id} className="hover:bg-slate-50/50 dark:hover:bg-white/[0.01] transition-colors group">
                       {/* Name & Campaign */}
@@ -569,6 +586,34 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
             </tbody>
           </table>
         </div>
+
+        {filtered.length > pageSize && (
+          <div className="flex flex-col gap-3 border-t border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-xs text-muted-foreground">
+              Halaman <span className="font-bold text-foreground">{safeCurrentPage}</span> dari {totalPages}
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setCurrentPage(page => Math.max(1, page - 1))}
+                disabled={safeCurrentPage <= 1}
+                className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-xs font-bold text-foreground transition-all hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:bg-white/5"
+              >
+                <ChevronLeft size={14} />
+                Prev
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrentPage(page => Math.min(totalPages, page + 1))}
+                disabled={safeCurrentPage >= totalPages}
+                className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-xs font-bold text-foreground transition-all hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:bg-white/5"
+              >
+                Next
+                <ChevronRight size={14} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {activeLead && (

@@ -412,7 +412,7 @@ export default function DashboardPage() {
 
           </div>
 
-          {/* Campaign Target Progress */}
+          {/* Campaign Target Summary */}
           <div className="glass-card rounded-2xl p-5 border border-border flex flex-col min-h-[196px]">
             <div className="flex items-center justify-between gap-3 mb-4">
               <div>
@@ -434,8 +434,8 @@ export default function DashboardPage() {
                 <p className="text-xs text-muted-foreground">Belum ada campaign dari data lead.</p>
               </div>
             ) : (
-              <div className="space-y-3 max-h-[168px] overflow-y-auto pr-1">
-                {campaignProgress.map((campaign) => (
+              <div className="space-y-3">
+                {campaignProgress.slice(0, 3).map((campaign) => (
                   <div key={campaign.name} className="rounded-xl border border-border/70 bg-slate-50/60 dark:bg-white/[0.03] p-3">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
@@ -462,10 +462,67 @@ export default function DashboardPage() {
                     </div>
                   </div>
                 ))}
+                {campaignProgress.length > 3 && (
+                  <p className="text-[10px] text-muted-foreground">
+                    +{campaignProgress.length - 3} campaign lain tampil lengkap di tabel bawah.
+                  </p>
+                )}
               </div>
             )}
           </div>
 
+        </div>
+
+        {/* Campaign Progress Table */}
+        <div className="glass-card rounded-2xl p-5 border border-border">
+          <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h2 className="text-foreground font-extrabold text-sm uppercase tracking-wider">
+                Semua Campaign
+              </h2>
+              <p className="text-xs text-muted-foreground mt-1">
+                Ringkasan campaign dari semua lead yang masuk.
+              </p>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {campaignProgress.length} campaign
+            </p>
+          </div>
+
+          {campaignProgress.length === 0 ? (
+            <p className="text-xs text-muted-foreground py-4">Belum ada campaign.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[720px] text-left text-xs">
+                <thead>
+                  <tr className="border-b border-border text-muted-foreground">
+                    <th className="py-3 pr-4 font-bold">Campaign</th>
+                    <th className="py-3 pr-4 font-bold text-right">Total Lead</th>
+                    <th className="py-3 pr-4 font-bold text-right">Seat Lock</th>
+                    <th className="py-3 pr-4 font-bold text-right">Target</th>
+                    <th className="py-3 pr-4 font-bold text-right">Progress</th>
+                    <th className="py-3 font-bold">Target Source</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {campaignProgress.map((campaign) => (
+                    <tr key={campaign.name} className="border-b border-border/70 last:border-b-0">
+                      <td className="py-3 pr-4 font-bold text-foreground">{campaign.name}</td>
+                      <td className="py-3 pr-4 text-right text-muted-foreground">{campaign.totalLeads}</td>
+                      <td className="py-3 pr-4 text-right text-muted-foreground">{campaign.seatLocks}</td>
+                      <td className="py-3 pr-4 text-right text-muted-foreground">{campaign.targetSeatLock}</td>
+                      <td className="py-3 pr-4 text-right font-extrabold text-purple-600 dark:text-purple-400">
+                        {campaign.progressPct}%
+                      </td>
+                      <td className="py-3 text-muted-foreground">
+                        {campaign.hasManualTarget ? 'Manual dari Settings' : 'Otomatis dari total lead'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
         {/* Grouped Funnel Summary Cards */}

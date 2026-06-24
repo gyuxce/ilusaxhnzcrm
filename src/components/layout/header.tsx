@@ -425,10 +425,10 @@ export function Header({ title, subtitle }: HeaderProps) {
 
       {/* Global Spotlight Search Modal */}
       {searchOpen && (
-        <div className="fixed inset-0 z-[100] flex items-start justify-center p-4 pt-[15vh] bg-slate-950/15 dark:bg-slate-950/45">
+        <div className="fixed inset-0 z-[100] flex items-start justify-center p-4 pt-24 pointer-events-none">
           <div 
             ref={searchModalRef}
-            className="w-full max-w-xl bg-card border border-border rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[60vh] animate-scale-in"
+            className="w-full max-w-xl bg-card border border-border rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[60vh] animate-scale-in pointer-events-auto"
           >
             {/* Input field */}
             <div className="relative border-b border-border p-4 flex items-center">
