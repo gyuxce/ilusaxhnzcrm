@@ -98,15 +98,18 @@ export function LeadDetailClient({
   }
 
   // Log Activity Helper
-  const logActivity = async (type: string, desc: string) => {
-    const { data: authData } = await supabase.auth.getUser()
+  const logActivity = async (type: string, desc: string, userId?: string | null) => {
+    const actorId = userId === undefined
+      ? (await supabase.auth.getUser()).data.user?.id || null
+      : userId
+
     const { data: newAct, error } = await supabase
       .from('lead_activities')
       .insert({
         lead_id: lead.id,
         activity_type: type,
         description: desc,
-        created_by: authData.user?.id || null
+        created_by: actorId
       })
       .select()
     if (!error && newAct) {
@@ -124,18 +127,29 @@ export function LeadDetailClient({
     }
 
     const cleanPhone = normalizePhone(editPhone)
+    const originalPhone = normalizePhone(lead.whatsapp_normalized || lead.whatsapp_number || '')
+    const phoneChanged = cleanPhone !== originalPhone
+
     if (cleanPhone.length < 9 || cleanPhone.length > 15) {
       setCoreError('Nomor WhatsApp tidak valid (harus antara 9 sampai 15 digit angka).')
       return
     }
 
-    const { data: duplicateLead, error: duplicateErr } = await supabase
-      .from('leads')
-      .select('id, full_name, whatsapp_number, source_campaign, current_status, users:assigned_cro_id(name)')
-      .eq('whatsapp_normalized', cleanPhone)
-      .is('duplicate_of', null)
-      .neq('id', lead.id)
-      .maybeSingle()
+    const authPromise = supabase.auth.getUser()
+    const duplicatePromise = phoneChanged
+      ? supabase
+          .from('leads')
+          .select('id, full_name, whatsapp_number, source_campaign, current_status, users:assigned_cro_id(name)')
+          .eq('whatsapp_normalized', cleanPhone)
+          .is('duplicate_of', null)
+          .neq('id', lead.id)
+          .maybeSingle()
+      : Promise.resolve({ data: null, error: null })
+
+    const [{ data: authData }, { data: duplicateLead, error: duplicateErr }] = await Promise.all([
+      authPromise,
+      duplicatePromise,
+    ])
 
     if (duplicateErr) {
       setCoreError(duplicateErr.message)
@@ -148,7 +162,6 @@ export function LeadDetailClient({
       return
     }
 
-    const { data: authData } = await supabase.auth.getUser()
     const currentUserId = authData.user?.id || null
     const updatedAt = new Date().toISOString()
 
@@ -188,7 +201,7 @@ export function LeadDetailClient({
       setLead(updatedLead)
       setEditPhone(cleanPhone)
       setIsEditingCore(false)
-      logActivity('Lead Updated', 'Core lead information updated manually')
+      logActivity('Lead Updated', 'Core lead information updated manually', currentUserId)
     } else {
       setCoreError(friendlyDuplicateError(error))
     }

@@ -19,6 +19,7 @@ interface LeadFormProps {
     notes: string
     lead_entry_date: string
     referral_source: string
+    whatsapp_normalized: string
   }>
   leadId?: string
 }
@@ -59,6 +60,8 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
     return `Nomor WhatsApp ini sudah terdaftar untuk ${lead.full_name} (${lead.source_campaign || 'tanpa campaign'}) dengan status ${lead.current_status || '-'}. ${picName}. Buka data existing dari menu Leads.`
   }
 
+  const originalPhone = normalizePhone(defaultValues?.whatsapp_normalized || defaultValues?.whatsapp_number || '')
+
   function friendlyError(err: any) {
     const isDuplicate =
       err?.code === '23505' ||
@@ -88,20 +91,31 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
     setError('')
 
     const supabase = createClient()
-    const { data: authData } = await supabase.auth.getUser()
+    const phoneChanged = !leadId || cleanPhone !== originalPhone
+
+    const authPromise = supabase.auth.getUser()
+    const duplicatePromise = phoneChanged
+      ? (() => {
+          let query = supabase
+            .from('leads')
+            .select('id, full_name, whatsapp_number, source_campaign, current_status, users:assigned_cro_id(name)')
+            .eq('whatsapp_normalized', cleanPhone)
+            .is('duplicate_of', null)
+
+          if (leadId) {
+            query = query.neq('id', leadId)
+          }
+
+          return query.maybeSingle()
+        })()
+      : Promise.resolve({ data: null, error: null })
+
+    const [{ data: authData }, { data: duplicateLead, error: duplicateErr }] = await Promise.all([
+      authPromise,
+      duplicatePromise,
+    ])
     const currentUserId = authData.user?.id || null
 
-    let duplicateQuery = supabase
-      .from('leads')
-      .select('id, full_name, whatsapp_number, source_campaign, current_status, users:assigned_cro_id(name)')
-      .eq('whatsapp_normalized', cleanPhone)
-      .is('duplicate_of', null)
-
-    if (leadId) {
-      duplicateQuery = duplicateQuery.neq('id', leadId)
-    }
-
-    const { data: duplicateLead, error: duplicateErr } = await duplicateQuery.maybeSingle()
     if (duplicateErr) {
       setError(duplicateErr.message)
       setLoading(false)
@@ -134,17 +148,17 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
       const { error: updateErr } = await supabase.from('leads').update(payload).eq('id', leadId)
       err = updateErr
     } else {
-      const { data: newLeads, error: insertErr } = await supabase.from('leads').insert({
+      const { data: newLead, error: insertErr } = await supabase.from('leads').insert({
         ...payload,
         created_by: currentUserId,
         created_at: new Date().toISOString()
-      }).select()
+      }).select('id').single()
       
       err = insertErr
 
-      if (!err && newLeads && newLeads.length > 0) {
-        const newLeadId = newLeads[0].id
-        await Promise.all([
+      if (!err && newLead) {
+        const newLeadId = newLead.id
+        void Promise.all([
           supabase.from('pemetaan').insert({
             lead_id: newLeadId,
             form_status: 'not_sent',
@@ -156,7 +170,7 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
             description: 'Lead created manually via Tambah Lead form',
             created_by: currentUserId
           })
-        ])
+        ]).catch(console.error)
       }
     }
 

@@ -29,6 +29,7 @@ export default async function EditLeadPage({ params }: { params: Promise<{ id: s
           leadId={lead.id}
           defaultValues={{
             whatsapp_number: lead.whatsapp_number,
+            whatsapp_normalized: lead.whatsapp_normalized || undefined,
             full_name: lead.full_name,
             email: lead.email || undefined,
             source_campaign: lead.source_campaign,
