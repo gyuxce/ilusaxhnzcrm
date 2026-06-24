@@ -13,6 +13,7 @@ import {
   Calendar,
   BarChart3,
   BookOpen,
+  ClipboardList,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
@@ -29,6 +30,7 @@ const mainNav: { href: string; label: string; icon: React.ComponentType<{ size?:
 
 const toolsNav: { href: string; label: string; icon: React.ComponentType<{ size?: number; className?: string }>; badgeKey?: 'needsAction' | 'followUps' }[] = [
   { href: '/follow-ups', label: 'Follow-Up Tracker', icon: Calendar, badgeKey: 'followUps' },
+  { href: '/reports', label: 'Team Report', icon: ClipboardList },
   { href: '/analytics', label: 'Analytics', icon: BarChart3 },
   { href: '/playbook', label: 'Playbook CRO', icon: BookOpen },
 ]

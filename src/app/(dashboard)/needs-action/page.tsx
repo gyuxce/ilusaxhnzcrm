@@ -101,6 +101,8 @@ export default function NeedsActionPage() {
   const handleUpdateStatus = async () => {
     if (!actioningLead || !actionType) return
 
+    const { data: authData } = await supabase.auth.getUser()
+    const currentUserId = authData.user?.id || null
     let nextStatus = ''
     let updateFields: Record<string, any> = {}
     let activityDesc = ''
@@ -171,6 +173,7 @@ export default function NeedsActionPage() {
             payment_date: new Date().toISOString().split('T')[0],
             verification_status: 'verified',
             verified_at: new Date().toISOString(),
+            verified_by: currentUserId,
             notes: `Verified on Seat Lock Paid Action: ${inputVal2}`
           })
       )
@@ -178,6 +181,7 @@ export default function NeedsActionPage() {
 
     if (nextStatus) {
       updateFields.current_status = nextStatus
+      updateFields.updated_by = currentUserId
       updateFields.updated_at = new Date().toISOString()
 
       promises.push(
@@ -193,7 +197,8 @@ export default function NeedsActionPage() {
           .insert({
             lead_id: actioningLead.id,
             activity_type: 'Status changed',
-            description: activityDesc
+            description: activityDesc,
+            created_by: currentUserId
           })
       )
     }
