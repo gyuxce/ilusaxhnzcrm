@@ -55,22 +55,12 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
     return cleanPhone
   }
 
-  function duplicateMessage(lead: any) {
-    const picName = lead.users?.name ? `PIC: ${lead.users.name}` : 'PIC belum di-assign'
-    return `Nomor WhatsApp ini sudah terdaftar untuk ${lead.full_name} (${lead.source_campaign || 'tanpa campaign'}) dengan status ${lead.current_status || '-'}. ${picName}. Buka data existing dari menu Leads.`
-  }
-
-  const originalPhone = normalizePhone(defaultValues?.whatsapp_normalized || defaultValues?.whatsapp_number || '')
-
-  function friendlyError(err: any) {
-    const isDuplicate =
-      err?.code === '23505' ||
-      err?.message?.includes('leads_whatsapp_normalized_unique') ||
-      err?.message?.toLowerCase?.().includes('duplicate key')
-
-    return isDuplicate
-      ? 'Nomor WhatsApp ini sudah terdaftar. Cari nomor tersebut di menu Leads untuk membuka data existing.'
-      : err?.message || 'Terjadi kesalahan saat menyimpan lead.'
+  function rpcErrorMessage(result: any, fallback = 'Terjadi kesalahan saat menyimpan lead.') {
+    if (result?.duplicate_lead) {
+      const duplicate = result.duplicate_lead
+      return `Nomor WhatsApp ini sudah terdaftar untuk ${duplicate.full_name} (${duplicate.source_campaign || 'tanpa campaign'}) dengan status ${duplicate.current_status || '-'}. Buka data existing dari menu Leads.`
+    }
+    return result?.message || fallback
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -91,91 +81,37 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
     setError('')
 
     const supabase = createClient()
-    const phoneChanged = !leadId || cleanPhone !== originalPhone
 
-    const authPromise = supabase.auth.getUser()
-    const duplicatePromise = phoneChanged
-      ? (() => {
-          let query = supabase
-            .from('leads')
-            .select('id, full_name, whatsapp_number, source_campaign, current_status, users:assigned_cro_id(name)')
-            .eq('whatsapp_normalized', cleanPhone)
-            .is('duplicate_of', null)
+    const params = {
+      p_full_name: form.full_name,
+      p_whatsapp_number: cleanPhone,
+      p_email: form.email || null,
+      p_source_campaign: form.source_campaign,
+      p_current_status: form.current_status,
+      p_assigned_cro_id: form.assigned_cro_id || null,
+      p_notes: form.notes || null,
+    }
 
-          if (leadId) {
-            query = query.neq('id', leadId)
-          }
+    const { data, error: rpcErr } = leadId
+      ? await supabase.rpc('update_lead_core_fast', {
+          p_lead_id: leadId,
+          ...params,
+          p_lost_reason: null,
+        })
+      : await supabase.rpc('create_lead_fast', {
+          ...params,
+          p_lead_type: form.lead_type,
+          p_lead_entry_date: form.lead_entry_date ? new Date(form.lead_entry_date).toISOString() : new Date().toISOString(),
+        })
 
-          return query.maybeSingle()
-        })()
-      : Promise.resolve({ data: null, error: null })
-
-    const [{ data: authData }, { data: duplicateLead, error: duplicateErr }] = await Promise.all([
-      authPromise,
-      duplicatePromise,
-    ])
-    const currentUserId = authData.user?.id || null
-
-    if (duplicateErr) {
-      setError(duplicateErr.message)
+    if (rpcErr) {
+      setError(rpcErr.message || 'Terjadi kesalahan saat menyimpan lead.')
       setLoading(false)
       return
     }
 
-    if (duplicateLead) {
-      setError(duplicateMessage(duplicateLead))
-      setLoading(false)
-      return
-    }
-
-    const payload = {
-      whatsapp_number: cleanPhone,
-      whatsapp_normalized: cleanPhone,
-      full_name: form.full_name,
-      email: form.email || null,
-      source_campaign: form.source_campaign,
-      lead_type: form.lead_type,
-      current_status: form.current_status,
-      assigned_cro_id: form.assigned_cro_id || null,
-      notes: form.notes || null,
-      lead_entry_date: form.lead_entry_date ? new Date(form.lead_entry_date).toISOString() : new Date().toISOString(),
-      updated_by: currentUserId,
-      updated_at: new Date().toISOString()
-    }
-
-    let err
-    if (leadId) {
-      const { error: updateErr } = await supabase.from('leads').update(payload).eq('id', leadId)
-      err = updateErr
-    } else {
-      const { data: newLead, error: insertErr } = await supabase.from('leads').insert({
-        ...payload,
-        created_by: currentUserId,
-        created_at: new Date().toISOString()
-      }).select('id').single()
-      
-      err = insertErr
-
-      if (!err && newLead) {
-        const newLeadId = newLead.id
-        void Promise.all([
-          supabase.from('pemetaan').insert({
-            lead_id: newLeadId,
-            form_status: 'not_sent',
-            result_status: 'not_ready'
-          }),
-          supabase.from('lead_activities').insert({
-            lead_id: newLeadId,
-            activity_type: 'Lead created',
-            description: 'Lead created manually via Tambah Lead form',
-            created_by: currentUserId
-          })
-        ]).catch(console.error)
-      }
-    }
-
-    if (err) {
-      setError(friendlyError(err))
+    if (!data?.ok) {
+      setError(rpcErrorMessage(data))
       setLoading(false)
     } else {
       router.push('/leads')

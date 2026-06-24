@@ -87,6 +87,11 @@ export function LeadDetailClient({
   }
 
   const friendlyDuplicateError = (err?: any) => {
+    if (err?.duplicate_lead) {
+      const duplicate = err.duplicate_lead
+      return `Nomor WhatsApp ini sudah terdaftar untuk ${duplicate.full_name} (${duplicate.source_campaign || 'tanpa campaign'}) dengan status ${duplicate.current_status || '-'}.`
+    }
+
     const isDuplicate =
       err?.code === '23505' ||
       err?.message?.includes('leads_whatsapp_normalized_unique') ||
@@ -127,84 +132,58 @@ export function LeadDetailClient({
     }
 
     const cleanPhone = normalizePhone(editPhone)
-    const originalPhone = normalizePhone(lead.whatsapp_normalized || lead.whatsapp_number || '')
-    const phoneChanged = cleanPhone !== originalPhone
 
     if (cleanPhone.length < 9 || cleanPhone.length > 15) {
       setCoreError('Nomor WhatsApp tidak valid (harus antara 9 sampai 15 digit angka).')
       return
     }
 
-    const authPromise = supabase.auth.getUser()
-    const duplicatePromise = phoneChanged
-      ? supabase
-          .from('leads')
-          .select('id, full_name, whatsapp_number, source_campaign, current_status, users:assigned_cro_id(name)')
-          .eq('whatsapp_normalized', cleanPhone)
-          .is('duplicate_of', null)
-          .neq('id', lead.id)
-          .maybeSingle()
-      : Promise.resolve({ data: null, error: null })
+    const { data, error } = await supabase.rpc('update_lead_core_fast', {
+      p_lead_id: lead.id,
+      p_full_name: editName,
+      p_whatsapp_number: cleanPhone,
+      p_email: editEmail || null,
+      p_source_campaign: editSource,
+      p_current_status: editStatus,
+      p_assigned_cro_id: editPic || null,
+      p_notes: editNotes || null,
+      p_lost_reason: ['Not Interested', 'Not Eligible'].includes(editStatus) ? editLostReason : null,
+    })
 
-    const [{ data: authData }, { data: duplicateLead, error: duplicateErr }] = await Promise.all([
-      authPromise,
-      duplicatePromise,
-    ])
-
-    if (duplicateErr) {
-      setCoreError(duplicateErr.message)
+    if (error) {
+      setCoreError(error.message || 'Terjadi kesalahan saat menyimpan data lead.')
       return
     }
 
-    if (duplicateLead) {
-      const picName = duplicateLead.users?.name ? `PIC: ${duplicateLead.users.name}` : 'PIC belum di-assign'
-      setCoreError(`Nomor WhatsApp ini sudah terdaftar untuk ${duplicateLead.full_name} (${duplicateLead.source_campaign || 'tanpa campaign'}) dengan status ${duplicateLead.current_status || '-'}. ${picName}.`)
+    if (!data?.ok) {
+      setCoreError(friendlyDuplicateError(data))
       return
     }
 
-    const currentUserId = authData.user?.id || null
     const updatedAt = new Date().toISOString()
-
-    const { error } = await supabase
-      .from('leads')
-      .update({
-        full_name: editName,
-        whatsapp_number: cleanPhone,
-        whatsapp_normalized: cleanPhone,
-        email: editEmail || null,
-        source_campaign: editSource,
-        current_status: editStatus,
-        assigned_cro_id: editPic || null,
-        notes: editNotes || null,
-        lost_reason: ['Not Interested', 'Not Eligible'].includes(editStatus) ? editLostReason : null,
-        updated_by: currentUserId,
-        updated_at: updatedAt
-      })
-      .eq('id', lead.id)
-
-    if (!error) {
-      const updatedLead = {
-        ...lead,
-        full_name: editName,
-        whatsapp_number: cleanPhone,
-        whatsapp_normalized: cleanPhone,
-        email: editEmail || null,
-        source_campaign: editSource,
-        current_status: editStatus,
-        assigned_cro_id: editPic || null,
-        notes: editNotes || null,
-        lost_reason: ['Not Interested', 'Not Eligible'].includes(editStatus) ? editLostReason : null,
-        updated_by: currentUserId,
-        updated_by_user: authData.user ? { id: authData.user.id, name: authData.user.user_metadata?.name || authData.user.email } : lead.updated_by_user,
-        updated_at: updatedAt
-      }
-      setLead(updatedLead)
-      setEditPhone(cleanPhone)
-      setIsEditingCore(false)
-      logActivity('Lead Updated', 'Core lead information updated manually', currentUserId)
-    } else {
-      setCoreError(friendlyDuplicateError(error))
+    const updatedLead = {
+      ...lead,
+      full_name: editName,
+      whatsapp_number: cleanPhone,
+      whatsapp_normalized: cleanPhone,
+      email: editEmail || null,
+      source_campaign: editSource,
+      current_status: editStatus,
+      assigned_cro_id: editPic || null,
+      notes: editNotes || null,
+      lost_reason: ['Not Interested', 'Not Eligible'].includes(editStatus) ? editLostReason : null,
+      updated_at: updatedAt
     }
+    setLead(updatedLead)
+    setEditPhone(cleanPhone)
+    setIsEditingCore(false)
+    setActivities(prev => [{
+      id: `local-${updatedAt}`,
+      lead_id: lead.id,
+      activity_type: 'Lead Updated',
+      description: 'Core lead information updated manually',
+      created_at: updatedAt,
+    }, ...prev])
   }
 
   // Add Payment
