@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import {
   AlertCircle,
@@ -38,10 +39,21 @@ interface LeadWithDetails {
   } | null
 }
 
+const QUEUES = [
+  { key: 'all', label: 'Semua', status: null, icon: AlertCircle, tone: 'text-slate-600 dark:text-slate-300' },
+  { key: 'pemetaan', label: 'Pemetaan Scheduled', status: 'Pemetaan Scheduled', icon: Hourglass, tone: 'text-purple-600 dark:text-purple-400' },
+  { key: 'waiting', label: 'Waiting Result', status: 'Waiting Result', icon: Clock, tone: 'text-blue-600 dark:text-blue-400' },
+  { key: 'expert', label: 'Expert Scheduled', status: 'Expert Consultation Scheduled', icon: Calendar, tone: 'text-amber-600 dark:text-amber-400' },
+  { key: 'seat_lock', label: 'Offer Seat Lock', status: 'Seat Lock Offered', icon: UserCheck, tone: 'text-orange-600 dark:text-orange-400' },
+] as const
+
+type QueueKey = typeof QUEUES[number]['key']
+
 export default function NeedsActionPage() {
   const [leads, setLeads] = useState<LeadWithDetails[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
+  const [activeQueue, setActiveQueue] = useState<QueueKey>('all')
   
   // WhatsApp Modal State
   const [isWaOpen, setIsWaOpen] = useState(false)
@@ -85,16 +97,47 @@ export default function NeedsActionPage() {
     lead.source_campaign.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  // Categorize
-  const pemetaanScheduled = filteredLeads.filter(l => l.current_status === 'Pemetaan Scheduled')
-  const waitingResult = filteredLeads.filter(l => l.current_status === 'Waiting Result')
-  const expertScheduled = filteredLeads.filter(l => l.current_status === 'Expert Consultation Scheduled')
-  const seatLockOfferedWaiting = filteredLeads.filter(l => l.current_status === 'Seat Lock Offered')
+  const queueCounts = QUEUES.reduce((acc, queue) => {
+    acc[queue.key] = queue.status
+      ? filteredLeads.filter(lead => lead.current_status === queue.status).length
+      : filteredLeads.length
+    return acc
+  }, {} as Record<QueueKey, number>)
+
+  const activeQueueConfig = QUEUES.find(queue => queue.key === activeQueue) || QUEUES[0]
+  const activeLeads = activeQueueConfig.status
+    ? filteredLeads.filter(lead => lead.current_status === activeQueueConfig.status)
+    : filteredLeads
 
   // Open WA Modal
   const openWa = (lead: LeadWithDetails) => {
     setSelectedLead({ name: lead.full_name, phone: lead.whatsapp_number })
     setIsWaOpen(true)
+  }
+
+  const getActionForLead = (lead: LeadWithDetails) => {
+    if (lead.current_status === 'Pemetaan Scheduled') {
+      return { type: 'set_waiting_result', label: 'Set Waiting Result' }
+    }
+    if (lead.current_status === 'Waiting Result') {
+      return { type: 'schedule_expert', label: 'Schedule Expert' }
+    }
+    if (lead.current_status === 'Expert Consultation Scheduled') {
+      return { type: 'offer_seat_lock', label: 'Offer Seat Lock' }
+    }
+    if (lead.current_status === 'Seat Lock Offered') {
+      return { type: 'pay_seat_lock', label: 'Seat Lock Paid' }
+    }
+    return null
+  }
+
+  const formatDate = (dateValue: string | null) => {
+    if (!dateValue) return '-'
+    return new Date(dateValue).toLocaleDateString('id-ID', {
+      day: 'numeric',
+      month: 'short',
+      year: '2-digit',
+    })
   }
 
   // Handle lead status updates
@@ -246,120 +289,108 @@ export default function NeedsActionPage() {
           <p className="text-muted-foreground text-sm">Memuat data leads...</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Column 1: Pemetaan Scheduled */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between p-3 rounded-xl bg-card border border-border">
-              <div className="flex items-center gap-2">
-                <Hourglass size={15} className="text-purple-600 dark:text-purple-400" />
-                <h3 className="font-extrabold text-foreground text-xs uppercase tracking-wider">Pemetaan Scheduled</h3>
-              </div>
-              <span className="bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-slate-300 text-xs px-2 py-0.5 rounded-full font-bold">{pemetaanScheduled.length}</span>
-            </div>
-            <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
-              {pemetaanScheduled.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground/45 text-xs rounded-xl border border-dashed border-border dark:border-white/5">Tidak ada leads</div>
-              ) : (
-                pemetaanScheduled.map(lead => (
-                  <LeadActionCard 
-                    key={lead.id} 
-                    lead={lead} 
-                    onWa={() => openWa(lead)}
-                    onAction={() => {
-                      setActioningLead(lead)
-                      setActionType('set_waiting_result')
-                    }}
-                    actionLabel="Set Waiting Result"
-                  />
-                ))
-              )}
-            </div>
+        <div className="space-y-4">
+          <div className="flex flex-wrap gap-2">
+            {QUEUES.map(queue => {
+              const Icon = queue.icon
+              const active = activeQueue === queue.key
+              return (
+                <button
+                  key={queue.key}
+                  type="button"
+                  onClick={() => setActiveQueue(queue.key)}
+                  className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold transition-all ${
+                    active
+                      ? 'border-primary/30 bg-primary/10 text-primary'
+                      : 'border-border bg-card text-muted-foreground hover:text-foreground hover:bg-slate-50 dark:hover:bg-white/5'
+                  }`}
+                >
+                  <Icon size={14} className={active ? 'text-primary' : queue.tone} />
+                  {queue.label}
+                  <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-foreground">
+                    {queueCounts[queue.key]}
+                  </span>
+                </button>
+              )
+            })}
           </div>
 
-          {/* Column 2: Waiting Result */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between p-3 rounded-xl bg-card border border-border">
-              <div className="flex items-center gap-2">
-                <Clock size={15} className="text-blue-600 dark:text-blue-400" />
-                <h3 className="font-extrabold text-foreground text-xs uppercase tracking-wider">Waiting Result</h3>
+          <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-xs">
+            <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
+              <div>
+                <h2 className="text-sm font-extrabold text-foreground uppercase tracking-wide">Work Queue</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">Kerjakan lead prioritas dari atas ke bawah.</p>
               </div>
-              <span className="bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-slate-300 text-xs px-2 py-0.5 rounded-full font-bold">{waitingResult.length}</span>
+              <span className="text-xs text-muted-foreground">{activeLeads.length} leads</span>
             </div>
-            <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
-              {waitingResult.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground/45 text-xs rounded-xl border border-dashed border-border dark:border-white/5">Tidak ada leads</div>
-              ) : (
-                waitingResult.map(lead => (
-                  <LeadActionCard 
-                    key={lead.id} 
-                    lead={lead} 
-                    onWa={() => openWa(lead)}
-                    onAction={() => {
-                      setActioningLead(lead)
-                      setActionType('schedule_expert')
-                    }}
-                    actionLabel="Schedule Expert"
-                  />
-                ))
-              )}
-            </div>
-          </div>
 
-          {/* Column 3: Expert Consultation Scheduled */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between p-3 rounded-xl bg-card border border-border">
-              <div className="flex items-center gap-2">
-                <Calendar size={15} className="text-amber-600 dark:text-amber-400" />
-                <h3 className="font-extrabold text-foreground text-xs uppercase tracking-wider">Expert Consultation Scheduled</h3>
-              </div>
-              <span className="bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-slate-300 text-xs px-2 py-0.5 rounded-full font-bold">{expertScheduled.length}</span>
-            </div>
-            <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
-              {expertScheduled.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground/45 text-xs rounded-xl border border-dashed border-border dark:border-white/5">Tidak ada leads</div>
-              ) : (
-                expertScheduled.map(lead => (
-                  <LeadActionCard 
-                    key={lead.id} 
-                    lead={lead} 
-                    onWa={() => openWa(lead)}
-                    onAction={() => {
-                      setActioningLead(lead)
-                      setActionType('offer_seat_lock')
-                    }}
-                    actionLabel="Offer Seat Lock"
-                  />
-                ))
-              )}
-            </div>
-          </div>
-
-          {/* Column 4: Offer Seat Lock */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between p-3 rounded-xl bg-card border border-border">
-              <div className="flex items-center gap-2">
-                <UserCheck size={15} className="text-orange-600 dark:text-orange-400" />
-                <h3 className="font-extrabold text-foreground text-xs uppercase tracking-wider">Offer Seat Lock</h3>
-              </div>
-              <span className="bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-slate-300 text-xs px-2 py-0.5 rounded-full font-bold">{seatLockOfferedWaiting.length}</span>
-            </div>
-            <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
-              {seatLockOfferedWaiting.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground/45 text-xs rounded-xl border border-dashed border-border dark:border-white/5">Tidak ada leads</div>
-              ) : (
-                seatLockOfferedWaiting.map(lead => (
-                  <LeadActionCard 
-                    key={lead.id} 
-                    lead={lead} 
-                    onWa={() => openWa(lead)}
-                    onAction={() => {
-                      setActioningLead(lead)
-                      setActionType('pay_seat_lock')
-                    }}
-                    actionLabel="Seat Lock Paid"
-                  />
-                ))
-              )}
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-border bg-slate-50/60 text-[10px] uppercase tracking-wide text-muted-foreground dark:bg-white/[0.02]">
+                    <th className="px-4 py-3 font-bold">Lead</th>
+                    <th className="px-4 py-3 font-bold">Campaign</th>
+                    <th className="px-4 py-3 font-bold">PIC</th>
+                    <th className="px-4 py-3 font-bold">Status</th>
+                    <th className="px-4 py-3 font-bold">Masuk</th>
+                    <th className="px-4 py-3 font-bold text-right">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {activeLeads.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="px-4 py-14 text-center text-sm text-muted-foreground/50">
+                        Tidak ada leads pada queue ini.
+                      </td>
+                    </tr>
+                  ) : activeLeads.map(lead => {
+                    const action = getActionForLead(lead)
+                    return (
+                      <tr key={lead.id} className="hover:bg-slate-50/60 dark:hover:bg-white/[0.02]">
+                        <td className="px-4 py-3">
+                          <Link href={`/leads/${lead.id}`} className="font-extrabold text-foreground hover:text-primary">
+                            {lead.full_name}
+                          </Link>
+                          <p className="mt-0.5 font-mono text-[10px] text-muted-foreground">{lead.whatsapp_number}</p>
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{lead.source_campaign}</td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <span className="font-semibold text-primary">{lead.users?.name || 'Unassigned'}</span>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <span className="rounded-full border border-primary/15 bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary">
+                            {lead.current_status}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{formatDate(lead.lead_entry_date)}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => openWa(lead)}
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/15 bg-emerald-500/10 px-3 py-1.5 text-[10px] font-bold text-emerald-600 transition-all hover:bg-emerald-500/20 dark:text-emerald-400"
+                            >
+                              <MessageCircle size={12} />
+                              WA
+                            </button>
+                            {action && (
+                              <button
+                                onClick={() => {
+                                  setActioningLead(lead)
+                                  setActionType(action.type)
+                                }}
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-primary/15 bg-primary/10 px-3 py-1.5 text-[10px] font-bold text-primary transition-all hover:bg-primary/20"
+                              >
+                                {action.label}
+                                <ArrowRight size={12} />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>

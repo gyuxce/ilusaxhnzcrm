@@ -16,6 +16,9 @@ const STAGES = [
   { key: 'Not Interested', label: '❌ Not Interested', color: '#ef4444', bg: 'rgba(239,68,68,0.08)', border: 'rgba(239,68,68,0.18)' },
 ]
 
+const INITIAL_VISIBLE_PER_COLUMN = 12
+const LOAD_MORE_STEP = 12
+
 interface LeadCard {
   id: string
   full_name: string
@@ -38,6 +41,7 @@ export function PipelineBoard({ initialLeads }: PipelineBoardProps) {
   const [dragging, setDragging] = useState<string | null>(null)
   const [dragOverStage, setDragOverStage] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
+  const [visibleCounts, setVisibleCounts] = useState<Record<string, number>>({})
 
   const supabase = createClient()
 
@@ -50,6 +54,17 @@ export function PipelineBoard({ initialLeads }: PipelineBoardProps) {
 
   function getLeadsByStage(stage: string) {
     return filtered.filter(l => l.current_status === stage)
+  }
+
+  function getVisibleCount(stage: string) {
+    return visibleCounts[stage] || INITIAL_VISIBLE_PER_COLUMN
+  }
+
+  function loadMore(stage: string) {
+    setVisibleCounts(prev => ({
+      ...prev,
+      [stage]: (prev[stage] || INITIAL_VISIBLE_PER_COLUMN) + LOAD_MORE_STEP,
+    }))
   }
 
   async function moveLeadToStage(leadId: string, newStage: string) {
@@ -110,6 +125,9 @@ export function PipelineBoard({ initialLeads }: PipelineBoardProps) {
       <div className="flex gap-4 overflow-x-auto pb-4 h-[calc(100vh-170px)]">
         {STAGES.map(stage => {
           const stageLeads = getLeadsByStage(stage.key)
+          const visibleCount = getVisibleCount(stage.key)
+          const visibleLeads = stageLeads.slice(0, visibleCount)
+          const hiddenCount = Math.max(0, stageLeads.length - visibleLeads.length)
           const isOver = dragOverStage === stage.key
 
           return (
@@ -150,57 +168,69 @@ export function PipelineBoard({ initialLeads }: PipelineBoardProps) {
                     {isOver ? 'Lepas di sini' : ''}
                   </div>
                 ) : (
-                  stageLeads.map(lead => (
-                    <div
-                      key={lead.id}
-                      draggable
-                      onDragStart={e => onDragStart(e, lead.id)}
-                      onDragEnd={onDragEnd}
-                      className={cn(
-                        'p-3 rounded-xl border border-border bg-card shadow-xs hover:shadow-md cursor-grab active:cursor-grabbing transition-all duration-150 group',
-                        dragging === lead.id ? 'opacity-40 scale-95' : ''
-                      )}
-                    >
-                      {/* Drag handle + name */}
-                      <div className="flex items-start gap-1.5">
-                        <GripVertical size={12} className="text-muted-foreground/40 mt-0.5 flex-shrink-0" />
-                        <div className="min-w-0 flex-1">
-                          <p className="text-xs font-bold text-foreground leading-tight line-clamp-2">{lead.full_name}</p>
-                          <p className="text-[9px] text-muted-foreground mt-0.5 truncate">{lead.source_campaign}</p>
+                  <>
+                    {visibleLeads.map(lead => (
+                      <div
+                        key={lead.id}
+                        draggable
+                        onDragStart={e => onDragStart(e, lead.id)}
+                        onDragEnd={onDragEnd}
+                        className={cn(
+                          'p-3 rounded-xl border border-border bg-card shadow-xs hover:shadow-md cursor-grab active:cursor-grabbing transition-all duration-150 group',
+                          dragging === lead.id ? 'opacity-40 scale-95' : ''
+                        )}
+                      >
+                        {/* Drag handle + name */}
+                        <div className="flex items-start gap-1.5">
+                          <GripVertical size={12} className="text-muted-foreground/40 mt-0.5 flex-shrink-0" />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-bold text-foreground leading-tight line-clamp-2">{lead.full_name}</p>
+                            <p className="text-[9px] text-muted-foreground mt-0.5 truncate">{lead.source_campaign}</p>
+                          </div>
+                        </div>
+
+                        {/* Meta */}
+                        <div className="flex items-center gap-1 mt-2 flex-wrap">
+                          {lead.lead_type === 'outbound' && (
+                            <span className="text-[8px] px-1.5 py-0.5 rounded-full font-bold" style={{ background: 'rgba(59,130,246,0.15)', color: '#3b82f6' }}>
+                              OUT
+                            </span>
+                          )}
+                          {lead.users?.name && (
+                            <span className="text-[8px] px-1.5 py-0.5 rounded-full font-bold truncate max-w-[80px]" style={{ background: 'rgba(139,92,246,0.1)', color: '#a78bfa' }}>
+                              {lead.users.name.split(' ')[0]}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex items-center gap-1 mt-2 pt-2 border-t border-border">
+                          <button
+                            onClick={() => openWA(lead.whatsapp_number)}
+                            className="flex-1 flex items-center justify-center gap-1 py-1 rounded-lg text-[9px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 transition-all cursor-pointer"
+                          >
+                            <MessageCircle size={10} /> WA
+                          </button>
+                          <Link
+                            href={`/leads/${lead.id}`}
+                            className="flex-1 flex items-center justify-center gap-1 py-1 rounded-lg text-[9px] font-semibold text-purple-600 dark:text-purple-400 bg-purple-500/10 hover:bg-purple-500/20 transition-all"
+                          >
+                            <ExternalLink size={10} /> Detail
+                          </Link>
                         </div>
                       </div>
+                    ))}
 
-                      {/* Meta */}
-                      <div className="flex items-center gap-1 mt-2 flex-wrap">
-                        {lead.lead_type === 'outbound' && (
-                          <span className="text-[8px] px-1.5 py-0.5 rounded-full font-bold" style={{ background: 'rgba(59,130,246,0.15)', color: '#3b82f6' }}>
-                            OUT
-                          </span>
-                        )}
-                        {lead.users?.name && (
-                          <span className="text-[8px] px-1.5 py-0.5 rounded-full font-bold truncate max-w-[80px]" style={{ background: 'rgba(139,92,246,0.1)', color: '#a78bfa' }}>
-                            {lead.users.name.split(' ')[0]}
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Actions */}
-                      <div className="flex items-center gap-1 mt-2 pt-2 border-t border-border">
-                        <button
-                          onClick={() => openWA(lead.whatsapp_number)}
-                          className="flex-1 flex items-center justify-center gap-1 py-1 rounded-lg text-[9px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 transition-all cursor-pointer"
-                        >
-                          <MessageCircle size={10} /> WA
-                        </button>
-                        <Link
-                          href={`/leads/${lead.id}`}
-                          className="flex-1 flex items-center justify-center gap-1 py-1 rounded-lg text-[9px] font-semibold text-purple-600 dark:text-purple-400 bg-purple-500/10 hover:bg-purple-500/20 transition-all"
-                        >
-                          <ExternalLink size={10} /> Detail
-                        </Link>
-                      </div>
-                    </div>
-                  ))
+                    {hiddenCount > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => loadMore(stage.key)}
+                        className="w-full rounded-xl border border-border bg-card px-3 py-2 text-[10px] font-extrabold text-muted-foreground transition-all hover:text-foreground hover:bg-slate-50 dark:hover:bg-white/5"
+                      >
+                        Load {Math.min(LOAD_MORE_STEP, hiddenCount)} more ({hiddenCount} tersisa)
+                      </button>
+                    )}
+                  </>
                 )}
               </div>
             </div>
