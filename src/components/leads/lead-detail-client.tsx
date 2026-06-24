@@ -47,6 +47,7 @@ export function LeadDetailClient({
   const [editPic, setEditPic] = useState(lead.assigned_cro_id || '')
   const [editNotes, setEditNotes] = useState(lead.notes || '')
   const [editLostReason, setEditLostReason] = useState(lead.lost_reason || '')
+  const [coreError, setCoreError] = useState('')
 
   // Form States
   const [paymentType, setPaymentType] = useState('pemetaan')
@@ -69,14 +70,43 @@ export function LeadDetailClient({
 
   const supabase = createClient()
 
+  const normalizePhone = (value: string) => {
+    let cleanPhone = value.replace(/\D/g, '')
+    if (cleanPhone.startsWith('0')) {
+      cleanPhone = '62' + cleanPhone.slice(1)
+    } else if (cleanPhone.startsWith('8')) {
+      cleanPhone = '62' + cleanPhone
+    }
+    return cleanPhone
+  }
+
+  const userLabel = (user: any, fallback?: string | null) => {
+    if (user?.name) return user.name
+    if (fallback) return fallback
+    return '-'
+  }
+
+  const friendlyDuplicateError = (err?: any) => {
+    const isDuplicate =
+      err?.code === '23505' ||
+      err?.message?.includes('leads_whatsapp_normalized_unique') ||
+      err?.message?.toLowerCase?.().includes('duplicate key')
+
+    return isDuplicate
+      ? 'Nomor WhatsApp ini sudah terdaftar. Cari nomor tersebut di menu Leads untuk membuka data existing.'
+      : err?.message || 'Terjadi kesalahan saat menyimpan data lead.'
+  }
+
   // Log Activity Helper
   const logActivity = async (type: string, desc: string) => {
+    const { data: authData } = await supabase.auth.getUser()
     const { data: newAct, error } = await supabase
       .from('lead_activities')
       .insert({
         lead_id: lead.id,
         activity_type: type,
-        description: desc
+        description: desc,
+        created_by: authData.user?.id || null
       })
       .select()
     if (!error && newAct) {
@@ -86,18 +116,56 @@ export function LeadDetailClient({
 
   // Save Core Lead Data
   const handleSaveCore = async () => {
+    setCoreError('')
+
+    if (!editName.trim()) {
+      setCoreError('Nama Lengkap wajib diisi.')
+      return
+    }
+
+    const cleanPhone = normalizePhone(editPhone)
+    if (cleanPhone.length < 9 || cleanPhone.length > 15) {
+      setCoreError('Nomor WhatsApp tidak valid (harus antara 9 sampai 15 digit angka).')
+      return
+    }
+
+    const { data: duplicateLead, error: duplicateErr } = await supabase
+      .from('leads')
+      .select('id, full_name, whatsapp_number, source_campaign, current_status, users:assigned_cro_id(name)')
+      .eq('whatsapp_normalized', cleanPhone)
+      .is('duplicate_of', null)
+      .neq('id', lead.id)
+      .maybeSingle()
+
+    if (duplicateErr) {
+      setCoreError(duplicateErr.message)
+      return
+    }
+
+    if (duplicateLead) {
+      const picName = duplicateLead.users?.name ? `PIC: ${duplicateLead.users.name}` : 'PIC belum di-assign'
+      setCoreError(`Nomor WhatsApp ini sudah terdaftar untuk ${duplicateLead.full_name} (${duplicateLead.source_campaign || 'tanpa campaign'}) dengan status ${duplicateLead.current_status || '-'}. ${picName}.`)
+      return
+    }
+
+    const { data: authData } = await supabase.auth.getUser()
+    const currentUserId = authData.user?.id || null
+    const updatedAt = new Date().toISOString()
+
     const { error } = await supabase
       .from('leads')
       .update({
         full_name: editName,
-        whatsapp_number: editPhone,
+        whatsapp_number: cleanPhone,
+        whatsapp_normalized: cleanPhone,
         email: editEmail || null,
         source_campaign: editSource,
         current_status: editStatus,
         assigned_cro_id: editPic || null,
         notes: editNotes || null,
         lost_reason: ['Not Interested', 'Not Eligible'].includes(editStatus) ? editLostReason : null,
-        updated_at: new Date().toISOString()
+        updated_by: currentUserId,
+        updated_at: updatedAt
       })
       .eq('id', lead.id)
 
@@ -105,17 +173,24 @@ export function LeadDetailClient({
       const updatedLead = {
         ...lead,
         full_name: editName,
-        whatsapp_number: editPhone,
+        whatsapp_number: cleanPhone,
+        whatsapp_normalized: cleanPhone,
         email: editEmail || null,
         source_campaign: editSource,
         current_status: editStatus,
         assigned_cro_id: editPic || null,
         notes: editNotes || null,
-        lost_reason: ['Not Interested', 'Not Eligible'].includes(editStatus) ? editLostReason : null
+        lost_reason: ['Not Interested', 'Not Eligible'].includes(editStatus) ? editLostReason : null,
+        updated_by: currentUserId,
+        updated_by_user: authData.user ? { id: authData.user.id, name: authData.user.user_metadata?.name || authData.user.email } : lead.updated_by_user,
+        updated_at: updatedAt
       }
       setLead(updatedLead)
+      setEditPhone(cleanPhone)
       setIsEditingCore(false)
       logActivity('Lead Updated', 'Core lead information updated manually')
+    } else {
+      setCoreError(friendlyDuplicateError(error))
     }
   }
 
@@ -233,7 +308,10 @@ export function LeadDetailClient({
             Hubungi via WA
           </button>
           <button
-            onClick={() => setIsEditingCore(true)}
+            onClick={() => {
+              setCoreError('')
+              setIsEditingCore(true)
+            }}
             className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-slate-700 dark:text-white/70 bg-slate-100 dark:bg-white/5 border border-border hover:bg-slate-200/50 dark:hover:bg-white/10 transition-all cursor-pointer"
           >
             <Edit size={14} />
@@ -291,7 +369,10 @@ export function LeadDetailClient({
                   { label: 'Status Pipeline', value: lead.current_status },
                   { label: 'Lost Reason', value: lead.lost_reason || '-' },
                   { label: 'Tanggal Masuk', value: new Date(lead.lead_entry_date).toLocaleString('id-ID') },
-                  { label: 'Terakhir Dihubungi', value: lead.last_contacted_date ? new Date(lead.last_contacted_date).toLocaleString('id-ID') : '-' }
+                  { label: 'Terakhir Dihubungi', value: lead.last_contacted_date ? new Date(lead.last_contacted_date).toLocaleString('id-ID') : '-' },
+                  { label: 'Dibuat Oleh', value: userLabel(lead.created_by_user, lead.created_by) },
+                  { label: 'Diupdate Oleh', value: userLabel(lead.updated_by_user, lead.updated_by) },
+                  { label: 'Terakhir Diupdate', value: lead.updated_at ? new Date(lead.updated_at).toLocaleString('id-ID') : '-' }
                 ].map(item => (
                   <div key={item.label} className="p-3 rounded-xl border border-border bg-slate-50/50 dark:bg-white/[0.01]">
                     <span className="text-[10px] text-muted-foreground font-bold uppercase">{item.label}</span>
@@ -559,6 +640,7 @@ export function LeadDetailClient({
                     <p className="text-xs text-slate-750 dark:text-white/70">{act.description}</p>
                     <p className="text-[9px] text-muted-foreground/50">
                       {new Date(act.created_at).toLocaleString('id-ID')}
+                      {act.users?.name ? ` oleh ${act.users.name}` : ''}
                     </p>
                   </div>
                 ))
@@ -695,9 +777,18 @@ export function LeadDetailClient({
               />
             </div>
 
+            {coreError && (
+              <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-600 dark:text-red-300">
+                {coreError}
+              </div>
+            )}
+
             <div className="flex items-center justify-end gap-3 border-t border-border pt-4">
               <button
-                onClick={() => setIsEditingCore(false)}
+                onClick={() => {
+                  setCoreError('')
+                  setIsEditingCore(false)
+                }}
                 className="px-4 py-2 text-xs font-semibold rounded-xl text-muted-foreground hover:text-foreground hover:bg-slate-100 dark:hover:bg-white/5 transition-all"
               >
                 Batal

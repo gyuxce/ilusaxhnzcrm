@@ -49,6 +49,11 @@ export type LeadRow = {
   follow_up_result: string | null
   notes: string | null
   lost_reason: string | null
+  created_by: string | null
+  updated_by: string | null
+  duplicate_of: string | null
+  duplicate_reason: string | null
+  whatsapp_normalized: string | null
   created_at: string
   updated_at: string
 }
@@ -66,6 +71,11 @@ export type LeadInsert = {
   follow_up_result?: string | null
   notes?: string | null
   lost_reason?: string | null
+  created_by?: string | null
+  updated_by?: string | null
+  duplicate_of?: string | null
+  duplicate_reason?: string | null
+  whatsapp_normalized?: string | null
   created_at?: string
   updated_at?: string
 }

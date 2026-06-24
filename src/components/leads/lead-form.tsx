@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
-import { Loader2, Phone, User, Calendar, MessageSquare, Mail, Settings, TrendingUp, Users } from 'lucide-react'
+import { Loader2, Phone, User, Calendar, MessageSquare, Mail, TrendingUp, Users } from 'lucide-react'
 
 interface LeadFormProps {
   pics: { id: string; name: string }[]
@@ -44,17 +44,37 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
     setForm(prev => ({ ...prev, [field]: value }))
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    if (!form.whatsapp_number) return setError('Nomor WhatsApp wajib diisi')
-    
-    // Standardise phone number format (remove non-digits, replace leading 0 or 8 with 62)
-    let cleanPhone = form.whatsapp_number.replace(/\D/g, '')
+  function normalizePhone(value: string) {
+    let cleanPhone = value.replace(/\D/g, '')
     if (cleanPhone.startsWith('0')) {
       cleanPhone = '62' + cleanPhone.slice(1)
     } else if (cleanPhone.startsWith('8')) {
       cleanPhone = '62' + cleanPhone
     }
+    return cleanPhone
+  }
+
+  function duplicateMessage(lead: any) {
+    const picName = lead.users?.name ? `PIC: ${lead.users.name}` : 'PIC belum di-assign'
+    return `Nomor WhatsApp ini sudah terdaftar untuk ${lead.full_name} (${lead.source_campaign || 'tanpa campaign'}) dengan status ${lead.current_status || '-'}. ${picName}. Buka data existing dari menu Leads.`
+  }
+
+  function friendlyError(err: any) {
+    const isDuplicate =
+      err?.code === '23505' ||
+      err?.message?.includes('leads_whatsapp_normalized_unique') ||
+      err?.message?.toLowerCase?.().includes('duplicate key')
+
+    return isDuplicate
+      ? 'Nomor WhatsApp ini sudah terdaftar. Cari nomor tersebut di menu Leads untuk membuka data existing.'
+      : err?.message || 'Terjadi kesalahan saat menyimpan lead.'
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!form.whatsapp_number) return setError('Nomor WhatsApp wajib diisi')
+    
+    const cleanPhone = normalizePhone(form.whatsapp_number)
 
     // Validate phone number digits
     if (cleanPhone.length < 9 || cleanPhone.length > 15) {
@@ -68,9 +88,35 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
     setError('')
 
     const supabase = createClient()
+    const { data: authData } = await supabase.auth.getUser()
+    const currentUserId = authData.user?.id || null
+
+    let duplicateQuery = supabase
+      .from('leads')
+      .select('id, full_name, whatsapp_number, source_campaign, current_status, users:assigned_cro_id(name)')
+      .eq('whatsapp_normalized', cleanPhone)
+      .is('duplicate_of', null)
+
+    if (leadId) {
+      duplicateQuery = duplicateQuery.neq('id', leadId)
+    }
+
+    const { data: duplicateLead, error: duplicateErr } = await duplicateQuery.maybeSingle()
+    if (duplicateErr) {
+      setError(duplicateErr.message)
+      setLoading(false)
+      return
+    }
+
+    if (duplicateLead) {
+      setError(duplicateMessage(duplicateLead))
+      setLoading(false)
+      return
+    }
 
     const payload = {
       whatsapp_number: cleanPhone,
+      whatsapp_normalized: cleanPhone,
       full_name: form.full_name,
       email: form.email || null,
       source_campaign: form.source_campaign,
@@ -79,6 +125,7 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
       assigned_cro_id: form.assigned_cro_id || null,
       notes: form.notes || null,
       lead_entry_date: form.lead_entry_date ? new Date(form.lead_entry_date).toISOString() : new Date().toISOString(),
+      updated_by: currentUserId,
       updated_at: new Date().toISOString()
     }
 
@@ -89,6 +136,7 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
     } else {
       const { data: newLeads, error: insertErr } = await supabase.from('leads').insert({
         ...payload,
+        created_by: currentUserId,
         created_at: new Date().toISOString()
       }).select()
       
@@ -105,14 +153,15 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
           supabase.from('lead_activities').insert({
             lead_id: newLeadId,
             activity_type: 'Lead created',
-            description: 'Lead created manually via Tambah Lead form'
+            description: 'Lead created manually via Tambah Lead form',
+            created_by: currentUserId
           })
         ])
       }
     }
 
     if (err) {
-      setError(err.message)
+      setError(friendlyError(err))
       setLoading(false)
     } else {
       router.push('/leads')

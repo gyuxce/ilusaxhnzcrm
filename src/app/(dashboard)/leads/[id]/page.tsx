@@ -16,7 +16,11 @@ export default async function LeadDetailPage({ params }: PageProps) {
   const [leadRes, paymentsRes, pemetaanRes, expertRes, activitiesRes, picsRes] = await Promise.all([
     supabase
       .from('leads')
-      .select('*')
+      .select(`
+        *,
+        created_by_user:created_by(id, name),
+        updated_by_user:updated_by(id, name)
+      `)
       .eq('id', resolvedParams.id)
       .maybeSingle(),
     supabase
@@ -34,7 +38,7 @@ export default async function LeadDetailPage({ params }: PageProps) {
       .eq('lead_id', resolvedParams.id),
     supabase
       .from('lead_activities')
-      .select('*')
+      .select('*, users:created_by(id, name)')
       .eq('lead_id', resolvedParams.id)
       .order('created_at', { ascending: false }),
     supabase
