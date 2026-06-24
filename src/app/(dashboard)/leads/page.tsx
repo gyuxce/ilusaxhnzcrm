@@ -14,6 +14,7 @@ export default async function LeadsPage() {
       .select(`
         *,
         users:assigned_cro_id(id, name),
+        updated_by_user:updated_by(id, name),
         payments(*),
         pemetaan(*),
         expert_consultations(*)

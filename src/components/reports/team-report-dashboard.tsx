@@ -8,6 +8,7 @@ import {
   CalendarDays,
   ChevronRight,
   ClipboardList,
+  Download,
   Search,
   TrendingUp,
   UserRoundCheck,
@@ -151,6 +152,36 @@ export function TeamReportDashboard({
     router.push(`/reports?${params.toString()}`)
   }
 
+  const exportCsv = () => {
+    const rows = filteredActivities.map(activity => ({
+      tanggal: new Date(activity.created_at).toLocaleString('id-ID'),
+      user: activity.users?.name || 'Unknown / sistem lama',
+      activity_type: activity.activity_type,
+      lead: activity.leads?.full_name || '',
+      whatsapp: activity.leads?.whatsapp_number || '',
+      campaign: activity.leads?.source_campaign || '',
+      status: activity.leads?.current_status || '',
+      description: activity.description,
+    }))
+
+    const headers = ['tanggal', 'user', 'activity_type', 'lead', 'whatsapp', 'campaign', 'status', 'description']
+    const escapeCsv = (value: unknown) => `"${String(value ?? '').replace(/"/g, '""')}"`
+    const csv = [
+      headers.join(','),
+      ...rows.map(row => headers.map(header => escapeCsv(row[header as keyof typeof row])).join(',')),
+    ].join('\n')
+
+    const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `team-report-${selectedDate}${selectedUser ? '-filtered' : ''}.csv`
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(url)
+  }
+
   const maxType = Math.max(...report.typeRows.map(row => row.count), 1)
 
   return (
@@ -179,14 +210,25 @@ export function TeamReportDashboard({
           </select>
         </div>
 
-        <div className="relative w-full xl:w-96">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
-          <input
-            value={query}
-            onChange={event => setQuery(event.target.value)}
-            placeholder="Cari aktivitas, nama lead, campaign..."
-            className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-card border border-border text-sm text-foreground outline-none focus:ring-1 focus:ring-primary focus:border-primary"
-          />
+        <div className="flex flex-col sm:flex-row gap-3 w-full xl:w-auto">
+          <div className="relative w-full xl:w-96">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
+            <input
+              value={query}
+              onChange={event => setQuery(event.target.value)}
+              placeholder="Cari aktivitas, nama lead, campaign..."
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-card border border-border text-sm text-foreground outline-none focus:ring-1 focus:ring-primary focus:border-primary"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={exportCsv}
+            disabled={filteredActivities.length === 0}
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-bold text-foreground transition-all hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:bg-white/5"
+          >
+            <Download size={16} />
+            Export CSV
+          </button>
         </div>
       </div>
 

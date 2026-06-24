@@ -17,6 +17,7 @@ import { createClient } from '@/lib/supabase/client'
 
 type LeadWithRelations = Lead & {
   users?: { id: string; name: string } | null
+  updated_by_user?: { id: string; name: string } | null
   payments?: any[]
   pemetaan?: any[]
   expert_consultations?: any[]
@@ -154,6 +155,41 @@ const renderMilestones = (lead: LeadWithRelations) => {
   )
 }
 
+const NEEDS_ACTION_STATUSES = [
+  'Pemetaan Scheduled',
+  'Waiting Result',
+  'Expert Consultation Scheduled',
+  'Seat Lock Offered',
+]
+
+type QuickFilter = 'all' | 'new' | 'unassigned' | 'needs_action' | 'stale' | 'seat_lock_paid'
+
+const quickFilterLabels: Record<QuickFilter, string> = {
+  all: 'Semua',
+  new: 'New Lead',
+  unassigned: 'Belum Ada PIC',
+  needs_action: 'Needs Action',
+  stale: 'Belum Disentuh 3+ Hari',
+  seat_lock_paid: 'Seat Lock Paid',
+}
+
+function daysSinceLastTouch(lead: LeadWithRelations) {
+  const latestDate = lead.last_contacted_date || lead.updated_at || lead.lead_entry_date
+  if (!latestDate) return 0
+
+  const start = new Date(latestDate)
+  const now = new Date()
+  const diffMs = now.getTime() - start.getTime()
+  return Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)))
+}
+
+function lastTouchLabel(lead: LeadWithRelations) {
+  const days = daysSinceLastTouch(lead)
+  if (days === 0) return 'Hari ini'
+  if (days === 1) return '1 hari lalu'
+  return `${days} hari lalu`
+}
+
 
 export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
   const router = useRouter()
@@ -194,6 +230,7 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
   const [filterCampaign, setFilterCampaign] = useState('all')
   const [filterPayment, setFilterPayment] = useState('all')
   const [filterSeatLock, setFilterSeatLock] = useState('all')
+  const [quickFilter, setQuickFilter] = useState<QuickFilter>('all')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   
@@ -225,6 +262,18 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
 
   const filtered = useMemo(() => {
     let data = [...initialLeads]
+
+    if (quickFilter === 'new') {
+      data = data.filter(l => l.current_status === 'New Lead')
+    } else if (quickFilter === 'unassigned') {
+      data = data.filter(l => !l.assigned_cro_id)
+    } else if (quickFilter === 'needs_action') {
+      data = data.filter(l => NEEDS_ACTION_STATUSES.includes(l.current_status))
+    } else if (quickFilter === 'stale') {
+      data = data.filter(l => daysSinceLastTouch(l) >= 3)
+    } else if (quickFilter === 'seat_lock_paid') {
+      data = data.filter(l => l.current_status === 'Seat Lock Paid' || l.current_status === 'Onboarding')
+    }
 
     if (search) {
       const q = search.toLowerCase()
@@ -283,7 +332,7 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
     })
 
     return data
-  }, [initialLeads, search, filterStatus, filterPic, filterCampaign, filterPayment, filterSeatLock, startDate, endDate, sortField, sortDir])
+  }, [initialLeads, quickFilter, search, filterStatus, filterPic, filterCampaign, filterPayment, filterSeatLock, startDate, endDate, sortField, sortDir])
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
   const safeCurrentPage = Math.min(currentPage, totalPages)
@@ -304,6 +353,22 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
     return sortDir === 'asc'
       ? <ChevronUp size={12} className="text-purple-400" />
       : <ChevronDown size={12} className="text-purple-400" />
+  }
+
+  const quickCounts = useMemo(() => {
+    return {
+      all: initialLeads.length,
+      new: initialLeads.filter(l => l.current_status === 'New Lead').length,
+      unassigned: initialLeads.filter(l => !l.assigned_cro_id).length,
+      needs_action: initialLeads.filter(l => NEEDS_ACTION_STATUSES.includes(l.current_status)).length,
+      stale: initialLeads.filter(l => daysSinceLastTouch(l) >= 3).length,
+      seat_lock_paid: initialLeads.filter(l => l.current_status === 'Seat Lock Paid' || l.current_status === 'Onboarding').length,
+    }
+  }, [initialLeads])
+
+  const setQuick = (value: QuickFilter) => {
+    setQuickFilter(value)
+    setCurrentPage(1)
   }
 
   // Format Helper
@@ -336,6 +401,27 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
 
       {/* Search & Filter Component */}
       <div className="glass-card rounded-2xl p-4 space-y-4 border border-border">
+        <div className="flex flex-wrap gap-2">
+          {(Object.keys(quickFilterLabels) as QuickFilter[]).map(key => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setQuick(key)}
+              className={cn(
+                'inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-bold transition-all',
+                quickFilter === key
+                  ? 'border-purple-500/30 bg-purple-500/10 text-purple-600 dark:text-purple-300'
+                  : 'border-border bg-card text-muted-foreground hover:text-foreground hover:bg-slate-50 dark:hover:bg-white/5'
+              )}
+            >
+              {quickFilterLabels[key]}
+              <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-foreground">
+                {quickCounts[key]}
+              </span>
+            </button>
+          ))}
+        </div>
+
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="flex-1 relative">
             <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/60" />
@@ -475,6 +561,7 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
                   { label: 'Tanggal Masuk', field: 'lead_entry_date' as const },
                   { label: 'PIC CRO', field: null },
                   { label: 'Status Pipeline', field: 'current_status' as const },
+                  { label: 'Last Update', field: null },
                   { label: 'Progress Milestone', field: null },
                   { label: 'Aksi', field: null }
                 ].map(col => (
@@ -497,7 +584,7 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
             <tbody className="divide-y divide-border">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-16 text-center text-muted-foreground/40 text-sm">
+                  <td colSpan={8} className="px-4 py-16 text-center text-muted-foreground/40 text-sm">
                     Tidak ada data leads yang cocok dengan filter.
                   </td>
                 </tr>
@@ -535,6 +622,23 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
                         <span className="px-2 py-0.5 rounded-full font-semibold bg-purple-50 dark:bg-purple-950/20 text-purple-600 dark:text-purple-400 border border-purple-100 dark:border-purple-900/30">
                           {lead.current_status}
                         </span>
+                      </td>
+
+                      {/* Last Update */}
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <div className="flex flex-col gap-1">
+                          <span className={cn(
+                            'w-fit rounded-full border px-2 py-0.5 text-[10px] font-bold',
+                            daysSinceLastTouch(lead) >= 3
+                              ? 'border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-300'
+                              : 'border-emerald-500/25 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300'
+                          )}>
+                            {lastTouchLabel(lead)}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground">
+                            by {lead.updated_by_user?.name || 'Unknown'}
+                          </span>
+                        </div>
                       </td>
 
                       {/* Progress Milestone */}

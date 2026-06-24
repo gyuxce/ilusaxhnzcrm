@@ -22,6 +22,20 @@ const CATEGORY_COLORS: Record<string, { color: string; bg: string }> = {
   faq: { color: '#06b6d4', bg: 'rgba(6,182,212,0.1)' },
 }
 
+const STATUS_GUIDE = [
+  { status: 'New Lead', meaning: 'Lead baru masuk dan belum diproses CRO.', next: 'Assign PIC dan mulai pitching.' },
+  { status: 'Pitching', meaning: 'Tim sudah mulai menawarkan program atau menggali kebutuhan.', next: 'Update ke Interested atau Not Interested.' },
+  { status: 'Interested', meaning: 'Lead menunjukkan minat dan layak didorong ke tahap berikutnya.', next: 'Jadwalkan pemetaan.' },
+  { status: 'Not Interested', meaning: 'Lead menolak atau tidak ingin lanjut saat ini.', next: 'Isi alasan lost/drop-off.' },
+  { status: 'Not Eligible', meaning: 'Lead tidak memenuhi kriteria program.', next: 'Isi alasan agar bisa direkap.' },
+  { status: 'Pemetaan Scheduled', meaning: 'Sesi pemetaan sudah dijadwalkan.', next: 'Follow up sampai masuk Waiting Result.' },
+  { status: 'Waiting Result', meaning: 'Sesi/form sudah berjalan dan menunggu hasil pemetaan.', next: 'Jika hasil siap, jadwalkan expert consultation.' },
+  { status: 'Expert Consultation Scheduled', meaning: 'Konsultasi dengan expert sudah dijadwalkan.', next: 'Follow up hasil konsultasi dan arahkan seat lock.' },
+  { status: 'Seat Lock Offered', meaning: 'Lead sudah ditawari pembayaran seat lock.', next: 'Follow up pembayaran seat lock.' },
+  { status: 'Seat Lock Paid', meaning: 'Seat lock sudah dibayar dan diverifikasi.', next: 'Masuk proses onboarding.' },
+  { status: 'Onboarding', meaning: 'Lead sudah masuk proses persiapan kelas/program.', next: 'Lengkapi kebutuhan administrasi.' },
+]
+
 interface PlaybookViewProps {
   items: PlaybookItem[]
 }
@@ -48,6 +62,26 @@ export function PlaybookView({ items }: PlaybookViewProps) {
 
   return (
     <div className="space-y-5">
+      <div className="rounded-2xl border border-border bg-card p-5 shadow-xs">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 className="text-sm font-extrabold uppercase tracking-wide text-foreground">Kamus Status Pipeline</h2>
+            <p className="text-xs text-muted-foreground mt-1">Acuan singkat agar semua CRO memakai status dengan definisi yang sama.</p>
+          </div>
+          <span className="text-xs text-muted-foreground">{STATUS_GUIDE.length} status aktif</span>
+        </div>
+
+        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+          {STATUS_GUIDE.map(item => (
+            <div key={item.status} className="rounded-xl border border-border bg-muted/30 p-3">
+              <p className="text-xs font-extrabold text-foreground">{item.status}</p>
+              <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">{item.meaning}</p>
+              <p className="mt-2 text-[10px] font-bold uppercase tracking-wide text-primary">{item.next}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* Category tabs */}
       <div className="flex flex-wrap gap-2">
         {CATEGORIES.map(cat => {
