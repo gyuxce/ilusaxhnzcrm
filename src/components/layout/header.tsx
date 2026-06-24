@@ -36,10 +36,9 @@ export function Header({ title, subtitle }: HeaderProps) {
         .from('leads')
         .select('id, full_name, current_status')
         .in('current_status', [
-          'Payment Pemetaan Paid',
-          'Pemetaan Done',
-          'Result Ready',
-          'Expert Consultation Done',
+          'Pemetaan Scheduled',
+          'Waiting Result',
+          'Expert Consultation Scheduled',
           'Seat Lock Offered',
         ])
         .order('updated_at', { ascending: false })

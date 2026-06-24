@@ -96,7 +96,7 @@ export function LeadDetailClient({
         current_status: editStatus,
         assigned_cro_id: editPic || null,
         notes: editNotes || null,
-        lost_reason: editStatus === 'Not Interested' ? editLostReason : null,
+        lost_reason: ['Not Interested', 'Not Eligible'].includes(editStatus) ? editLostReason : null,
         updated_at: new Date().toISOString()
       })
       .eq('id', lead.id)
@@ -111,7 +111,7 @@ export function LeadDetailClient({
         current_status: editStatus,
         assigned_cro_id: editPic || null,
         notes: editNotes || null,
-        lost_reason: editStatus === 'Not Interested' ? editLostReason : null
+        lost_reason: ['Not Interested', 'Not Eligible'].includes(editStatus) ? editLostReason : null
       }
       setLead(updatedLead)
       setIsEditingCore(false)
@@ -637,23 +637,16 @@ export function LeadDetailClient({
                   className="w-full px-3 py-2 text-sm text-foreground bg-card border border-border outline-none rounded-xl cursor-pointer focus:ring-1 focus:ring-primary focus:border-primary"
                 >
                   <option value="New Lead">New Lead</option>
-                  <option value="Follow Up">Follow Up</option>
                   <option value="Pitching">Pitching</option>
                   <option value="Interested">Interested</option>
                   <option value="Not Interested">Not Interested</option>
-                  <option value="Payment Pemetaan Pending">Payment Pemetaan Pending</option>
-                  <option value="Payment Pemetaan Paid">Payment Pemetaan Paid</option>
-                  <option value="Pemetaan Form Submitted">Pemetaan Form Submitted</option>
+                  <option value="Not Eligible">Not Eligible</option>
                   <option value="Pemetaan Scheduled">Pemetaan Scheduled</option>
-                  <option value="Pemetaan Done">Pemetaan Done</option>
                   <option value="Waiting Result">Waiting Result</option>
-                  <option value="Result Ready">Result Ready</option>
                   <option value="Expert Consultation Scheduled">Expert Consultation Scheduled</option>
-                  <option value="Expert Consultation Done">Expert Consultation Done</option>
                   <option value="Seat Lock Offered">Seat Lock Offered</option>
                   <option value="Seat Lock Paid">Seat Lock Paid</option>
                   <option value="Onboarding">Onboarding</option>
-                  <option value="Class Started">Class Started</option>
                 </select>
               </div>
 
@@ -672,7 +665,7 @@ export function LeadDetailClient({
               </div>
             </div>
 
-            {editStatus === 'Not Interested' && (
+            {['Not Interested', 'Not Eligible'].includes(editStatus) && (
               <div>
                 <label className="block text-xs text-muted-foreground mb-1">Alasan Lost / Drop-off</label>
                 <select

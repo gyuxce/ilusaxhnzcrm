@@ -55,10 +55,9 @@ export function Sidebar() {
         .from('leads')
         .select('*', { count: 'exact', head: true })
         .in('current_status', [
-          'Payment Pemetaan Paid',
-          'Pemetaan Done',
-          'Result Ready',
-          'Expert Consultation Done',
+          'Pemetaan Scheduled',
+          'Waiting Result',
+          'Expert Consultation Scheduled',
           'Seat Lock Offered',
         ])
 

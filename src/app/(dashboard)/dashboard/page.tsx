@@ -22,18 +22,16 @@ import { Header } from '@/components/layout/header'
 interface DashboardStats {
   totalLeads: number
   newLeads: number
+  pitching: number
   interestedLeads: number
   notInterested: number
-  pemetaanPaid: number
-  pemetaanDone: number
+  notEligible: number
+  pemetaanScheduled: number
   waitingResult: number
-  resultReady: number
   expertScheduled: number
-  expertDone: number
   seatLockOffered: number
   seatLockPaid: number
   onboarding: number
-  classStarted: number
   
   revenuePemetaan: number
   revenueSeatLock: number
@@ -64,18 +62,16 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats>({
     totalLeads: 0,
     newLeads: 0,
+    pitching: 0,
     interestedLeads: 0,
     notInterested: 0,
-    pemetaanPaid: 0,
-    pemetaanDone: 0,
+    notEligible: 0,
+    pemetaanScheduled: 0,
     waitingResult: 0,
-    resultReady: 0,
     expertScheduled: 0,
-    expertDone: 0,
     seatLockOffered: 0,
     seatLockPaid: 0,
     onboarding: 0,
-    classStarted: 0,
     revenuePemetaan: 0,
     revenueSeatLock: 0,
     revenueCombined: 0
@@ -163,23 +159,16 @@ export default function DashboardPage() {
     let total = 0
     const sc: Record<string, number> = {
       'New Lead': 0,
-      'Follow Up': 0,
       'Pitching': 0,
       'Interested': 0,
       'Not Interested': 0,
-      'Payment Pemetaan Pending': 0,
-      'Payment Pemetaan Paid': 0,
-      'Pemetaan Form Submitted': 0,
+      'Not Eligible': 0,
       'Pemetaan Scheduled': 0,
-      'Pemetaan Done': 0,
       'Waiting Result': 0,
-      'Result Ready': 0,
       'Expert Consultation Scheduled': 0,
-      'Expert Consultation Done': 0,
       'Seat Lock Offered': 0,
       'Seat Lock Paid': 0,
       'Onboarding': 0,
-      'Class Started': 0
     }
 
     if (leads) {
@@ -252,18 +241,16 @@ export default function DashboardPage() {
     setStats({
       totalLeads: total,
       newLeads: sc['New Lead'] || 0,
+      pitching: sc['Pitching'] || 0,
       interestedLeads: sc['Interested'] || 0,
-      notInterested: (sc['Not Interested'] || 0) + (sc['Failed Closing'] || 0) + (sc['Not Qualified'] || 0) + (sc['No Response'] || 0) + (sc['Need Follow Up Later'] || 0),
-      pemetaanPaid: sc['Payment Pemetaan Paid'] || 0,
-      pemetaanDone: sc['Pemetaan Done'] || 0,
+      notInterested: sc['Not Interested'] || 0,
+      notEligible: sc['Not Eligible'] || 0,
+      pemetaanScheduled: sc['Pemetaan Scheduled'] || 0,
       waitingResult: sc['Waiting Result'] || 0,
-      resultReady: sc['Result Ready'] || 0,
       expertScheduled: sc['Expert Consultation Scheduled'] || 0,
-      expertDone: sc['Expert Consultation Done'] || 0,
       seatLockOffered: sc['Seat Lock Offered'] || 0,
       seatLockPaid: sc['Seat Lock Paid'] || 0,
       onboarding: sc['Onboarding'] || 0,
-      classStarted: sc['Class Started'] || 0,
       revenuePemetaan: revPemetaan,
       revenueSeatLock: revSeatLock,
       revenueCombined: revPemetaan + revSeatLock
@@ -315,18 +302,18 @@ export default function DashboardPage() {
       stages: [
         { label: 'Total Leads', value: stats.totalLeads, color: '#a78bfa' },
         { label: 'New Leads', value: stats.newLeads, color: '#60a5fa' },
+        { label: 'Pitching', value: stats.pitching, color: '#8b5cf6' },
         { label: 'Interested Leads', value: stats.interestedLeads, color: '#34d399' },
         { label: 'Not Interested / Lost', value: stats.notInterested, color: '#f87171' },
+        { label: 'Not Eligible', value: stats.notEligible, color: '#94a3b8' },
       ]
     },
     {
       title: 'Proses Pemetaan',
       color: '#f59e0b',
       stages: [
-        { label: 'Pemetaan Paid', value: stats.pemetaanPaid, color: '#f59e0b' },
-        { label: 'Pemetaan Done', value: stats.pemetaanDone, color: '#10b981' },
+        { label: 'Pemetaan Scheduled', value: stats.pemetaanScheduled, color: '#f59e0b' },
         { label: 'Waiting Result', value: stats.waitingResult, color: '#06b6d4' },
-        { label: 'Result Ready', value: stats.resultReady, color: '#3b82f6' },
       ]
     },
     {
@@ -334,7 +321,6 @@ export default function DashboardPage() {
       color: '#8b5cf6',
       stages: [
         { label: 'Expert Consult Scheduled', value: stats.expertScheduled, color: '#8b5cf6' },
-        { label: 'Expert Consult Done', value: stats.expertDone, color: '#ec4899' },
       ]
     },
     {
@@ -344,7 +330,6 @@ export default function DashboardPage() {
         { label: 'Seat Lock Offered', value: stats.seatLockOffered, color: '#f43f5e' },
         { label: 'Seat Lock Paid', value: stats.seatLockPaid, color: '#10b981' },
         { label: 'Onboarding', value: stats.onboarding, color: '#d97706' },
-        { label: 'Class Started', value: stats.classStarted, color: '#2563eb' },
       ]
     }
   ]

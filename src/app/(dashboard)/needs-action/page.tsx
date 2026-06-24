@@ -61,11 +61,10 @@ export default function NeedsActionPage() {
       .from('leads')
       .select('*, users:assigned_cro_id(name)')
       .in('current_status', [
-        'Payment Pemetaan Paid',
-        'Pemetaan Done',
-        'Result Ready',
-        'Expert Consultation Done',
-        'Seat Lock Offered'
+        'Pemetaan Scheduled',
+        'Waiting Result',
+        'Expert Consultation Scheduled',
+        'Seat Lock Offered',
       ])
       .order('lead_entry_date', { ascending: false })
 
@@ -87,10 +86,9 @@ export default function NeedsActionPage() {
   )
 
   // Categorize
-  const paidButNoForm = filteredLeads.filter(l => l.current_status === 'Payment Pemetaan Paid')
-  const pemetaanDoneWaiting = filteredLeads.filter(l => l.current_status === 'Pemetaan Done')
-  const resultReadySchedule = filteredLeads.filter(l => l.current_status === 'Result Ready')
-  const expertDoneFollowUp = filteredLeads.filter(l => l.current_status === 'Expert Consultation Done')
+  const pemetaanScheduled = filteredLeads.filter(l => l.current_status === 'Pemetaan Scheduled')
+  const waitingResult = filteredLeads.filter(l => l.current_status === 'Waiting Result')
+  const expertScheduled = filteredLeads.filter(l => l.current_status === 'Expert Consultation Scheduled')
   const seatLockOfferedWaiting = filteredLeads.filter(l => l.current_status === 'Seat Lock Offered')
 
   // Open WA Modal
@@ -108,26 +106,14 @@ export default function NeedsActionPage() {
     let activityDesc = ''
     const promises: Promise<any>[] = []
 
-    if (actionType === 'submit_form') {
-      nextStatus = 'Pemetaan Form Submitted'
-      activityDesc = 'Pemetaan Form Submitted marked via Needs Action dashboard'
+    if (actionType === 'set_waiting_result') {
+      nextStatus = 'Waiting Result'
+      activityDesc = 'Lead moved to Waiting Result via Needs Action dashboard'
       promises.push(
         supabase
           .from('pemetaan')
-          .update({ form_status: 'submitted', updated_at: new Date().toISOString() })
-          .eq('lead_id', actioningLead.id)
-      )
-    } 
-    else if (actionType === 'ready_result') {
-      nextStatus = 'Result Ready'
-      activityDesc = `Pemetaan result ready: ${inputVal}`
-      promises.push(
-        supabase
-          .from('pemetaan')
-          .update({ 
-            result_status: 'ready', 
-            result_ready_at: new Date().toISOString(),
-            result_notes: inputVal,
+          .update({
+            result_status: 'waiting',
             updated_at: new Date().toISOString()
           })
           .eq('lead_id', actioningLead.id)
@@ -255,79 +241,50 @@ export default function NeedsActionPage() {
           <p className="text-muted-foreground text-sm">Memuat data leads...</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-          {/* Column 1: Paid but Form Pending */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          {/* Column 1: Pemetaan Scheduled */}
           <div className="space-y-4">
             <div className="flex items-center justify-between p-3 rounded-xl bg-card border border-border">
               <div className="flex items-center gap-2">
                 <Hourglass size={15} className="text-purple-600 dark:text-purple-400" />
-                <h3 className="font-extrabold text-foreground text-xs uppercase tracking-wider">Paid, No Form</h3>
+                <h3 className="font-extrabold text-foreground text-xs uppercase tracking-wider">Pemetaan Scheduled</h3>
               </div>
-              <span className="bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-slate-300 text-xs px-2 py-0.5 rounded-full font-bold">{paidButNoForm.length}</span>
+              <span className="bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-slate-300 text-xs px-2 py-0.5 rounded-full font-bold">{pemetaanScheduled.length}</span>
             </div>
             <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
-              {paidButNoForm.length === 0 ? (
+              {pemetaanScheduled.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground/45 text-xs rounded-xl border border-dashed border-border dark:border-white/5">Tidak ada leads</div>
               ) : (
-                paidButNoForm.map(lead => (
+                pemetaanScheduled.map(lead => (
                   <LeadActionCard 
                     key={lead.id} 
                     lead={lead} 
                     onWa={() => openWa(lead)}
                     onAction={() => {
                       setActioningLead(lead)
-                      setActionType('submit_form')
+                      setActionType('set_waiting_result')
                     }}
-                    actionLabel="Form Submitted"
+                    actionLabel="Set Waiting Result"
                   />
                 ))
               )}
             </div>
           </div>
 
-          {/* Column 2: Pemetaan Done, Waiting Result */}
+          {/* Column 2: Waiting Result */}
           <div className="space-y-4">
             <div className="flex items-center justify-between p-3 rounded-xl bg-card border border-border">
               <div className="flex items-center gap-2">
                 <Clock size={15} className="text-blue-600 dark:text-blue-400" />
                 <h3 className="font-extrabold text-foreground text-xs uppercase tracking-wider">Waiting Result</h3>
               </div>
-              <span className="bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-slate-300 text-xs px-2 py-0.5 rounded-full font-bold">{pemetaanDoneWaiting.length}</span>
+              <span className="bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-slate-300 text-xs px-2 py-0.5 rounded-full font-bold">{waitingResult.length}</span>
             </div>
             <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
-              {pemetaanDoneWaiting.length === 0 ? (
+              {waitingResult.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground/45 text-xs rounded-xl border border-dashed border-border dark:border-white/5">Tidak ada leads</div>
               ) : (
-                pemetaanDoneWaiting.map(lead => (
-                  <LeadActionCard 
-                    key={lead.id} 
-                    lead={lead} 
-                    onWa={() => openWa(lead)}
-                    onAction={() => {
-                      setActioningLead(lead)
-                      setActionType('ready_result')
-                    }}
-                    actionLabel="Set Result Ready"
-                  />
-                ))
-              )}
-            </div>
-          </div>
-
-          {/* Column 3: Result Ready, Schedule Expert */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between p-3 rounded-xl bg-card border border-border">
-              <div className="flex items-center gap-2">
-                <Calendar size={15} className="text-amber-600 dark:text-amber-400" />
-                <h3 className="font-extrabold text-foreground text-xs uppercase tracking-wider">Schedule Expert</h3>
-              </div>
-              <span className="bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-slate-300 text-xs px-2 py-0.5 rounded-full font-bold">{resultReadySchedule.length}</span>
-            </div>
-            <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
-              {resultReadySchedule.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground/45 text-xs rounded-xl border border-dashed border-border dark:border-white/5">Tidak ada leads</div>
-              ) : (
-                resultReadySchedule.map(lead => (
+                waitingResult.map(lead => (
                   <LeadActionCard 
                     key={lead.id} 
                     lead={lead} 
@@ -343,20 +300,20 @@ export default function NeedsActionPage() {
             </div>
           </div>
 
-          {/* Column 4: Expert Done, Follow Up Seat Lock */}
+          {/* Column 3: Expert Consultation Scheduled */}
           <div className="space-y-4">
             <div className="flex items-center justify-between p-3 rounded-xl bg-card border border-border">
               <div className="flex items-center gap-2">
-                <UserCheck size={15} className="text-orange-600 dark:text-orange-400" />
-                <h3 className="font-extrabold text-foreground text-xs uppercase tracking-wider">Offer Seat Lock</h3>
+                <Calendar size={15} className="text-amber-600 dark:text-amber-400" />
+                <h3 className="font-extrabold text-foreground text-xs uppercase tracking-wider">Expert Consultation Scheduled</h3>
               </div>
-              <span className="bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-slate-300 text-xs px-2 py-0.5 rounded-full font-bold">{expertDoneFollowUp.length}</span>
+              <span className="bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-slate-300 text-xs px-2 py-0.5 rounded-full font-bold">{expertScheduled.length}</span>
             </div>
             <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
-              {expertDoneFollowUp.length === 0 ? (
+              {expertScheduled.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground/45 text-xs rounded-xl border border-dashed border-border dark:border-white/5">Tidak ada leads</div>
               ) : (
-                expertDoneFollowUp.map(lead => (
+                expertScheduled.map(lead => (
                   <LeadActionCard 
                     key={lead.id} 
                     lead={lead} 
@@ -372,12 +329,12 @@ export default function NeedsActionPage() {
             </div>
           </div>
 
-          {/* Column 5: Seat Lock Offered, Waiting Payment */}
+          {/* Column 4: Offer Seat Lock */}
           <div className="space-y-4">
             <div className="flex items-center justify-between p-3 rounded-xl bg-card border border-border">
               <div className="flex items-center gap-2">
-                <FileCheck size={15} className="text-emerald-600 dark:text-emerald-400" />
-                <h3 className="font-extrabold text-foreground text-xs uppercase tracking-wider">Waiting Payment</h3>
+                <UserCheck size={15} className="text-orange-600 dark:text-orange-400" />
+                <h3 className="font-extrabold text-foreground text-xs uppercase tracking-wider">Offer Seat Lock</h3>
               </div>
               <span className="bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-slate-300 text-xs px-2 py-0.5 rounded-full font-bold">{seatLockOfferedWaiting.length}</span>
             </div>
@@ -423,24 +380,10 @@ export default function NeedsActionPage() {
             </p>
 
             {/* Inputs based on Action Type */}
-            {actionType === 'submit_form' && (
+            {actionType === 'set_waiting_result' && (
               <p className="text-sm text-primary mb-6 bg-primary/10 p-3 rounded-xl border border-primary/20 font-medium">
-                Tindakan ini akan memindahkan status lead menjadi <span className="font-bold">Pemetaan Form Submitted</span>.
+                Tindakan ini akan memindahkan status lead menjadi <span className="font-bold">Waiting Result</span>.
               </p>
-            )}
-
-            {actionType === 'ready_result' && (
-              <div className="space-y-4 mb-6">
-                <div>
-                  <label className="block text-xs text-muted-foreground mb-1 font-semibold">Catatan Hasil Pemetaan</label>
-                  <textarea
-                    placeholder="Masukkan ringkasan hasil pemetaan..."
-                    value={inputVal}
-                    onChange={(e) => setInputVal(e.target.value)}
-                    className="w-full px-3 py-2 text-sm bg-background text-foreground border border-border rounded-xl h-24 outline-none focus:ring-1 focus:ring-primary focus:border-primary placeholder:text-muted-foreground/50"
-                  />
-                </div>
-              </div>
             )}
 
             {actionType === 'schedule_expert' && (
@@ -524,7 +467,6 @@ export default function NeedsActionPage() {
               <button
                 onClick={handleUpdateStatus}
                 disabled={
-                  (actionType === 'ready_result' && !inputVal) ||
                   (actionType === 'schedule_expert' && (!inputVal || !inputVal2)) ||
                   (actionType === 'pay_seat_lock' && !inputVal)
                 }

@@ -124,11 +124,17 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
   const inputStyle = {}
 
   const statusOptions = [
-    'New Lead', 'Follow Up', 'Pitching', 'Interested', 'Not Interested',
-    'Payment Pemetaan Pending', 'Payment Pemetaan Paid', 'Pemetaan Form Submitted',
-    'Pemetaan Scheduled', 'Pemetaan Done', 'Waiting Result', 'Result Ready',
-    'Expert Consultation Scheduled', 'Expert Consultation Done', 'Seat Lock Offered',
-    'Seat Lock Paid', 'Onboarding', 'Class Started'
+    'New Lead',
+    'Pitching',
+    'Interested',
+    'Not Interested',
+    'Not Eligible',
+    'Pemetaan Scheduled',
+    'Waiting Result',
+    'Expert Consultation Scheduled',
+    'Seat Lock Offered',
+    'Seat Lock Paid',
+    'Onboarding',
   ]
 
   return (
