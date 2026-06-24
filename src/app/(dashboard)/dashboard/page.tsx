@@ -11,7 +11,6 @@ import {
   Award,
   Calendar,
   Zap,
-  Edit2,
   RefreshCw,
   Percent,
   CheckCircle2,
@@ -356,7 +355,7 @@ export default function DashboardPage() {
       
       <div className="p-6 space-y-6 max-w-7xl mx-auto animate-fade-in">
         
-        {/* Top Section: Revenue & Campaign Target Progress */}
+        {/* Top Section: Revenue & Campaign Snapshot */}
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
           
           {/* Revenue Cards */}
@@ -412,63 +411,28 @@ export default function DashboardPage() {
 
           </div>
 
-          {/* Campaign Target Summary */}
-          <div className="glass-card rounded-2xl p-5 border border-border flex flex-col min-h-[196px]">
-            <div className="flex items-center justify-between gap-3 mb-4">
+          {/* Campaign Snapshot */}
+          <div className="glass-card rounded-2xl p-5 border border-border relative overflow-hidden flex flex-col justify-between">
+            <div className="flex items-center justify-between mb-2">
               <div>
-                <span className="text-muted-foreground text-[10px] uppercase font-bold tracking-wider">Target Progres</span>
-                <h3 className="text-sm font-extrabold text-foreground">Semua Campaign</h3>
+                <span className="text-muted-foreground text-xs font-medium">Campaign Aktif</span>
               </div>
-              {(userRole === 'admin' || userRole === 'owner') && (
-                <button
-                  onClick={() => setIsEditingTarget(true)}
-                  className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-slate-100 dark:hover:bg-white/5 transition-all border border-border bg-card/50"
-                >
-                  <Edit2 size={13} />
-                </button>
-              )}
+              <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-600 dark:text-blue-400">
+                <Users size={15} />
+              </div>
             </div>
 
-            {campaignProgress.length === 0 ? (
-              <div className="flex flex-1 items-center justify-center rounded-xl border border-dashed border-border bg-slate-50/50 dark:bg-white/[0.02] px-4 py-8 text-center">
-                <p className="text-xs text-muted-foreground">Belum ada campaign dari data lead.</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {campaignProgress.slice(0, 3).map((campaign) => (
-                  <div key={campaign.name} className="rounded-xl border border-border/70 bg-slate-50/60 dark:bg-white/[0.03] p-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="text-xs font-extrabold text-foreground truncate">{campaign.name}</p>
-                        <p className="mt-1 text-[10px] text-muted-foreground">
-                          {campaign.hasManualTarget
-                            ? `Seat Lock: ${campaign.seatLocks} / ${campaign.targetSeatLock}`
-                            : `Lead: ${campaign.totalLeads} / target otomatis`}
-                        </p>
-                      </div>
-                      <span className="text-xs font-extrabold text-purple-600 dark:text-purple-400 flex-shrink-0">
-                        {campaign.progressPct}%
-                      </span>
-                    </div>
-
-                    <div className="mt-2 h-2 rounded-full overflow-hidden w-full bg-slate-100 dark:bg-slate-800">
-                      <div
-                        className="h-full rounded-full transition-all duration-700 glow-purple"
-                        style={{
-                          width: `${campaign.progressPct}%`,
-                          background: 'linear-gradient(90deg, hsl(250,84%,60%), hsl(280,60%,55%))',
-                        }}
-                      />
-                    </div>
-                  </div>
-                ))}
-                {campaignProgress.length > 3 && (
-                  <p className="text-[10px] text-muted-foreground">
-                    +{campaignProgress.length - 3} campaign lain tampil lengkap di tabel bawah.
-                  </p>
-                )}
-              </div>
-            )}
+            <div>
+              <p className="text-2xl font-bold text-foreground tracking-tight">
+                {campaignProgress.length.toLocaleString('id-ID')}
+              </p>
+              <p className="text-[10px] text-muted-foreground/80 mt-1">
+                Total campaign dari semua lead aktif
+              </p>
+              <p className="text-[10px] text-muted-foreground/70 mt-2">
+                Detail campaign tampil lengkap di tabel bawah.
+              </p>
+            </div>
           </div>
 
         </div>
