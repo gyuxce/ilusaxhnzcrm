@@ -33,6 +33,7 @@ export function LeadDetailClient({
   const [expert, setExpert] = useState(initialExpertConsultations[0] || null)
   const [activities, setActivities] = useState(initialActivities)
   const [activeTab, setActiveTab] = useState<'overview' | 'payments' | 'pemetaan' | 'expert'>('overview')
+  const [deletingPaymentId, setDeletingPaymentId] = useState<string | null>(null)
   
   // WhatsApp Modal
   const [isWaOpen, setIsWaOpen] = useState(false)
@@ -209,6 +210,26 @@ export function LeadDetailClient({
     }
   }
 
+  const handleDeletePayment = async (payment: any) => {
+    const confirmed = window.confirm(`Hapus payment ${payment.payment_type} senilai Rp ${Number(payment.amount).toLocaleString('id-ID')}?`)
+    if (!confirmed) return
+
+    setDeletingPaymentId(payment.id)
+    const { error } = await supabase
+      .from('payments')
+      .delete()
+      .eq('id', payment.id)
+
+    setDeletingPaymentId(null)
+
+    if (!error) {
+      setPayments(prev => prev.filter(p => p.id !== payment.id))
+      logActivity('Payment Deleted', `Deleted ${payment.payment_type} payment: Rp ${Number(payment.amount).toLocaleString('id-ID')}`)
+    } else {
+      alert('Gagal menghapus payment: ' + error.message)
+    }
+  }
+
   // Save Pemetaan
   const handleSavePemetaan = async () => {
     const fields = {
@@ -317,22 +338,25 @@ export function LeadDetailClient({
         {[
           { id: 'overview', label: 'Overview & Timeline', icon: Activity },
           { id: 'payments', label: 'Payments', icon: DollarSign },
-          { id: 'pemetaan', label: 'Pemetaan', icon: FileText },
-          { id: 'expert', label: 'Expert Consultation', icon: UserCheck }
+          { id: 'pemetaan', label: 'Pemetaan', icon: FileText, disabled: true },
+          { id: 'expert', label: 'Expert Consultation', icon: UserCheck, disabled: true }
         ].map(tab => {
           const Icon = tab.icon
           const active = activeTab === tab.id
           return (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
+              onClick={() => !tab.disabled && setActiveTab(tab.id as any)}
+              disabled={tab.disabled}
               className={cn(
                 "flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-bold transition-all cursor-pointer",
-                active ? "bg-purple-500 text-white shadow-lg glow-purple" : "text-slate-600 dark:text-white/50 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/50 dark:hover:bg-white/5"
+                active ? "bg-purple-500 text-white shadow-lg glow-purple" : "text-slate-600 dark:text-white/50 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/50 dark:hover:bg-white/5",
+                tab.disabled && "cursor-not-allowed opacity-50 hover:bg-transparent"
               )}
             >
               <Icon size={13} />
               {tab.label}
+              {tab.disabled && <span className="text-[9px] font-black uppercase text-muted-foreground">Soon</span>}
             </button>
           )
         })}
@@ -401,11 +425,21 @@ export function LeadDetailClient({
                           <p className="text-[10px] text-muted-foreground">Tanggal: {p.payment_date} | Metode: {p.payment_method}</p>
                           {p.notes && <p className="text-[11px] text-muted-foreground italic">Catatan: {p.notes}</p>}
                         </div>
-                        <div className="text-right">
+                        <div className="flex items-center gap-3">
+                          <div className="text-right">
                           <p className="text-sm font-extrabold text-emerald-600 dark:text-emerald-400">Rp {Number(p.amount).toLocaleString('id-ID')}</p>
                           <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-500/20">
                             VERIFIED
                           </span>
+                          </div>
+                          <button
+                            onClick={() => handleDeletePayment(p)}
+                            disabled={deletingPaymentId === p.id}
+                            className="rounded-lg border border-red-500/15 bg-red-500/10 p-2 text-red-500 transition-all hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                            title="Hapus payment"
+                          >
+                            <Trash2 size={14} />
+                          </button>
                         </div>
                       </div>
                     ))

@@ -50,20 +50,70 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
     activitiesQuery = activitiesQuery.eq('created_by', selectedUser)
   }
 
-  const [activitiesRes, usersRes] = await Promise.all([
+  let createdLeadsQuery = supabase
+    .from('leads')
+    .select(`
+      id,
+      full_name,
+      whatsapp_number,
+      source_campaign,
+      current_status,
+      created_by,
+      created_at,
+      users:created_by(id, name)
+    `)
+    .gte('created_at', `${selectedDate}T00:00:00+07:00`)
+    .lt('created_at', `${nextDateInput(selectedDate)}T00:00:00+07:00`)
+    .order('created_at', { ascending: false })
+
+  if (selectedUser) {
+    createdLeadsQuery = createdLeadsQuery.eq('created_by', selectedUser)
+  }
+
+  const [activitiesRes, createdLeadsRes, usersRes] = await Promise.all([
     activitiesQuery,
+    createdLeadsQuery,
     supabase
       .from('users')
       .select('id, name')
       .order('name', { ascending: true }),
   ])
 
+  const activities = activitiesRes.data || []
+  const loggedLeadCreates = new Set(
+    activities
+      .filter((activity: any) => activity.activity_type === 'Lead created')
+      .map((activity: any) => activity.lead_id)
+  )
+
+  const leadCreateFallbacks = (createdLeadsRes.data || [])
+    .filter((lead: any) => !loggedLeadCreates.has(lead.id))
+    .map((lead: any) => ({
+      id: `lead-created-${lead.id}`,
+      lead_id: lead.id,
+      activity_type: 'Lead created',
+      description: 'Lead created via CRM form',
+      created_by: lead.created_by,
+      created_at: lead.created_at,
+      users: lead.users,
+      leads: {
+        id: lead.id,
+        full_name: lead.full_name,
+        whatsapp_number: lead.whatsapp_number,
+        source_campaign: lead.source_campaign,
+        current_status: lead.current_status,
+      },
+    }))
+
+  const mergedActivities = [...activities, ...leadCreateFallbacks]
+    .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+
   return (
     <>
       <Header title="Team Report" subtitle="Laporan aktivitas harian otomatis dari update CRM tim CRO." />
       <div className="p-6 animate-fade-in max-w-7xl mx-auto">
         <TeamReportDashboard
-          activities={(activitiesRes.data || []) as any[]}
+          activities={mergedActivities as any[]}
           users={(usersRes.data || []) as any[]}
           selectedDate={selectedDate}
           selectedUser={selectedUser}
