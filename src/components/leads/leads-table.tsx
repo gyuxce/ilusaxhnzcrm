@@ -158,6 +158,7 @@ const renderMilestones = (lead: LeadWithRelations) => {
 const NEEDS_ACTION_STATUSES = [
   'Pemetaan Scheduled',
   'Waiting Result',
+  'Sent Result Pemetaan',
   'Expert Consultation Scheduled',
   'Seat Lock Offered',
 ]

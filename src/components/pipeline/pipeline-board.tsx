@@ -9,8 +9,8 @@ import { cn } from '@/lib/utils'
 const STAGES = [
   { key: 'New Lead', label: 'New Lead', color: '#64748b', bg: 'rgba(100,116,139,0.08)', border: 'rgba(100,116,139,0.18)' },
   { key: 'Interested', label: 'Interested', color: '#3b82f6', bg: 'rgba(59,130,246,0.08)', border: 'rgba(59,130,246,0.18)' },
-  { key: 'Payment Pemetaan Paid', label: '💰 Paid Pemetaan', color: '#8b5cf6', bg: 'rgba(139,92,246,0.08)', border: 'rgba(139,92,246,0.18)' },
-  { key: 'Pemetaan Done', label: '📋 Pemetaan Done', color: '#f59e0b', bg: 'rgba(245,158,11,0.08)', border: 'rgba(245,158,11,0.18)' },
+  { key: 'Pemetaan Scheduled', label: '📅 Pemetaan Scheduled', color: '#8b5cf6', bg: 'rgba(139,92,246,0.08)', border: 'rgba(139,92,246,0.18)' },
+  { key: 'Sent Result Pemetaan', label: '📤 Sent Result Pemetaan', color: '#f59e0b', bg: 'rgba(245,158,11,0.08)', border: 'rgba(245,158,11,0.18)' },
   { key: 'Expert Consultation Done', label: '🧠 Expert Done', color: '#10b981', bg: 'rgba(16,185,129,0.08)', border: 'rgba(16,185,129,0.18)' },
   { key: 'Seat Lock Paid', label: '🔒 Seat Lock', color: '#22c55e', bg: 'rgba(34,197,94,0.08)', border: 'rgba(34,197,94,0.18)' },
   { key: 'Not Interested', label: '❌ Not Interested', color: '#ef4444', bg: 'rgba(239,68,68,0.08)', border: 'rgba(239,68,68,0.18)' },

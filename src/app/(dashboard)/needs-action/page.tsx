@@ -43,6 +43,7 @@ const QUEUES = [
   { key: 'all', label: 'Semua', status: null, icon: AlertCircle, tone: 'text-slate-600 dark:text-slate-300' },
   { key: 'pemetaan', label: 'Pemetaan Scheduled', status: 'Pemetaan Scheduled', icon: Hourglass, tone: 'text-purple-600 dark:text-purple-400' },
   { key: 'waiting', label: 'Waiting Result', status: 'Waiting Result', icon: Clock, tone: 'text-blue-600 dark:text-blue-400' },
+  { key: 'sent_result', label: 'Sent Result Pemetaan', status: 'Sent Result Pemetaan', icon: FileText, tone: 'text-emerald-600 dark:text-emerald-455' },
   { key: 'expert', label: 'Expert Scheduled', status: 'Expert Consultation Scheduled', icon: Calendar, tone: 'text-amber-600 dark:text-amber-400' },
   { key: 'seat_lock', label: 'Offer Seat Lock', status: 'Seat Lock Offered', icon: UserCheck, tone: 'text-orange-600 dark:text-orange-400' },
 ] as const
@@ -75,6 +76,7 @@ export default function NeedsActionPage() {
       .in('current_status', [
         'Pemetaan Scheduled',
         'Waiting Result',
+        'Sent Result Pemetaan',
         'Expert Consultation Scheduled',
         'Seat Lock Offered',
       ])
@@ -120,6 +122,9 @@ export default function NeedsActionPage() {
       return { type: 'set_waiting_result', label: 'Set Waiting Result' }
     }
     if (lead.current_status === 'Waiting Result') {
+      return { type: 'send_result', label: 'Kirim Hasil Pemetaan' }
+    }
+    if (lead.current_status === 'Sent Result Pemetaan') {
       return { type: 'schedule_expert', label: 'Schedule Expert' }
     }
     if (lead.current_status === 'Expert Consultation Scheduled') {
@@ -164,6 +169,22 @@ export default function NeedsActionPage() {
           .eq('lead_id', actioningLead.id)
       )
     } 
+    else if (actionType === 'send_result') {
+      nextStatus = 'Sent Result Pemetaan'
+      activityDesc = `Hasil Pemetaan dikirim: ${inputVal || 'Sukses'}`
+      promises.push(
+        supabase
+          .from('pemetaan')
+          .update({
+            result_status: 'ready',
+            result_ready_at: new Date().toISOString(),
+            completed_at: new Date().toISOString(),
+            result_notes: inputVal || null,
+            updated_at: new Date().toISOString()
+          })
+          .eq('lead_id', actioningLead.id)
+      )
+    }
     else if (actionType === 'schedule_expert') {
       nextStatus = 'Expert Consultation Scheduled'
       activityDesc = `Expert consultation scheduled for ${inputVal} with expert: ${inputVal2}`
@@ -421,6 +442,24 @@ export default function NeedsActionPage() {
               <p className="text-sm text-primary mb-6 bg-primary/10 p-3 rounded-xl border border-primary/20 font-medium">
                 Tindakan ini akan memindahkan status lead menjadi <span className="font-bold">Waiting Result</span>.
               </p>
+            )}
+
+            {actionType === 'send_result' && (
+              <div className="space-y-4 mb-6">
+                <p className="text-sm text-primary bg-primary/10 p-3 rounded-xl border border-primary/20 font-medium">
+                  Tindakan ini akan memindahkan status lead menjadi <span className="font-bold">Sent Result Pemetaan</span>.
+                </p>
+                <div>
+                  <label className="block text-xs text-muted-foreground mb-1 font-semibold">Catatan Hasil Pemetaan (opsional)</label>
+                  <textarea
+                    placeholder="Masukkan ringkasan hasil pemetaan..."
+                    value={inputVal}
+                    onChange={(e) => setInputVal(e.target.value)}
+                    rows={3}
+                    className="w-full px-3 py-2 text-sm bg-background text-foreground border border-border rounded-xl resize-none outline-none focus:ring-1 focus:ring-primary focus:border-primary placeholder:text-muted-foreground/50"
+                  />
+                </div>
+              </div>
             )}
 
             {actionType === 'schedule_expert' && (

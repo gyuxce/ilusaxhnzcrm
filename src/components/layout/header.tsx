@@ -1,6 +1,6 @@
 'use client'
 
-import { Bell, Search, Plus, Menu, X, AlertCircle, Calendar, ChevronRight, Sun, Moon, RefreshCw } from 'lucide-react'
+import { Bell, Search, Plus, Menu, X, AlertCircle, Calendar, ChevronRight, Sun, Moon, RefreshCw, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { useLayoutStore } from '@/lib/store'
 import { useState, useEffect, useRef } from 'react'
@@ -9,6 +9,7 @@ import { createClient } from '@/lib/supabase/client'
 interface HeaderProps {
   title: string
   subtitle?: string
+  backUrl?: string
 }
 
 interface NotifItem {
@@ -19,7 +20,7 @@ interface NotifItem {
   href: string
 }
 
-export function Header({ title, subtitle }: HeaderProps) {
+export function Header({ title, subtitle, backUrl }: HeaderProps) {
   const { toggleSidebar } = useLayoutStore()
   const [notifOpen, setNotifOpen] = useState(false)
   const [notifs, setNotifs] = useState<NotifItem[]>([])
@@ -38,6 +39,7 @@ export function Header({ title, subtitle }: HeaderProps) {
         .in('current_status', [
           'Pemetaan Scheduled',
           'Waiting Result',
+          'Sent Result Pemetaan',
           'Expert Consultation Scheduled',
           'Seat Lock Offered',
         ])
@@ -265,6 +267,15 @@ export function Header({ title, subtitle }: HeaderProps) {
         >
           <Menu size={18} />
         </button>
+        {backUrl && (
+          <Link
+            href={backUrl}
+            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-slate-100 dark:hover:bg-white/5 transition-all flex-shrink-0"
+            title="Kembali"
+          >
+            <ArrowLeft size={18} />
+          </Link>
+        )}
         <div className="min-w-0">
           <h1 className="text-sm sm:text-base font-semibold text-foreground truncate">{title}</h1>
           {subtitle && <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 hidden sm:block truncate">{subtitle}</p>}

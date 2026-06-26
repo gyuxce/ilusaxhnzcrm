@@ -408,7 +408,7 @@ export function LeadDetailClient({
         <div className="flex gap-2">
           <button
             onClick={() => setIsWaOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-450 hover:bg-emerald-500/20 transition-all cursor-pointer"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-all cursor-pointer shadow-sm"
           >
             <MessageCircle size={14} />
             Hubungi via WA
@@ -992,6 +992,7 @@ export function LeadDetailClient({
                   <option value="Not Eligible">Not Eligible</option>
                   <option value="Pemetaan Scheduled">Pemetaan Scheduled</option>
                   <option value="Waiting Result">Waiting Result</option>
+                  <option value="Sent Result Pemetaan">Sent Result Pemetaan</option>
                   <option value="Expert Consultation Scheduled">Expert Consultation Scheduled</option>
                   <option value="Seat Lock Offered">Seat Lock Offered</option>
                   <option value="Seat Lock Paid">Seat Lock Paid</option>

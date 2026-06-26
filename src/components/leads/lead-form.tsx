@@ -130,6 +130,7 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
     'Not Eligible',
     'Pemetaan Scheduled',
     'Waiting Result',
+    'Sent Result Pemetaan',
     'Expert Consultation Scheduled',
     'Seat Lock Offered',
     'Seat Lock Paid',

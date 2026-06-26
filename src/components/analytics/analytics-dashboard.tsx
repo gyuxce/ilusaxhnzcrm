@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils'
 
 const PIPELINE_STAGES = [
   'New Lead', 'Interested', 'Payment Pemetaan Pending', 'Payment Pemetaan Paid',
-  'Pemetaan Form Submitted', 'Pemetaan Scheduled', 'Pemetaan Done',
+  'Pemetaan Form Submitted', 'Pemetaan Scheduled', 'Pemetaan Done', 'Sent Result Pemetaan',
   'Waiting Result', 'Result Ready', 'Expert Consultation Scheduled',
   'Expert Consultation Done', 'Seat Lock Offered', 'Seat Lock Paid',
   'Onboarding', 'Class Started',
@@ -17,7 +17,9 @@ const STAGE_COLORS: Record<string, string> = {
   'New Lead': '#64748b',
   'Interested': '#3b82f6',
   'Payment Pemetaan Paid': '#8b5cf6',
+  'Pemetaan Scheduled': '#8b5cf6',
   'Pemetaan Done': '#f59e0b',
+  'Sent Result Pemetaan': '#f59e0b',
   'Expert Consultation Done': '#10b981',
   'Seat Lock Paid': '#22c55e',
   'Onboarding': '#06b6d4',

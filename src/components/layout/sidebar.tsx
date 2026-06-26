@@ -59,6 +59,7 @@ export function Sidebar() {
         .in('current_status', [
           'Pemetaan Scheduled',
           'Waiting Result',
+          'Sent Result Pemetaan',
           'Expert Consultation Scheduled',
           'Seat Lock Offered',
         ])

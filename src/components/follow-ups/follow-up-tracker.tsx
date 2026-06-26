@@ -31,8 +31,8 @@ interface FUWithRelations {
 const STATUS_COLORS: Record<string, { color: string; bg: string }> = {
   'New Lead': { color: '#64748b', bg: 'rgba(100,116,139,0.1)' },
   'Interested': { color: '#3b82f6', bg: 'rgba(59,130,246,0.1)' },
-  'Payment Pemetaan Paid': { color: '#8b5cf6', bg: 'rgba(139,92,246,0.1)' },
-  'Pemetaan Done': { color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' },
+  'Pemetaan Scheduled': { color: '#8b5cf6', bg: 'rgba(139,92,246,0.1)' },
+  'Sent Result Pemetaan': { color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' },
   'Expert Consultation Done': { color: '#10b981', bg: 'rgba(16,185,129,0.1)' },
   'Seat Lock Paid': { color: '#22c55e', bg: 'rgba(34,197,94,0.1)' },
   'Not Interested': { color: '#ef4444', bg: 'rgba(239,68,68,0.1)' },

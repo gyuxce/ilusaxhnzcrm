@@ -165,6 +165,7 @@ export default function DashboardPage() {
       'Not Eligible': 0,
       'Pemetaan Scheduled': 0,
       'Waiting Result': 0,
+      'Sent Result Pemetaan': 0,
       'Expert Consultation Scheduled': 0,
       'Seat Lock Offered': 0,
       'Seat Lock Paid': 0,
@@ -247,6 +248,7 @@ export default function DashboardPage() {
       notEligible: sc['Not Eligible'] || 0,
       pemetaanScheduled: sc['Pemetaan Scheduled'] || 0,
       waitingResult: sc['Waiting Result'] || 0,
+      sentResultPemetaan: sc['Sent Result Pemetaan'] || 0,
       expertScheduled: sc['Expert Consultation Scheduled'] || 0,
       seatLockOffered: sc['Seat Lock Offered'] || 0,
       seatLockPaid: sc['Seat Lock Paid'] || 0,
@@ -314,6 +316,7 @@ export default function DashboardPage() {
       stages: [
         { label: 'Pemetaan Scheduled', value: stats.pemetaanScheduled, color: '#f59e0b' },
         { label: 'Waiting Result', value: stats.waitingResult, color: '#06b6d4' },
+        { label: 'Sent Result Pemetaan', value: stats.sentResultPemetaan, color: '#10b981' },
       ]
     },
     {
