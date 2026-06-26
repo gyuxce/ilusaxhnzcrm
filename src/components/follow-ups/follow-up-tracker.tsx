@@ -68,13 +68,31 @@ export function FollowUpTracker({ dueFUs: initialDueFUs, upcomingFUs: initialUpc
 
   async function markDone(fu: FUWithRelations) {
     if (completingId === fu.id) {
-      // Confirm with result
+      const result = resultInput || 'Selesai'
+      const { data: authData } = await supabase.auth.getUser()
+      const actorId = authData.user?.id || null
+
       await supabase.from('follow_ups').update({
         is_done: true,
         done_at: new Date().toISOString(),
-        result: resultInput || 'Selesai',
+        result: result,
         updated_at: new Date().toISOString(),
       }).eq('id', fu.id)
+
+      // Log to lead_activities
+      await supabase.from('lead_activities').insert({
+        lead_id: fu.lead_id,
+        activity_type: 'Follow-Up Completed',
+        description: `Follow-up (${fu.fu_type || 'whatsapp'}) selesai: ${result}`,
+        created_by: actorId
+      })
+
+      // Update lead's updated_at and updated_by
+      await supabase.from('leads').update({
+        updated_at: new Date().toISOString(),
+        updated_by: actorId
+      }).eq('id', fu.lead_id)
+
       setDueFUs(prev => prev.filter(f => f.id !== fu.id))
       setCompletingId(null)
       setResultInput('')
@@ -318,12 +336,31 @@ export function FollowUpTracker({ dueFUs: initialDueFUs, upcomingFUs: initialUpc
               <button
                 onClick={async () => {
                   if (!newLeadId || !newDate) return
+                  const { data: authData } = await supabase.auth.getUser()
+                  const actorId = authData.user?.id || null
+
                   await supabase.from('follow_ups').insert({
                     lead_id: newLeadId,
                     scheduled_date: newDate,
                     fu_type: newFuType,
                     notes: newNotes || null,
+                    pic_id: actorId,
                   })
+
+                  // Log to lead_activities
+                  await supabase.from('lead_activities').insert({
+                    lead_id: newLeadId,
+                    activity_type: 'Follow-Up Scheduled',
+                    description: `Jadwalkan follow-up (${newFuType}) untuk tanggal ${newDate}`,
+                    created_by: actorId
+                  })
+
+                  // Update lead's updated_at and updated_by
+                  await supabase.from('leads').update({
+                    updated_at: new Date().toISOString(),
+                    updated_by: actorId
+                  }).eq('id', newLeadId)
+
                   setShowAddModal(false)
                   setNewLeadId('')
                   setNewNotes('')

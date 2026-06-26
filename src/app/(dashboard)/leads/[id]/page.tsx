@@ -13,7 +13,7 @@ export default async function LeadDetailPage({ params }: PageProps) {
   const supabase = await createClient()
 
   // Fetch all data in parallel to avoid sequential network waterfalls
-  const [leadRes, paymentsRes, pemetaanRes, expertRes, activitiesRes, picsRes] = await Promise.all([
+  const [leadRes, paymentsRes, pemetaanRes, expertRes, activitiesRes, picsRes, followUpsRes] = await Promise.all([
     supabase
       .from('leads')
       .select(`
@@ -43,7 +43,12 @@ export default async function LeadDetailPage({ params }: PageProps) {
       .order('created_at', { ascending: false }),
     supabase
       .from('users')
-      .select('id, name')
+      .select('id, name'),
+    supabase
+      .from('follow_ups')
+      .select('*, users:pic_id(id, name)')
+      .eq('lead_id', resolvedParams.id)
+      .order('scheduled_date', { ascending: true })
   ])
 
   const lead = leadRes.data
@@ -54,6 +59,7 @@ export default async function LeadDetailPage({ params }: PageProps) {
   const expertConsultations = expertRes.data || []
   const activities = activitiesRes.data || []
   const pics = picsRes.data || []
+  const followUps = followUpsRes.data || []
 
   return (
     <LeadDetailClient
@@ -62,6 +68,7 @@ export default async function LeadDetailPage({ params }: PageProps) {
       initialPemetaan={pemetaan}
       initialExpertConsultations={expertConsultations}
       initialActivities={activities}
+      initialFollowUps={followUps}
       pics={pics}
     />
   )

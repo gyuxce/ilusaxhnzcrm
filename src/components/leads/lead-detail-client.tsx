@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import {
   MessageCircle, Clock, Calendar, CheckCircle2,
   XCircle, Edit, DollarSign, Activity, FileText,
-  UserCheck, AlertCircle, Trash2, ArrowRight
+  UserCheck, AlertCircle, Trash2, ArrowRight, Plus
 } from 'lucide-react'
 import { WhatsAppModal } from './WhatsAppModal'
 import { cn } from '@/lib/utils'
@@ -16,6 +16,7 @@ interface LeadDetailClientProps {
   initialPemetaan: any[]
   initialExpertConsultations: any[]
   initialActivities: any[]
+  initialFollowUps?: any[]
   pics: any[]
 }
 
@@ -25,6 +26,7 @@ export function LeadDetailClient({
   initialPemetaan,
   initialExpertConsultations,
   initialActivities,
+  initialFollowUps,
   pics
 }: LeadDetailClientProps) {
   const [lead, setLead] = useState(initialLead)
@@ -32,8 +34,17 @@ export function LeadDetailClient({
   const [pemetaan, setPemetaan] = useState(initialPemetaan[0] || null)
   const [expert, setExpert] = useState(initialExpertConsultations[0] || null)
   const [activities, setActivities] = useState(initialActivities)
+  const [followUps, setFollowUps] = useState<any[]>(initialFollowUps || [])
   const [activeTab, setActiveTab] = useState<'overview' | 'payments' | 'pemetaan' | 'expert'>('overview')
   const [deletingPaymentId, setDeletingPaymentId] = useState<string | null>(null)
+
+  // Follow-Up Form States
+  const [showAddFu, setShowAddFu] = useState(false)
+  const [newFuDate, setNewFuDate] = useState(new Date().toISOString().split('T')[0])
+  const [newFuType, setNewFuType] = useState<'chat' | 'call' | 'whatsapp' | 'meeting'>('whatsapp')
+  const [newFuNotes, setNewFuNotes] = useState('')
+  const [completingFuId, setCompletingFuId] = useState<string | null>(null)
+  const [fuResultInput, setFuResultInput] = useState('')
   
   // WhatsApp Modal
   const [isWaOpen, setIsWaOpen] = useState(false)
@@ -121,6 +132,88 @@ export function LeadDetailClient({
     if (!error && newAct) {
       setActivities(prev => [newAct[0], ...prev])
     }
+  }
+
+  // Handle scheduling follow-up
+  const handleAddFollowUp = async () => {
+    if (!newFuDate) return
+    const { data: authData } = await supabase.auth.getUser()
+    const actorId = authData.user?.id || null
+
+    const { data: newFu, error } = await supabase
+      .from('follow_ups')
+      .insert({
+        lead_id: lead.id,
+        scheduled_date: newFuDate,
+        fu_type: newFuType,
+        notes: newFuNotes || null,
+        pic_id: actorId,
+      })
+      .select('*, users:pic_id(id, name)')
+
+    if (error) {
+      alert('Gagal menjadwalkan follow-up: ' + error.message)
+      return
+    }
+
+    if (newFu && newFu.length > 0) {
+      setFollowUps(prev => [...prev, newFu[0]].sort((a, b) => new Date(a.scheduled_date).getTime() - new Date(b.scheduled_date).getTime()))
+    }
+
+    // Log to lead_activities
+    await logActivity(
+      'Follow-Up Scheduled',
+      `Jadwalkan follow-up (${newFuType}) untuk tanggal ${newFuDate}`,
+      actorId
+    )
+
+    // Update lead's updated_at/updated_by
+    await supabase.from('leads').update({
+      updated_at: new Date().toISOString(),
+      updated_by: actorId
+    }).eq('id', lead.id)
+
+    setShowAddFu(false)
+    setNewFuNotes('')
+  }
+
+  // Handle completing follow-up
+  const handleCompleteFollowUp = async (fuId: string, fuType: string) => {
+    const result = fuResultInput || 'Selesai'
+    const { data: authData } = await supabase.auth.getUser()
+    const actorId = authData.user?.id || null
+
+    const { error } = await supabase
+      .from('follow_ups')
+      .update({
+        is_done: true,
+        done_at: new Date().toISOString(),
+        result: result,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', fuId)
+
+    if (error) {
+      alert('Gagal menyelesaikan follow-up: ' + error.message)
+      return
+    }
+
+    setFollowUps(prev => prev.map(f => f.id === fuId ? { ...f, is_done: true, result } : f))
+    setCompletingFuId(null)
+    setFuResultInput('')
+
+    // Log to lead_activities
+    await logActivity(
+      'Follow-Up Completed',
+      `Follow-up (${fuType}) selesai: ${result}`,
+      actorId
+    )
+
+    // Update lead's updated_at/updated_by
+    await supabase.from('leads').update({
+      updated_at: new Date().toISOString(),
+      updated_by: actorId
+    }).eq('id', lead.id)
   }
 
   // Save Core Lead Data
@@ -644,6 +737,153 @@ export function LeadDetailClient({
         {/* Right 1 Column: Activity Log */}
         <div className="space-y-6">
           
+          {/* Follow-Up Tracker */}
+          <div className="glass-card rounded-2xl p-5 border border-border space-y-4">
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="text-foreground font-bold text-xs uppercase tracking-wider flex items-center gap-2">
+                <Calendar size={14} className="text-purple-650 dark:text-purple-400" />
+                Jadwal Follow-Up ({followUps.filter(f => !f.is_done).length})
+              </h3>
+              <button
+                onClick={() => setShowAddFu(!showAddFu)}
+                className="px-2.5 py-1.5 rounded-lg text-[10px] font-bold text-white bg-purple-500 hover:opacity-90 transition-all cursor-pointer"
+              >
+                {showAddFu ? 'Batal' : 'Jadwalkan'}
+              </button>
+            </div>
+
+            {showAddFu && (
+              <div className="p-3.5 rounded-xl border border-border bg-slate-50/50 dark:bg-white/[0.02] space-y-3">
+                <p className="text-[10px] font-bold text-slate-700 dark:text-white/60">JADWALKAN FU BARU</p>
+                <div>
+                  <label className="block text-[9px] text-muted-foreground font-bold uppercase mb-1">Tanggal</label>
+                  <input
+                    type="date"
+                    value={newFuDate}
+                    onChange={e => setNewFuDate(e.target.value)}
+                    className="w-full px-2.5 py-1.5 text-xs text-foreground bg-card border border-border rounded-lg outline-none focus:ring-1 focus:ring-primary focus:border-primary"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[9px] text-muted-foreground font-bold uppercase mb-1">Tipe</label>
+                  <select
+                    value={newFuType}
+                    onChange={e => setNewFuType(e.target.value as any)}
+                    className="w-full px-2.5 py-1.5 text-xs text-foreground bg-card border border-border rounded-lg outline-none cursor-pointer"
+                  >
+                    <option value="whatsapp" className="bg-card text-foreground">🟢 WhatsApp</option>
+                    <option value="chat" className="bg-card text-foreground">💬 Chat</option>
+                    <option value="call" className="bg-card text-foreground">📞 Telepon</option>
+                    <option value="meeting" className="bg-card text-foreground">🤝 Meeting</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[9px] text-muted-foreground font-bold uppercase mb-1">Catatan</label>
+                  <textarea
+                    placeholder="Catatan..."
+                    value={newFuNotes}
+                    onChange={e => setNewFuNotes(e.target.value)}
+                    rows={2}
+                    className="w-full px-2.5 py-1.5 text-xs text-foreground bg-card border border-border rounded-lg resize-none outline-none focus:ring-1 focus:ring-primary focus:border-primary"
+                  />
+                </div>
+                <button
+                  onClick={handleAddFollowUp}
+                  className="w-full py-1.5 rounded-lg text-xs font-bold text-white bg-purple-500 hover:opacity-90 transition-all cursor-pointer"
+                >
+                  Simpan Jadwal
+                </button>
+              </div>
+            )}
+
+            <div className="space-y-2 max-h-[40vh] overflow-y-auto pr-1">
+              {followUps.length === 0 ? (
+                <p className="text-muted-foreground/50 text-[10px] py-4 text-center">Belum ada follow-up dijadwalkan.</p>
+              ) : (
+                followUps.map(fu => {
+                  const isCompleting = completingFuId === fu.id;
+                  return (
+                    <div
+                      key={fu.id}
+                      className={cn(
+                        "p-3 rounded-xl border border-border text-xs flex flex-col gap-2 transition-all",
+                        fu.is_done ? "bg-slate-50/30 dark:bg-white/[0.01] opacity-75" : "bg-card shadow-xs"
+                      )}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-bold text-foreground">
+                              {fu.fu_type === 'whatsapp' ? '🟢 WhatsApp' : fu.fu_type === 'chat' ? '💬 Chat' : fu.fu_type === 'call' ? '📞 Telepon' : '🤝 Meeting'}
+                            </span>
+                            {fu.is_done && (
+                              <span className="text-[9px] font-black uppercase text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded-full">
+                                DONE
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[10px] text-muted-foreground">
+                            Jadwal: {new Date(fu.scheduled_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
+                            {fu.users?.name ? ` • PIC: ${fu.users.name.split(' ')[0]}` : ''}
+                          </p>
+                        </div>
+                        {!fu.is_done && !isCompleting && (
+                          <button
+                            onClick={() => {
+                              setCompletingFuId(fu.id)
+                              setFuResultInput('')
+                            }}
+                            className="px-2 py-1 rounded-lg text-[9px] font-extrabold text-primary border border-primary/20 bg-primary/5 hover:bg-primary/10 transition-all cursor-pointer"
+                          >
+                            Tandai Selesai
+                          </button>
+                        )}
+                      </div>
+
+                      {fu.notes && (
+                        <p className="text-[10px] text-muted-foreground bg-slate-50/50 dark:bg-white/[0.01] p-2 rounded-lg border border-border/40">
+                          <strong>Notes:</strong> {fu.notes}
+                        </p>
+                      )}
+
+                      {fu.is_done && fu.result && (
+                        <p className="text-[10px] text-emerald-600 dark:text-emerald-400 bg-emerald-500/5 p-2 rounded-lg border border-emerald-500/10">
+                          <strong>Hasil:</strong> {fu.result}
+                        </p>
+                      )}
+
+                      {isCompleting && (
+                        <div className="space-y-2 border-t border-border/50 pt-2">
+                          <textarea
+                            placeholder="Hasil follow-up..."
+                            value={fuResultInput}
+                            onChange={e => setFuResultInput(e.target.value)}
+                            rows={1.5}
+                            className="w-full px-2 py-1 text-xs text-foreground bg-background border border-border rounded-lg resize-none outline-none focus:ring-1 focus:ring-primary focus:border-primary"
+                          />
+                          <div className="flex justify-end gap-1.5">
+                            <button
+                              onClick={() => setCompletingFuId(null)}
+                              className="px-2 py-1 rounded-lg text-[9px] text-muted-foreground hover:bg-slate-100 dark:hover:bg-white/5"
+                            >
+                              Batal
+                            </button>
+                            <button
+                              onClick={() => handleCompleteFollowUp(fu.id, fu.fu_type)}
+                              className="px-2 py-1 rounded-lg text-[9px] font-bold text-white bg-purple-500 hover:opacity-90"
+                            >
+                              Konfirmasi Selesai
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })
+              )}
+            </div>
+          </div>
+
           {/* Activity Log */}
           <div className="glass-card rounded-2xl p-5 border border-border space-y-4">
             <h3 className="text-foreground font-bold text-xs uppercase tracking-wider flex items-center gap-2">

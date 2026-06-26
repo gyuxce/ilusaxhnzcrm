@@ -132,6 +132,7 @@ declare
   actor_id uuid := auth.uid();
   clean_phone text := public.normalize_whatsapp(p_whatsapp_number);
   duplicate_record public.leads%rowtype;
+  old_status text;
 begin
   if char_length(clean_phone) < 9 or char_length(clean_phone) > 15 then
     return jsonb_build_object('ok', false, 'code', 'INVALID_PHONE', 'message', 'Nomor WhatsApp tidak valid.');
@@ -159,6 +160,15 @@ begin
     );
   end if;
 
+  select current_status
+  into old_status
+  from public.leads
+  where id = p_lead_id;
+
+  if not found then
+    return jsonb_build_object('ok', false, 'code', 'NOT_FOUND', 'message', 'Lead tidak ditemukan.');
+  end if;
+
   update public.leads
   set
     full_name = p_full_name,
@@ -174,12 +184,13 @@ begin
     updated_at = now()
   where id = p_lead_id;
 
-  if not found then
-    return jsonb_build_object('ok', false, 'code', 'NOT_FOUND', 'message', 'Lead tidak ditemukan.');
+  if old_status <> coalesce(nullif(p_current_status, ''), 'New Lead') then
+    insert into public.lead_activities (lead_id, activity_type, description, created_by)
+    values (p_lead_id, 'Status changed', 'Status changed from ' || old_status || ' to ' || coalesce(nullif(p_current_status, ''), 'New Lead') || ' via manual edit', actor_id);
+  else
+    insert into public.lead_activities (lead_id, activity_type, description, created_by)
+    values (p_lead_id, 'Lead Updated', 'Core lead information updated manually', actor_id);
   end if;
-
-  insert into public.lead_activities (lead_id, activity_type, description, created_by)
-  values (p_lead_id, 'Lead Updated', 'Core lead information updated manually', actor_id);
 
   return jsonb_build_object('ok', true, 'id', p_lead_id);
 exception
