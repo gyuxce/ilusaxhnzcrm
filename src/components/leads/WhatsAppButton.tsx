@@ -7,11 +7,12 @@ import { WhatsAppModal } from './WhatsAppModal'
 interface WhatsAppButtonProps {
   leadName: string
   leadPhone: string
+  leadId?: string
   picName?: string
   iconOnly?: boolean
 }
 
-export function WhatsAppButton({ leadName, leadPhone, picName, iconOnly = false }: WhatsAppButtonProps) {
+export function WhatsAppButton({ leadName, leadPhone, leadId, picName, iconOnly = false }: WhatsAppButtonProps) {
   const [open, setOpen] = useState(false)
 
   return (
@@ -42,6 +43,7 @@ export function WhatsAppButton({ leadName, leadPhone, picName, iconOnly = false 
         onClose={() => setOpen(false)}
         leadName={leadName}
         leadPhone={leadPhone}
+        leadId={leadId}
         picName={picName}
       />
     </>

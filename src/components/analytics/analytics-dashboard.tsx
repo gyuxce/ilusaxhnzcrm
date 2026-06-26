@@ -2,6 +2,7 @@
 
 import { useMemo } from 'react'
 import { TrendingUp, Users, DollarSign, Award, Target, BarChart3, AlertCircle } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 const PIPELINE_STAGES = [
   'New Lead', 'Interested', 'Payment Pemetaan Pending', 'Payment Pemetaan Paid',

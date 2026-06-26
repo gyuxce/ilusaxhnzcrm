@@ -729,6 +729,7 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
           }}
           leadName={activeLead.full_name}
           leadPhone={activeLead.whatsapp_number}
+          leadId={activeLead.id}
         />
       )}
 

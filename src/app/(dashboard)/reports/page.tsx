@@ -59,15 +59,17 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
       source_campaign,
       current_status,
       created_by,
+      assigned_cro_id,
       created_at,
-      users:created_by(id, name)
+      users:created_by(id, name),
+      cro_user:assigned_cro_id(id, name)
     `)
     .gte('created_at', `${selectedDate}T00:00:00+07:00`)
     .lt('created_at', `${nextDateInput(selectedDate)}T00:00:00+07:00`)
     .order('created_at', { ascending: false })
 
   if (selectedUser) {
-    createdLeadsQuery = createdLeadsQuery.eq('created_by', selectedUser)
+    createdLeadsQuery = createdLeadsQuery.or(`created_by.eq.${selectedUser},assigned_cro_id.eq.${selectedUser}`)
   }
 
   const [activitiesRes, createdLeadsRes, usersRes] = await Promise.all([
@@ -88,22 +90,26 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
 
   const leadCreateFallbacks = (createdLeadsRes.data || [])
     .filter((lead: any) => !loggedLeadCreates.has(lead.id))
-    .map((lead: any) => ({
-      id: `lead-created-${lead.id}`,
-      lead_id: lead.id,
-      activity_type: 'Lead created',
-      description: 'Lead created via CRM form',
-      created_by: lead.created_by,
-      created_at: lead.created_at,
-      users: lead.users,
-      leads: {
-        id: lead.id,
-        full_name: lead.full_name,
-        whatsapp_number: lead.whatsapp_number,
-        source_campaign: lead.source_campaign,
-        current_status: lead.current_status,
-      },
-    }))
+    .map((lead: any) => {
+      const actorId = lead.created_by || lead.assigned_cro_id || null
+      const actorUser = lead.users || lead.cro_user || null
+      return {
+        id: `lead-created-${lead.id}`,
+        lead_id: lead.id,
+        activity_type: 'Lead created',
+        description: 'Lead created via CRM form',
+        created_by: actorId,
+        created_at: lead.created_at,
+        users: actorUser,
+        leads: {
+          id: lead.id,
+          full_name: lead.full_name,
+          whatsapp_number: lead.whatsapp_number,
+          source_campaign: lead.source_campaign,
+          current_status: lead.current_status,
+        },
+      }
+    })
 
   const mergedActivities = [...activities, ...leadCreateFallbacks]
     .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())

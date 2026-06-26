@@ -684,6 +684,7 @@ export function LeadDetailClient({
         onClose={() => setIsWaOpen(false)}
         leadName={lead.full_name}
         leadPhone={lead.whatsapp_number}
+        leadId={lead.id}
       />
 
       {/* Edit Profile Modal */}

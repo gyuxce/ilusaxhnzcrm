@@ -57,7 +57,7 @@ export default function NeedsActionPage() {
   
   // WhatsApp Modal State
   const [isWaOpen, setIsWaOpen] = useState(false)
-  const [selectedLead, setSelectedLead] = useState<{ name: string; phone: string } | null>(null)
+  const [selectedLead, setSelectedLead] = useState<{ id?: string; name: string; phone: string } | null>(null)
   
   // Quick Action Modal States
   const [actioningLead, setActioningLead] = useState<LeadWithDetails | null>(null)
@@ -111,7 +111,7 @@ export default function NeedsActionPage() {
 
   // Open WA Modal
   const openWa = (lead: LeadWithDetails) => {
-    setSelectedLead({ name: lead.full_name, phone: lead.whatsapp_number })
+    setSelectedLead({ id: lead.id, name: lead.full_name, phone: lead.whatsapp_number })
     setIsWaOpen(true)
   }
 
@@ -403,6 +403,7 @@ export default function NeedsActionPage() {
           onClose={() => setIsWaOpen(false)}
           leadName={selectedLead.name}
           leadPhone={selectedLead.phone}
+          leadId={selectedLead.id}
         />
       )}
 

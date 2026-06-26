@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { createClient } from '@/lib/supabase/client'
 import { X, MessageCircle, Loader2, Copy, Check } from 'lucide-react'
 import { generateWALink } from '@/lib/utils'
@@ -10,15 +11,21 @@ interface WhatsAppModalProps {
   onClose: () => void
   leadName: string
   leadPhone: string
+  leadId?: string
   picName?: string
 }
 
-export function WhatsAppModal({ isOpen, onClose, leadName, leadPhone, picName = 'Tim CRO' }: WhatsAppModalProps) {
+export function WhatsAppModal({ isOpen, onClose, leadName, leadPhone, leadId, picName = 'Tim CRO' }: WhatsAppModalProps) {
   const [templates, setTemplates] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('')
   const [messageText, setMessageText] = useState('')
   const [copied, setCopied] = useState(false)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   // Fetch scripts from playbook
   useEffect(() => {
@@ -82,15 +89,43 @@ export function WhatsAppModal({ isOpen, onClose, leadName, leadPhone, picName = 
     setTimeout(() => setCopied(false), 2000)
   }
 
-  function handleSend() {
+  async function handleSend() {
     const waLink = generateWALink(leadPhone, messageText)
     window.open(waLink, '_blank', 'noopener,noreferrer')
+    
+    if (leadId) {
+      try {
+        const supabase = createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+        const actorId = user?.id || null
+        
+        const selectedTemplate = templates.find(t => t.id === selectedTemplateId)
+        const templateName = selectedTemplate ? selectedTemplate.title : 'Default / Custom'
+        
+        await Promise.all([
+          supabase.from('leads').update({
+            updated_at: new Date().toISOString(),
+            updated_by: actorId
+          }).eq('id', leadId),
+          supabase.from('lead_activities').insert({
+            lead_id: leadId,
+            activity_type: 'WhatsApp Sent',
+            description: `Membuka chat WhatsApp menggunakan template: ${templateName}`,
+            created_by: actorId
+          })
+        ])
+      } catch (err) {
+        console.error('Failed to log WhatsApp activity:', err)
+      }
+    }
+    
     onClose()
   }
 
   if (!isOpen) return null
+  if (!mounted) return null
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 backdrop-blur-xs animate-fade-in">
       <div className="relative w-full max-w-lg bg-card border border-border rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
         
@@ -195,6 +230,7 @@ export function WhatsAppModal({ isOpen, onClose, leadName, leadPhone, picName = 
         </div>
 
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }

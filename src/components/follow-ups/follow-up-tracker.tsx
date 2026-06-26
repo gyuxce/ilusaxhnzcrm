@@ -56,7 +56,7 @@ export function FollowUpTracker({ dueFUs: initialDueFUs, upcomingFUs: initialUpc
   const [completingId, setCompletingId] = useState<string | null>(null)
   const [resultInput, setResultInput] = useState('')
   const [waOpen, setWaOpen] = useState(false)
-  const [waLead, setWaLead] = useState<{ name: string; phone: string } | null>(null)
+  const [waLead, setWaLead] = useState<{ id?: string; name: string; phone: string } | null>(null)
   const [showAddModal, setShowAddModal] = useState(false)
   const [newLeadId, setNewLeadId] = useState('')
   const [newDate, setNewDate] = useState(new Date().toISOString().split('T')[0])
@@ -86,7 +86,7 @@ export function FollowUpTracker({ dueFUs: initialDueFUs, upcomingFUs: initialUpc
 
   const openWA = useCallback((lead: FUWithRelations['leads']) => {
     if (!lead) return
-    setWaLead({ name: lead.full_name, phone: lead.whatsapp_number })
+    setWaLead({ id: lead.id, name: lead.full_name, phone: lead.whatsapp_number })
     setWaOpen(true)
   }, [])
 
@@ -254,6 +254,7 @@ export function FollowUpTracker({ dueFUs: initialDueFUs, upcomingFUs: initialUpc
           onClose={() => setWaOpen(false)}
           leadName={waLead.name}
           leadPhone={waLead.phone}
+          leadId={waLead.id}
         />
       )}
 

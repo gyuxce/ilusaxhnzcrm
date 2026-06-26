@@ -69,7 +69,26 @@ export function PipelineBoard({ initialLeads }: PipelineBoardProps) {
 
   async function moveLeadToStage(leadId: string, newStage: string) {
     setLeads(prev => prev.map(l => l.id === leadId ? { ...l, current_status: newStage } : l))
-    await supabase.from('leads').update({ current_status: newStage, updated_at: new Date().toISOString() }).eq('id', leadId)
+    try {
+      const { data: authData } = await supabase.auth.getUser()
+      const actorId = authData.user?.id || null
+
+      await Promise.all([
+        supabase.from('leads').update({ 
+          current_status: newStage, 
+          updated_at: new Date().toISOString(),
+          updated_by: actorId
+        }).eq('id', leadId),
+        supabase.from('lead_activities').insert({
+          lead_id: leadId,
+          activity_type: 'Status changed',
+          description: `Status changed to ${newStage} via Pipeline Board drag-and-drop`,
+          created_by: actorId
+        })
+      ])
+    } catch (err) {
+      console.error('Failed to update stage or log activity:', err)
+    }
   }
 
   function onDragStart(e: React.DragEvent, leadId: string) {
