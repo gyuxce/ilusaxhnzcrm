@@ -37,6 +37,8 @@ export function LeadDetailClient({
   const [followUps, setFollowUps] = useState<any[]>(initialFollowUps || [])
   const [activeTab, setActiveTab] = useState<'overview' | 'payments' | 'pemetaan' | 'expert'>('overview')
   const [deletingPaymentId, setDeletingPaymentId] = useState<string | null>(null)
+  const [paymentMessage, setPaymentMessage] = useState<{ text: string; type: 'success' | 'error' | '' }>({ text: '', type: '' })
+  const [fuMessage, setFuMessage] = useState<{ text: string; type: 'success' | 'error' | '' }>({ text: '', type: '' })
 
   // Follow-Up Form States
   const [showAddFu, setShowAddFu] = useState(false)
@@ -137,6 +139,7 @@ export function LeadDetailClient({
   // Handle scheduling follow-up
   const handleAddFollowUp = async () => {
     if (!newFuDate) return
+    setFuMessage({ text: '', type: '' })
     const { data: authData } = await supabase.auth.getUser()
     const actorId = authData.user?.id || null
 
@@ -152,12 +155,14 @@ export function LeadDetailClient({
       .select('*, users:pic_id(id, name)')
 
     if (error) {
-      alert('Gagal menjadwalkan follow-up: ' + error.message)
+      setFuMessage({ text: 'Gagal menjadwalkan follow-up: ' + error.message, type: 'error' })
       return
     }
 
     if (newFu && newFu.length > 0) {
       setFollowUps(prev => [...prev, newFu[0]].sort((a, b) => new Date(a.scheduled_date).getTime() - new Date(b.scheduled_date).getTime()))
+      setFuMessage({ text: 'Jadwal follow-up berhasil disimpan!', type: 'success' })
+      setTimeout(() => setFuMessage({ text: '', type: '' }), 4500)
     }
 
     // Log to lead_activities
@@ -179,6 +184,7 @@ export function LeadDetailClient({
 
   // Handle completing follow-up
   const handleCompleteFollowUp = async (fuId: string, fuType: string) => {
+    setFuMessage({ text: '', type: '' })
     const result = fuResultInput || 'Selesai'
     const { data: authData } = await supabase.auth.getUser()
     const actorId = authData.user?.id || null
@@ -194,13 +200,15 @@ export function LeadDetailClient({
       .eq('id', fuId)
 
     if (error) {
-      alert('Gagal menyelesaikan follow-up: ' + error.message)
+      setFuMessage({ text: 'Gagal menyelesaikan follow-up: ' + error.message, type: 'error' })
       return
     }
 
     setFollowUps(prev => prev.map(f => f.id === fuId ? { ...f, is_done: true, result } : f))
     setCompletingFuId(null)
     setFuResultInput('')
+    setFuMessage({ text: 'Follow-up berhasil diselesaikan!', type: 'success' })
+    setTimeout(() => setFuMessage({ text: '', type: '' }), 4500)
 
     // Log to lead_activities
     await logActivity(
@@ -282,6 +290,7 @@ export function LeadDetailClient({
 
   // Add Payment
   const handleAddPayment = async () => {
+    setPaymentMessage({ text: '', type: '' })
     const { data, error } = await supabase
       .from('payments')
       .insert({
@@ -296,14 +305,22 @@ export function LeadDetailClient({
       })
       .select()
 
-    if (!error && data) {
+    if (error) {
+      setPaymentMessage({ text: 'Gagal menambah pembayaran: ' + error.message, type: 'error' })
+      return
+    }
+
+    if (data) {
       setPayments(prev => [...prev, data[0]])
       setPaymentNotes('')
+      setPaymentMessage({ text: `Pembayaran ${paymentType} senilai Rp ${Number(paymentAmount).toLocaleString('id-ID')} berhasil disimpan dan diverifikasi!`, type: 'success' })
+      setTimeout(() => setPaymentMessage({ text: '', type: '' }), 5000)
       logActivity('Payment Added', `Added ${paymentType} payment: Rp ${Number(paymentAmount).toLocaleString('id-ID')}`)
     }
   }
 
   const handleDeletePayment = async (payment: any) => {
+    setPaymentMessage({ text: '', type: '' })
     const confirmed = window.confirm(`Hapus payment ${payment.payment_type} senilai Rp ${Number(payment.amount).toLocaleString('id-ID')}?`)
     if (!confirmed) return
 
@@ -317,9 +334,11 @@ export function LeadDetailClient({
 
     if (!error) {
       setPayments(prev => prev.filter(p => p.id !== payment.id))
+      setPaymentMessage({ text: 'Catatan pembayaran berhasil dihapus.', type: 'success' })
+      setTimeout(() => setPaymentMessage({ text: '', type: '' }), 4000)
       logActivity('Payment Deleted', `Deleted ${payment.payment_type} payment: Rp ${Number(payment.amount).toLocaleString('id-ID')}`)
     } else {
-      alert('Gagal menghapus payment: ' + error.message)
+      setPaymentMessage({ text: 'Gagal menghapus payment: ' + error.message, type: 'error' })
     }
   }
 
@@ -543,6 +562,17 @@ export function LeadDetailClient({
               {/* Add Payment Form */}
               <div className="glass-card rounded-2xl p-6 border border-border space-y-4">
                 <h3 className="text-foreground font-bold text-xs uppercase tracking-wider">Catat Pembayaran Baru</h3>
+                
+                {paymentMessage.text && (
+                  <div className={cn(
+                    "p-3.5 rounded-xl text-xs font-bold border",
+                    paymentMessage.type === 'success'
+                      ? "bg-emerald-50 border-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:border-emerald-500/20 dark:text-emerald-400"
+                      : "bg-red-50 border-red-100 text-red-750 dark:bg-red-500/10 dark:border-red-500/20 dark:text-red-400"
+                  )}>
+                    {paymentMessage.text}
+                  </div>
+                )}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-[10px] text-muted-foreground font-bold uppercase mb-1">Tipe Pembayaran</label>
@@ -751,6 +781,17 @@ export function LeadDetailClient({
                 {showAddFu ? 'Batal' : 'Jadwalkan'}
               </button>
             </div>
+
+            {fuMessage.text && (
+              <div className={cn(
+                "p-3 rounded-xl text-xs font-bold border",
+                fuMessage.type === 'success'
+                  ? "bg-emerald-50 border-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:border-emerald-500/20 dark:text-emerald-400"
+                  : "bg-red-50 border-red-100 text-red-750 dark:bg-red-500/10 dark:border-red-500/20 dark:text-red-400"
+              )}>
+                {fuMessage.text}
+              </div>
+            )}
 
             {showAddFu && (
               <div className="p-3.5 rounded-xl border border-border bg-slate-50/50 dark:bg-white/[0.02] space-y-3">

@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import { LeadDetailClient } from '@/components/leads/lead-detail-client'
+import { Header } from '@/components/layout/header'
 
 export const dynamic = 'force-dynamic'
 
@@ -62,14 +63,20 @@ export default async function LeadDetailPage({ params }: PageProps) {
   const followUps = followUpsRes.data || []
 
   return (
-    <LeadDetailClient
-      initialLead={lead}
-      initialPayments={payments}
-      initialPemetaan={pemetaan}
-      initialExpertConsultations={expertConsultations}
-      initialActivities={activities}
-      initialFollowUps={followUps}
-      pics={pics}
-    />
+    <>
+      <Header title="Detail Lead" subtitle={lead.full_name} backUrl="/leads" />
+      <div className="animate-fade-in">
+        <LeadDetailClient
+          initialLead={lead}
+          initialPayments={payments}
+          initialPemetaan={pemetaan}
+          initialExpertConsultations={expertConsultations}
+          initialActivities={activities}
+          initialFollowUps={followUps}
+          pics={pics}
+        />
+      </div>
+    </>
   )
 }
+
