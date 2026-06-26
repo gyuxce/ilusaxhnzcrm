@@ -14,6 +14,7 @@ import {
   ArrowRight,
   TrendingUp,
   FileCheck,
+  FileText,
   Search,
   RefreshCw,
   MoreHorizontal
