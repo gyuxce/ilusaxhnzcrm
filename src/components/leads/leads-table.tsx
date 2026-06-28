@@ -8,11 +8,12 @@ import {
   Search, Filter, ExternalLink, MessageCircle,
   ChevronUp, ChevronDown, Copy, Calendar, RefreshCw,
   ChevronLeft, ChevronRight,
-  Edit, Trash2, CreditCard, ClipboardList, UserCheck, Lock
+  Edit, Trash2, CreditCard, ClipboardList, UserCheck, Lock, FileUp
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { Lead } from '@/lib/supabase/types'
 import { WhatsAppModal } from './WhatsAppModal'
+import { CsvUploadModal } from './csv-upload-modal'
 import { createClient } from '@/lib/supabase/client'
 
 type LeadWithRelations = Lead & {
@@ -239,6 +240,7 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
   const [showFilters, setShowFilters] = useState(false)
   const [waModalOpen, setWaModalOpen] = useState(false)
+  const [csvModalOpen, setCsvModalOpen] = useState(false)
   const [activeLead, setActiveLead] = useState<any>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const pageSize = 25
@@ -391,13 +393,22 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
             </span>
           )}
         </p>
-        <Link
-          href="/leads/new"
-          className="px-4 py-2 rounded-xl text-xs font-bold text-white transition-all hover:glow-purple"
-          style={{ background: 'linear-gradient(135deg, hsl(250,84%,60%), hsl(280,60%,55%))' }}
-        >
-          + Tambah Lead
-        </Link>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setCsvModalOpen(true)}
+            className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-slate-700 bg-white border border-slate-200 dark:text-slate-200 dark:bg-slate-900 dark:border-slate-800 transition-all hover:bg-slate-50 dark:hover:bg-slate-800 shadow-sm"
+          >
+            <FileUp size={14} />
+            Import CSV
+          </button>
+          <Link
+            href="/leads/new"
+            className="flex items-center justify-center px-4 py-2 rounded-xl text-xs font-bold text-white transition-all hover:glow-purple"
+            style={{ background: 'linear-gradient(135deg, hsl(250,84%,60%), hsl(280,60%,55%))' }}
+          >
+            + Tambah Lead
+          </Link>
+        </div>
       </div>
 
       {/* Search & Filter Component */}
@@ -775,6 +786,15 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
             </div>
           </div>
         </div>,
+        document.body
+      )}
+
+      {csvModalOpen && createPortal(
+        <CsvUploadModal
+          isOpen={csvModalOpen}
+          onClose={() => setCsvModalOpen(false)}
+          pics={pics}
+        />,
         document.body
       )}
     </div>
