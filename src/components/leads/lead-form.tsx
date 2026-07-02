@@ -117,6 +117,14 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
       setError(rpcErrorMessage(data))
       setLoading(false)
     } else {
+      if (!leadId && data?.id && LOST_STATUSES.includes(form.current_status) && form.lost_reason) {
+        await supabase.rpc('update_lead_core_fast', {
+          p_lead_id: data.id,
+          ...params,
+          p_lost_reason: form.lost_reason,
+        })
+      }
+
       router.push('/leads')
       router.refresh()
     }
