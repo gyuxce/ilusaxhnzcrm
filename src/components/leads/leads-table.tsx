@@ -15,6 +15,7 @@ import type { Lead } from '@/lib/supabase/types'
 import { WhatsAppModal } from './WhatsAppModal'
 import { CsvUploadModal } from './csv-upload-modal'
 import { createClient } from '@/lib/supabase/client'
+import { NEEDS_ACTION_STATUSES } from '@/lib/funnel-framework'
 
 type LeadWithRelations = Lead & {
   users?: { id: string; name: string } | null
@@ -117,14 +118,6 @@ const renderMilestones = (lead: LeadWithRelations) => {
     </div>
   )
 }
-
-const NEEDS_ACTION_STATUSES = [
-  'Pemetaan Scheduled',
-  'Waiting Result',
-  'Sent Result Pemetaan',
-  'Expert Consultation Scheduled',
-  'Seat Lock Offered',
-]
 
 type QuickFilter = 'all' | 'new' | 'unassigned' | 'needs_action' | 'stale' | 'seat_lock_paid'
 
@@ -246,7 +239,10 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
         l.full_name.toLowerCase().includes(q) ||
         l.whatsapp_number.includes(q) ||
         l.email?.toLowerCase().includes(q) ||
-        l.notes?.toLowerCase().includes(q)
+        l.notes?.toLowerCase().includes(q) ||
+        l.lead_quality?.toLowerCase().includes(q) ||
+        l.lead_segment?.toLowerCase().includes(q) ||
+        l.next_action?.toLowerCase().includes(q)
       )
     }
 
@@ -535,6 +531,7 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
                   { label: 'Tanggal Masuk', field: 'lead_entry_date' as const },
                   { label: 'PIC CRO', field: null },
                   { label: 'Status Pipeline', field: 'current_status' as const },
+                  { label: 'Next Action', field: null },
                   { label: 'Last Update', field: null },
                   { label: 'Payment', field: null },
                   { label: 'Aksi', field: null }
@@ -558,7 +555,7 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
             <tbody className="divide-y divide-border">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-16 text-center text-muted-foreground/40 text-sm">
+                  <td colSpan={9} className="px-4 py-16 text-center text-muted-foreground/40 text-sm">
                     Tidak ada data leads yang cocok dengan filter.
                   </td>
                 </tr>
@@ -573,6 +570,18 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
                             {lead.full_name}
                           </Link>
                           <span className="text-[10px] text-muted-foreground mt-0.5">{lead.source_campaign || 'No Campaign'}</span>
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            {lead.lead_quality && (
+                              <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[9px] font-bold text-emerald-700 dark:text-emerald-300">
+                                {lead.lead_quality}
+                              </span>
+                            )}
+                            {lead.lead_segment && (
+                              <span className="rounded-full bg-blue-500/10 px-2 py-0.5 text-[9px] font-bold text-blue-700 dark:text-blue-300">
+                                {lead.lead_segment}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </td>
 
@@ -596,6 +605,20 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
                         <span className="px-2 py-0.5 rounded-full font-semibold bg-purple-50 dark:bg-purple-950/20 text-purple-600 dark:text-purple-400 border border-purple-100 dark:border-purple-900/30">
                           {lead.current_status}
                         </span>
+                      </td>
+
+                      {/* Next Action */}
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <div className="flex flex-col gap-1">
+                          <span className="font-semibold text-slate-700 dark:text-slate-300">
+                            {lead.next_action || '-'}
+                          </span>
+                          {lead.next_follow_up_date && (
+                            <span className="text-[10px] text-muted-foreground">
+                              FU: {formatCellDate(lead.next_follow_up_date)}
+                            </span>
+                          )}
+                        </div>
                       </td>
 
                       {/* Last Update */}

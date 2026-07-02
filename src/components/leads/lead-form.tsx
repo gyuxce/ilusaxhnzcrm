@@ -6,6 +6,13 @@ import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 import { CheckCircle2, Loader2, Phone, User, Calendar, MessageSquare, Mail, TrendingUp } from 'lucide-react'
 import { LOST_REASON_OPTIONS, LOST_STATUSES } from '@/lib/lost-reasons'
+import {
+  ENTRY_CHANNEL_OPTIONS,
+  FUNNEL_STATUS_OPTIONS,
+  LEAD_QUALITY_OPTIONS,
+  LEAD_SEGMENT_OPTIONS,
+  NEXT_ACTION_OPTIONS,
+} from '@/lib/funnel-framework'
 
 interface LeadFormProps {
   pics: { id: string; name: string }[]
@@ -22,6 +29,12 @@ interface LeadFormProps {
     referral_source: string
     whatsapp_normalized: string
     lost_reason: string
+    lead_quality: string
+    lead_segment: string
+    entry_channel: string
+    next_action: string
+    next_follow_up_date: string
+    funnel_notes: string
   }>
   leadId?: string
 }
@@ -43,6 +56,12 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
     lead_entry_date: defaultValues?.lead_entry_date?.split('T')[0] || new Date().toISOString().split('T')[0],
     referral_source: defaultValues?.referral_source || '',
     lost_reason: defaultValues?.lost_reason || '',
+    lead_quality: defaultValues?.lead_quality || '',
+    lead_segment: defaultValues?.lead_segment || '',
+    entry_channel: defaultValues?.entry_channel || 'Manual Input',
+    next_action: defaultValues?.next_action || '',
+    next_follow_up_date: defaultValues?.next_follow_up_date?.split('T')[0] || '',
+    funnel_notes: defaultValues?.funnel_notes || '',
   })
 
   function update(field: string, value: string) {
@@ -119,12 +138,29 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
       setError(rpcErrorMessage(data))
       setLoading(false)
     } else {
-      if (!leadId && data?.id && LOST_STATUSES.includes(form.current_status) && form.lost_reason) {
-        await supabase.rpc('update_lead_core_fast', {
-          p_lead_id: data.id,
-          ...params,
-          p_lost_reason: form.lost_reason,
-        })
+      const savedLeadId = leadId || data?.id
+
+      if (savedLeadId) {
+        const funnelPayload = {
+          lead_quality: form.lead_quality || null,
+          lead_segment: form.lead_segment || null,
+          entry_channel: form.entry_channel || null,
+          next_action: form.next_action || null,
+          next_follow_up_date: form.next_follow_up_date || null,
+          funnel_notes: form.funnel_notes || null,
+          lost_reason: LOST_STATUSES.includes(form.current_status) ? form.lost_reason || null : null,
+        }
+
+        const { error: funnelError } = await supabase
+          .from('leads')
+          .update(funnelPayload)
+          .eq('id', savedLeadId)
+
+        if (funnelError) {
+          setError(`Lead utama tersimpan, tapi field funnel belum tersimpan: ${funnelError.message}`)
+          setLoading(false)
+          return
+        }
       }
 
       setLoading(false)
@@ -139,20 +175,7 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
   const inputClass = "w-full px-4 py-2.5 rounded-xl text-sm text-foreground placeholder-muted-foreground/60 outline-none transition-all bg-card border border-border focus:ring-1 focus:ring-primary focus:border-primary"
   const inputStyle = {}
 
-  const statusOptions = [
-    'New Lead',
-    'Pitching',
-    'Interested',
-    'Not Interested',
-    'Not Eligible',
-    'Pemetaan Scheduled',
-    'Waiting Result',
-    'Sent Result Pemetaan',
-    'Expert Consultation Scheduled',
-    'Seat Lock Offered',
-    'Seat Lock Paid',
-    'Onboarding',
-  ]
+  const statusOptions = FUNNEL_STATUS_OPTIONS
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -302,7 +325,72 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
         </div>
       </div>
 
-      {/* Section 3: Catatan & Tanggal */}
+      {/* Section 3: Funnel Mapping */}
+      <div className="bg-card text-card-foreground border border-border/80 p-5 rounded-2xl space-y-4 shadow-xs">
+        <h3 className="text-xs font-bold text-foreground uppercase tracking-wider border-b border-border pb-2 mb-3">
+          Funnel Mapping
+        </h3>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-xs font-bold text-muted-foreground mb-2">Lead Quality</label>
+            <select value={form.lead_quality} onChange={e => update('lead_quality', e.target.value)} className={inputClass} style={inputStyle}>
+              <option value="" className="bg-card text-foreground">Belum dinilai</option>
+              {LEAD_QUALITY_OPTIONS.map(item => <option key={item} value={item} className="bg-card text-foreground">{item}</option>)}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-muted-foreground mb-2">Lead Segment</label>
+            <select value={form.lead_segment} onChange={e => update('lead_segment', e.target.value)} className={inputClass} style={inputStyle}>
+              <option value="" className="bg-card text-foreground">Pilih segment</option>
+              {LEAD_SEGMENT_OPTIONS.map(item => <option key={item} value={item} className="bg-card text-foreground">{item}</option>)}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-muted-foreground mb-2">Entry Channel</label>
+            <select value={form.entry_channel} onChange={e => update('entry_channel', e.target.value)} className={inputClass} style={inputStyle}>
+              {ENTRY_CHANNEL_OPTIONS.map(item => <option key={item} value={item} className="bg-card text-foreground">{item}</option>)}
+            </select>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-bold text-muted-foreground mb-2">Next Action</label>
+            <select value={form.next_action} onChange={e => update('next_action', e.target.value)} className={inputClass} style={inputStyle}>
+              <option value="" className="bg-card text-foreground">Pilih aksi berikutnya</option>
+              {NEXT_ACTION_OPTIONS.map(item => <option key={item} value={item} className="bg-card text-foreground">{item}</option>)}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-muted-foreground mb-2">Next Follow-Up Date</label>
+            <input
+              type="date"
+              value={form.next_follow_up_date}
+              onChange={e => update('next_follow_up_date', e.target.value)}
+              className={inputClass}
+              style={inputStyle}
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-bold text-muted-foreground mb-2">Funnel Notes</label>
+          <textarea
+            value={form.funnel_notes}
+            onChange={e => update('funnel_notes', e.target.value)}
+            placeholder="Ringkasan handling: objection utama, arahan playbook, atau keputusan next step..."
+            rows={3}
+            className={inputClass}
+            style={{ ...inputStyle, resize: 'none' }}
+          />
+        </div>
+      </div>
+
+      {/* Section 4: Catatan & Tanggal */}
       <div className="bg-card text-card-foreground border border-border/80 p-5 rounded-2xl space-y-4 shadow-xs">
         <h3 className="text-xs font-bold text-foreground uppercase tracking-wider border-b border-border pb-2 mb-3">
           📅 Catatan & Tanggal

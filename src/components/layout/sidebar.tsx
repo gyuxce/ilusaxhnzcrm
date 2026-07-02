@@ -20,6 +20,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { useLayoutStore } from '@/lib/store'
 import { useState, useEffect } from 'react'
+import { NEEDS_ACTION_STATUSES } from '@/lib/funnel-framework'
 
 const mainNav: { href: string; label: string; icon: React.ComponentType<{ size?: number; className?: string }>; badgeKey?: 'needsAction' | 'followUps' }[] = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -56,13 +57,7 @@ export function Sidebar() {
       const { count: naCount } = await supabase
         .from('leads')
         .select('*', { count: 'exact', head: true })
-        .in('current_status', [
-          'Pemetaan Scheduled',
-          'Waiting Result',
-          'Sent Result Pemetaan',
-          'Expert Consultation Scheduled',
-          'Seat Lock Offered',
-        ])
+        .in('current_status', NEEDS_ACTION_STATUSES)
 
       // Count overdue / today follow-ups
       const today = new Date().toISOString().split('T')[0]

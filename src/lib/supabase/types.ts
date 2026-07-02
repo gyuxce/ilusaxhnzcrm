@@ -49,6 +49,12 @@ export type LeadRow = {
   follow_up_result: string | null
   notes: string | null
   lost_reason: string | null
+  lead_quality: string | null
+  lead_segment: string | null
+  entry_channel: string | null
+  next_action: string | null
+  next_follow_up_date: string | null
+  funnel_notes: string | null
   created_by: string | null
   updated_by: string | null
   duplicate_of: string | null
@@ -71,6 +77,12 @@ export type LeadInsert = {
   follow_up_result?: string | null
   notes?: string | null
   lost_reason?: string | null
+  lead_quality?: string | null
+  lead_segment?: string | null
+  entry_channel?: string | null
+  next_action?: string | null
+  next_follow_up_date?: string | null
+  funnel_notes?: string | null
   created_by?: string | null
   updated_by?: string | null
   duplicate_of?: string | null

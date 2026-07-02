@@ -21,6 +21,7 @@ import {
 } from 'lucide-react'
 import { WhatsAppModal } from '@/components/leads/WhatsAppModal'
 import { Header } from '@/components/layout/header'
+import { NEEDS_ACTION_STATUSES } from '@/lib/funnel-framework'
 
 interface LeadWithDetails {
   id: string
@@ -44,9 +45,12 @@ const QUEUES = [
   { key: 'all', label: 'Semua', status: null, icon: AlertCircle, tone: 'text-slate-600 dark:text-slate-300' },
   { key: 'pemetaan', label: 'Pemetaan Scheduled', status: 'Pemetaan Scheduled', icon: Hourglass, tone: 'text-purple-600 dark:text-purple-400' },
   { key: 'waiting', label: 'Waiting Result', status: 'Waiting Result', icon: Clock, tone: 'text-blue-600 dark:text-blue-400' },
+  { key: 'result_ready', label: 'Result Ready', status: 'Result Ready', icon: FileCheck, tone: 'text-cyan-600 dark:text-cyan-400' },
   { key: 'sent_result', label: 'Sent Result Pemetaan', status: 'Sent Result Pemetaan', icon: FileText, tone: 'text-emerald-600 dark:text-emerald-455' },
+  { key: 'placement', label: 'Placement Test', status: 'Placement Test Scheduled', icon: FileCheck, tone: 'text-pink-600 dark:text-pink-400' },
   { key: 'expert', label: 'Expert Scheduled', status: 'Expert Consultation Scheduled', icon: Calendar, tone: 'text-amber-600 dark:text-amber-400' },
   { key: 'seat_lock', label: 'Offer Seat Lock', status: 'Seat Lock Offered', icon: UserCheck, tone: 'text-orange-600 dark:text-orange-400' },
+  { key: 'closing_followup', label: 'Belum Closing', status: 'Belum Berhasil Closing', icon: TrendingUp, tone: 'text-red-600 dark:text-red-400' },
 ] as const
 
 type QueueKey = typeof QUEUES[number]['key']
@@ -74,13 +78,7 @@ export default function NeedsActionPage() {
     const { data, error } = await supabase
       .from('leads')
       .select('*, users:assigned_cro_id(name)')
-      .in('current_status', [
-        'Pemetaan Scheduled',
-        'Waiting Result',
-        'Sent Result Pemetaan',
-        'Expert Consultation Scheduled',
-        'Seat Lock Offered',
-      ])
+      .in('current_status', NEEDS_ACTION_STATUSES)
       .order('lead_entry_date', { ascending: false })
 
     if (!error && data) {
@@ -125,14 +123,23 @@ export default function NeedsActionPage() {
     if (lead.current_status === 'Waiting Result') {
       return { type: 'send_result', label: 'Kirim Hasil Pemetaan' }
     }
+    if (lead.current_status === 'Result Ready') {
+      return { type: 'schedule_expert', label: 'Schedule Expert' }
+    }
     if (lead.current_status === 'Sent Result Pemetaan') {
       return { type: 'schedule_expert', label: 'Schedule Expert' }
+    }
+    if (lead.current_status === 'Placement Test Scheduled' || lead.current_status === 'Placement Test Done') {
+      return { type: 'send_result', label: 'Kirim Hasil Pemetaan' }
     }
     if (lead.current_status === 'Expert Consultation Scheduled') {
       return { type: 'offer_seat_lock', label: 'Offer Seat Lock' }
     }
     if (lead.current_status === 'Seat Lock Offered') {
       return { type: 'pay_seat_lock', label: 'Seat Lock Paid' }
+    }
+    if (lead.current_status === 'Belum Berhasil Closing') {
+      return { type: 'offer_seat_lock', label: 'Follow Up Closing' }
     }
     return null
   }

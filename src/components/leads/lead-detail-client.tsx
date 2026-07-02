@@ -10,6 +10,13 @@ import {
 import { WhatsAppModal } from './WhatsAppModal'
 import { cn } from '@/lib/utils'
 import { LOST_REASON_OPTIONS, LOST_STATUSES } from '@/lib/lost-reasons'
+import {
+  ENTRY_CHANNEL_OPTIONS,
+  FUNNEL_STATUS_OPTIONS,
+  LEAD_QUALITY_OPTIONS,
+  LEAD_SEGMENT_OPTIONS,
+  NEXT_ACTION_OPTIONS,
+} from '@/lib/funnel-framework'
 
 interface LeadDetailClientProps {
   initialLead: any
@@ -62,6 +69,12 @@ export function LeadDetailClient({
   const [editPic, setEditPic] = useState(lead.assigned_cro_id || '')
   const [editNotes, setEditNotes] = useState(lead.notes || '')
   const [editLostReason, setEditLostReason] = useState(lead.lost_reason || '')
+  const [editLeadQuality, setEditLeadQuality] = useState(lead.lead_quality || '')
+  const [editLeadSegment, setEditLeadSegment] = useState(lead.lead_segment || '')
+  const [editEntryChannel, setEditEntryChannel] = useState(lead.entry_channel || 'Manual Input')
+  const [editNextAction, setEditNextAction] = useState(lead.next_action || '')
+  const [editNextFollowUpDate, setEditNextFollowUpDate] = useState(lead.next_follow_up_date || '')
+  const [editFunnelNotes, setEditFunnelNotes] = useState(lead.funnel_notes || '')
   const [coreError, setCoreError] = useState('')
 
   // Form States
@@ -263,6 +276,26 @@ export function LeadDetailClient({
       return
     }
 
+    const funnelPayload = {
+      lead_quality: editLeadQuality || null,
+      lead_segment: editLeadSegment || null,
+      entry_channel: editEntryChannel || null,
+      next_action: editNextAction || null,
+      next_follow_up_date: editNextFollowUpDate || null,
+      funnel_notes: editFunnelNotes || null,
+      lost_reason: LOST_STATUSES.includes(editStatus) ? editLostReason || null : null,
+    }
+
+    const { error: funnelError } = await supabase
+      .from('leads')
+      .update(funnelPayload)
+      .eq('id', lead.id)
+
+    if (funnelError) {
+      setCoreError(`Data utama tersimpan, tapi funnel mapping gagal: ${funnelError.message}`)
+      return
+    }
+
     const updatedAt = new Date().toISOString()
     const updatedLead = {
       ...lead,
@@ -275,6 +308,7 @@ export function LeadDetailClient({
       assigned_cro_id: editPic || null,
       notes: editNotes || null,
       lost_reason: LOST_STATUSES.includes(editStatus) ? editLostReason : null,
+      ...funnelPayload,
       updated_at: updatedAt
     }
     setLead(updatedLead)
@@ -496,6 +530,11 @@ export function LeadDetailClient({
                   { label: 'Email', value: lead.email || '-' },
                   { label: 'Source Campaign', value: lead.source_campaign },
                   { label: 'Status Pipeline', value: lead.current_status },
+                  { label: 'Lead Quality', value: lead.lead_quality || '-' },
+                  { label: 'Lead Segment', value: lead.lead_segment || '-' },
+                  { label: 'Entry Channel', value: lead.entry_channel || '-' },
+                  { label: 'Next Action', value: lead.next_action || '-' },
+                  { label: 'Next Follow-Up', value: lead.next_follow_up_date ? new Date(lead.next_follow_up_date).toLocaleDateString('id-ID') : '-' },
                   { label: 'Lost Reason', value: lead.lost_reason || '-' },
                   { label: 'Tanggal Masuk', value: new Date(lead.lead_entry_date).toLocaleString('id-ID') },
                   { label: 'Terakhir Dihubungi', value: lead.last_contacted_date ? new Date(lead.last_contacted_date).toLocaleString('id-ID') : '-' },
@@ -513,6 +552,11 @@ export function LeadDetailClient({
               <div className="p-4 rounded-xl border border-border bg-slate-50/50 dark:bg-white/[0.01]">
                 <span className="text-[10px] text-muted-foreground font-bold uppercase">Catatan / Keterangan</span>
                 <p className="text-xs text-slate-700 dark:text-white/60 mt-2 leading-relaxed whitespace-pre-wrap">{lead.notes || 'Tidak ada catatan.'}</p>
+              </div>
+
+              <div className="p-4 rounded-xl border border-border bg-emerald-500/5">
+                <span className="text-[10px] text-muted-foreground font-bold uppercase">Funnel Notes</span>
+                <p className="text-xs text-slate-700 dark:text-white/60 mt-2 leading-relaxed whitespace-pre-wrap">{lead.funnel_notes || 'Belum ada catatan funnel.'}</p>
               </div>
             </div>
           )}
@@ -1027,18 +1071,9 @@ export function LeadDetailClient({
                   onChange={e => setEditStatus(e.target.value)}
                   className="w-full px-3 py-2 text-sm text-foreground bg-card border border-border outline-none rounded-xl cursor-pointer focus:ring-1 focus:ring-primary focus:border-primary"
                 >
-                  <option value="New Lead">New Lead</option>
-                  <option value="Pitching">Pitching</option>
-                  <option value="Interested">Interested</option>
-                  <option value="Not Interested">Not Interested</option>
-                  <option value="Not Eligible">Not Eligible</option>
-                  <option value="Pemetaan Scheduled">Pemetaan Scheduled</option>
-                  <option value="Waiting Result">Waiting Result</option>
-                  <option value="Sent Result Pemetaan">Sent Result Pemetaan</option>
-                  <option value="Expert Consultation Scheduled">Expert Consultation Scheduled</option>
-                  <option value="Seat Lock Offered">Seat Lock Offered</option>
-                  <option value="Seat Lock Paid">Seat Lock Paid</option>
-                  <option value="Onboarding">Onboarding</option>
+                  {FUNNEL_STATUS_OPTIONS.map(status => (
+                    <option key={status} value={status}>{status}</option>
+                  ))}
                 </select>
               </div>
 
@@ -1054,6 +1089,67 @@ export function LeadDetailClient({
                     <option key={p.id} value={p.id}>{p.name}</option>
                   ))}
                 </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <label className="block text-xs text-muted-foreground mb-1">Lead Quality</label>
+                <select
+                  value={editLeadQuality}
+                  onChange={e => setEditLeadQuality(e.target.value)}
+                  className="w-full px-3 py-2 text-sm text-foreground bg-card border border-border outline-none rounded-xl cursor-pointer focus:ring-1 focus:ring-primary focus:border-primary"
+                >
+                  <option value="">Belum dinilai</option>
+                  {LEAD_QUALITY_OPTIONS.map(item => <option key={item} value={item}>{item}</option>)}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs text-muted-foreground mb-1">Lead Segment</label>
+                <select
+                  value={editLeadSegment}
+                  onChange={e => setEditLeadSegment(e.target.value)}
+                  className="w-full px-3 py-2 text-sm text-foreground bg-card border border-border outline-none rounded-xl cursor-pointer focus:ring-1 focus:ring-primary focus:border-primary"
+                >
+                  <option value="">Pilih segment</option>
+                  {LEAD_SEGMENT_OPTIONS.map(item => <option key={item} value={item}>{item}</option>)}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs text-muted-foreground mb-1">Entry Channel</label>
+                <select
+                  value={editEntryChannel}
+                  onChange={e => setEditEntryChannel(e.target.value)}
+                  className="w-full px-3 py-2 text-sm text-foreground bg-card border border-border outline-none rounded-xl cursor-pointer focus:ring-1 focus:ring-primary focus:border-primary"
+                >
+                  {ENTRY_CHANNEL_OPTIONS.map(item => <option key={item} value={item}>{item}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs text-muted-foreground mb-1">Next Action</label>
+                <select
+                  value={editNextAction}
+                  onChange={e => setEditNextAction(e.target.value)}
+                  className="w-full px-3 py-2 text-sm text-foreground bg-card border border-border outline-none rounded-xl cursor-pointer focus:ring-1 focus:ring-primary focus:border-primary"
+                >
+                  <option value="">Pilih aksi berikutnya</option>
+                  {NEXT_ACTION_OPTIONS.map(item => <option key={item} value={item}>{item}</option>)}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs text-muted-foreground mb-1">Next Follow-Up Date</label>
+                <input
+                  type="date"
+                  value={editNextFollowUpDate}
+                  onChange={e => setEditNextFollowUpDate(e.target.value)}
+                  className="w-full px-3 py-2 text-sm text-foreground bg-card border border-border outline-none rounded-xl focus:ring-1 focus:ring-primary focus:border-primary"
+                />
               </div>
             </div>
 
@@ -1082,6 +1178,16 @@ export function LeadDetailClient({
                 placeholder="Catatan bebas..."
                 value={editNotes}
                 onChange={e => setEditNotes(e.target.value)}
+                className="w-full px-3 py-2 text-sm text-foreground bg-card border border-border outline-none rounded-xl h-20 focus:ring-1 focus:ring-primary focus:border-primary"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs text-muted-foreground mb-1">Funnel Notes</label>
+              <textarea
+                placeholder="Objection, arahan playbook, hasil handling, atau keputusan next step..."
+                value={editFunnelNotes}
+                onChange={e => setEditFunnelNotes(e.target.value)}
                 className="w-full px-3 py-2 text-sm text-foreground bg-card border border-border outline-none rounded-xl h-20 focus:ring-1 focus:ring-primary focus:border-primary"
               />
             </div>

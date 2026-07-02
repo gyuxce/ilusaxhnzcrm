@@ -38,6 +38,12 @@ export default async function EditLeadPage({ params }: { params: Promise<{ id: s
             notes: lead.notes || undefined,
             lead_entry_date: lead.lead_entry_date || undefined,
             lost_reason: lead.lost_reason || undefined,
+            lead_quality: lead.lead_quality || undefined,
+            lead_segment: lead.lead_segment || undefined,
+            entry_channel: lead.entry_channel || undefined,
+            next_action: lead.next_action || undefined,
+            next_follow_up_date: lead.next_follow_up_date || undefined,
+            funnel_notes: lead.funnel_notes || undefined,
           }}
         />
       </div>
