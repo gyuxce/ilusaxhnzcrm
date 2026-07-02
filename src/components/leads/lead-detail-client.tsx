@@ -5,7 +5,8 @@ import { createClient } from '@/lib/supabase/client'
 import {
   MessageCircle, Clock, Calendar, CheckCircle2,
   XCircle, Edit, DollarSign, Activity, FileText,
-  UserCheck, AlertCircle, Trash2, ArrowRight, Plus
+  UserCheck, AlertCircle, Trash2, ArrowRight, Plus,
+  Copy, Sparkles, Target
 } from 'lucide-react'
 import { WhatsAppModal } from './WhatsAppModal'
 import { cn } from '@/lib/utils'
@@ -58,6 +59,7 @@ export function LeadDetailClient({
   const [interventionMessage, setInterventionMessage] = useState<{ text: string; type: 'success' | 'error' | '' }>({ text: '', type: '' })
   const [showInterventionForm, setShowInterventionForm] = useState(false)
   const [savingIntervention, setSavingIntervention] = useState(false)
+  const [copiedRecommendation, setCopiedRecommendation] = useState(false)
   const [interventionForm, setInterventionForm] = useState({
     lead_condition: lead.current_status || '',
     objection_category: lead.lead_segment || '',
@@ -156,6 +158,104 @@ export function LeadDetailClient({
     return isDuplicate
       ? 'Nomor WhatsApp ini sudah terdaftar. Cari nomor tersebut di menu Leads untuk membuka data existing.'
       : err?.message || 'Terjadi kesalahan saat menyimpan data lead.'
+  }
+
+  const formatShortDate = (value?: string | null) => {
+    if (!value) return '-'
+    return new Date(value).toLocaleDateString('id-ID', {
+      day: 'numeric',
+      month: 'short',
+      year: '2-digit',
+    })
+  }
+
+  const latestIntervention = interventions[0] || null
+
+  const buildRecommendedAction = (item?: any) => {
+    if (!item) {
+      return {
+        title: 'Lead belum punya handling log',
+        body: 'Isi Objection & Intervention Log setelah CRO menghubungi lead agar aktivitas masuk Team Report dan Reason Penolakan.',
+        nextAction: 'Tambah Intervention Log',
+        tone: 'amber',
+      }
+    }
+
+    const objection = String(item.objection_category || '').toLowerCase()
+    const solution = item.solution_given || 'Gunakan solusi/intervensi yang paling relevan.'
+    const needsExpert = item.expert_needed || item.expert_type
+    const potentialPaid = String(item.commercial_type || '').toLowerCase().includes('paid')
+
+    if (needsExpert) {
+      return {
+        title: `Butuh ${item.expert_type || 'Expert'}`,
+        body: `Lead sudah ditandai butuh expert. Pastikan konteks objection (${item.objection_category || '-'}) dan solusi (${solution}) siap sebelum masuk Expert Queue.`,
+        nextAction: item.next_action || 'Jadwalkan Expert',
+        tone: 'violet',
+      }
+    }
+
+    if (potentialPaid) {
+      return {
+        title: 'Potential Paid Service',
+        body: `Validasi kebutuhan lead, jelaskan value layanan, lalu follow up dengan offer yang spesifik. Opportunity: ${item.service_opportunity || 'belum diisi'}.`,
+        nextAction: item.next_action || 'Follow Up Offer',
+        tone: 'blue',
+      }
+    }
+
+    if (objection.includes('budget') || objection.includes('biaya') || objection.includes('uang')) {
+      return {
+        title: 'Objection Budget / Biaya',
+        body: 'Fokuskan follow-up pada value program, bukti hasil, risiko kalau menunda, dan opsi pembayaran/tahapan biaya bila memungkinkan.',
+        nextAction: item.next_action || 'Follow Up Value',
+        tone: 'emerald',
+      }
+    }
+
+    if (objection.includes('waktu') || objection.includes('sibuk')) {
+      return {
+        title: 'Objection Waktu',
+        body: 'Tawarkan slot follow-up yang spesifik dan ringkas. Gunakan pesan pendek yang langsung menjawab benefit utama untuk lead ini.',
+        nextAction: item.next_action || 'Follow Up Jadwal',
+        tone: 'orange',
+      }
+    }
+
+    if (objection.includes('ragu') || objection.includes('trust') || objection.includes('percaya')) {
+      return {
+        title: 'Objection Trust / Keraguan',
+        body: 'Kirim social proof, alur program, testimoni, dan ajak konsultasi singkat agar keraguannya bisa dipetakan lebih jelas.',
+        nextAction: item.next_action || 'Kirim Social Proof',
+        tone: 'violet',
+      }
+    }
+
+    return {
+      title: item.objection_category ? `Objection: ${item.objection_category}` : 'Handling Terakhir Tercatat',
+      body: `Solusi terakhir: ${solution}. Lanjutkan follow-up berdasarkan next action dan update result setelah ada respon.`,
+      nextAction: item.next_action || 'Follow Up',
+      tone: 'slate',
+    }
+  }
+
+  const recommendedAction = buildRecommendedAction(latestIntervention)
+
+  const recommendationText = [
+    `Lead: ${lead.full_name}`,
+    `Status: ${lead.current_status}`,
+    latestIntervention ? `Kondisi: ${latestIntervention.lead_condition || '-'}` : 'Kondisi: belum ada handling log',
+    latestIntervention ? `Objection: ${latestIntervention.objection_category || '-'}` : 'Objection: -',
+    latestIntervention ? `Solusi: ${latestIntervention.solution_given || '-'}` : 'Solusi: -',
+    `Rekomendasi: ${recommendedAction.body}`,
+    `Next action: ${recommendedAction.nextAction}`,
+    latestIntervention?.next_follow_up_date ? `Next FU: ${formatShortDate(latestIntervention.next_follow_up_date)}` : null,
+  ].filter(Boolean).join('\n')
+
+  const copyRecommendation = async () => {
+    await navigator.clipboard.writeText(recommendationText)
+    setCopiedRecommendation(true)
+    setTimeout(() => setCopiedRecommendation(false), 1800)
   }
 
   // Log Activity Helper
@@ -919,6 +1019,95 @@ export function LeadDetailClient({
 
         {/* Right 1 Column: Activity Log */}
         <div className="space-y-6">
+          {/* Decision Helper */}
+          <div className={cn(
+            "rounded-2xl border p-5 shadow-xs space-y-4",
+            recommendedAction.tone === 'amber' && "border-amber-200 bg-amber-50/70 dark:border-amber-500/20 dark:bg-amber-500/[0.06]",
+            recommendedAction.tone === 'violet' && "border-violet-200 bg-violet-50/70 dark:border-violet-500/20 dark:bg-violet-500/[0.06]",
+            recommendedAction.tone === 'blue' && "border-blue-200 bg-blue-50/70 dark:border-blue-500/20 dark:bg-blue-500/[0.06]",
+            recommendedAction.tone === 'emerald' && "border-emerald-200 bg-emerald-50/70 dark:border-emerald-500/20 dark:bg-emerald-500/[0.06]",
+            recommendedAction.tone === 'orange' && "border-orange-200 bg-orange-50/70 dark:border-orange-500/20 dark:bg-orange-500/[0.06]",
+            recommendedAction.tone === 'slate' && "border-border bg-card"
+          )}>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-foreground font-bold text-xs uppercase tracking-wider flex items-center gap-2">
+                  <Sparkles size={14} className="text-primary" />
+                  Decision Helper
+                </h3>
+                <p className="mt-1 text-[10px] text-muted-foreground">Arahan otomatis dari handling/intervention terakhir.</p>
+              </div>
+              <button
+                type="button"
+                onClick={copyRecommendation}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1.5 text-[10px] font-bold text-foreground hover:bg-muted transition-all"
+              >
+                {copiedRecommendation ? <CheckCircle2 size={12} /> : <Copy size={12} />}
+                {copiedRecommendation ? 'Tersalin' : 'Copy'}
+              </button>
+            </div>
+
+            <div className="rounded-xl border border-border/70 bg-card/80 p-3">
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <Target size={15} />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-extrabold text-foreground">{recommendedAction.title}</p>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{recommendedAction.body}</p>
+                </div>
+              </div>
+            </div>
+
+            {latestIntervention ? (
+              <div className="grid grid-cols-2 gap-2 text-[10px]">
+                <div className="rounded-xl border border-border/70 bg-card/70 p-2.5">
+                  <p className="font-black uppercase text-muted-foreground">Kondisi</p>
+                  <p className="mt-1 font-semibold text-foreground">{latestIntervention.lead_condition || '-'}</p>
+                </div>
+                <div className="rounded-xl border border-border/70 bg-card/70 p-2.5">
+                  <p className="font-black uppercase text-muted-foreground">Objection</p>
+                  <p className="mt-1 font-semibold text-foreground">{latestIntervention.objection_category || '-'}</p>
+                </div>
+                <div className="rounded-xl border border-border/70 bg-card/70 p-2.5">
+                  <p className="font-black uppercase text-muted-foreground">Next Action</p>
+                  <p className="mt-1 font-semibold text-foreground">{latestIntervention.next_action || '-'}</p>
+                </div>
+                <div className="rounded-xl border border-border/70 bg-card/70 p-2.5">
+                  <p className="font-black uppercase text-muted-foreground">Next FU</p>
+                  <p className="mt-1 font-semibold text-foreground">{formatShortDate(latestIntervention.next_follow_up_date)}</p>
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-dashed border-amber-300/70 bg-card/60 p-3 text-xs leading-relaxed text-muted-foreground dark:border-amber-500/25">
+                Lead ini belum punya handling log. Setelah CRO menghubungi lead, klik <strong className="text-foreground">Tambah Log</strong> agar masuk Team Report dan Reason Penolakan.
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => setShowInterventionForm(true)}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-orange-500 px-3 py-2 text-xs font-bold text-white hover:opacity-90 transition-all"
+              >
+                <Plus size={13} />
+                Tambah Log
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (latestIntervention?.next_follow_up_date) setNewFuDate(latestIntervention.next_follow_up_date)
+                  setNewFuNotes(recommendedAction.body)
+                  setShowAddFu(true)
+                }}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-xs font-bold text-foreground hover:bg-muted transition-all"
+              >
+                <Calendar size={13} />
+                Jadwalkan FU
+              </button>
+            </div>
+          </div>
+
           {/* Objection & Intervention Log */}
           <div className="glass-card rounded-2xl p-5 border border-border space-y-4">
             <div className="flex items-center justify-between gap-3">
