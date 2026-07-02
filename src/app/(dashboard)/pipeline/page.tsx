@@ -19,8 +19,14 @@ export default async function PipelinePage() {
 
   return (
     <>
-      <Header title="Pipeline Board" subtitle="Visualisasi drag & drop semua lead berdasarkan stage pipeline" />
+      <Header title="Pipeline Board" subtitle="Overview visual posisi lead per stage. Ini untuk monitoring, sedangkan input kerja utama tetap dari Work Queue." />
       <div className="p-6 animate-fade-in">
+        <div className="mb-4 rounded-2xl border border-primary/15 bg-primary/5 px-5 py-4">
+          <p className="text-sm font-extrabold text-foreground">Pipeline Board = visual overview</p>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+            Kolom di board diringkas agar mudah dipantau manager. Untuk status detail, handling, objection, follow-up, dan report harian, gunakan Work Queue.
+          </p>
+        </div>
         <PipelineBoard initialLeads={leads || []} />
       </div>
     </>

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { Header } from '@/components/layout/header'
 import { createClient } from '@/lib/supabase/client'
 import { WhatsAppModal } from '@/components/leads/WhatsAppModal'
@@ -131,6 +132,7 @@ function inferNextStatus(currentStatus: string, nextAction: string) {
 
 export default function WorkQueuePage() {
   const supabase = createClient()
+  const searchParams = useSearchParams()
   const [leads, setLeads] = useState<LeadRow[]>([])
   const [followUps, setFollowUps] = useState<FollowUpRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -176,6 +178,13 @@ export default function WorkQueuePage() {
     fetchData()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  useEffect(() => {
+    if (searchParams.get('filter') === 'new') {
+      setQueueFilter('new')
+      setSelectedLeadId(null)
+    }
+  }, [searchParams])
 
   const queueItems = useMemo(() => {
     const map = new Map<string, QueueItem>()
@@ -364,8 +373,14 @@ export default function WorkQueuePage() {
 
   return (
     <>
-      <Header title="Work Queue" subtitle="Satu tempat kerja CRO: hubungi lead, catat handling, tentukan next action, lalu simpan." />
+      <Header title="Work Queue" subtitle="Meja kerja utama CRO: hubungi lead, catat handling, tentukan next action, lalu simpan agar report otomatis terisi." />
       <div className="mx-auto max-w-7xl p-6 animate-fade-in">
+        <div className="mb-4 rounded-2xl border border-emerald-500/15 bg-emerald-500/5 px-5 py-4">
+          <p className="text-sm font-extrabold text-foreground">Work Queue = tempat kerja harian CRO</p>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+            Ikuti step dari kiri ke kanan: buka WhatsApp, catat kondisi dan objection, pilih next action, lalu simpan. Data yang disimpan otomatis masuk ke Team Report, Reason Penolakan, Follow-Up, dan Expert Queue bila relevan.
+          </p>
+        </div>
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-[24rem_minmax(0,1fr)]">
           <aside className="rounded-2xl border border-border bg-card shadow-xs overflow-hidden">
             <div className="border-b border-border p-4">
