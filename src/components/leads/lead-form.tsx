@@ -41,6 +41,7 @@ interface LeadFormProps {
 
 export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
   const router = useRouter()
+  const isEditMode = Boolean(leadId)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
@@ -179,6 +180,14 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {!isEditMode && (
+        <div className="rounded-2xl border border-primary/15 bg-primary/5 p-4">
+          <h2 className="text-sm font-extrabold text-foreground">Quick Add Lead</h2>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+            Untuk input manual dari ads cukup isi nama, WhatsApp, dan campaign. Handling, objection, dan next action dikerjakan dari Work Queue.
+          </p>
+        </div>
+      )}
 
       {/* Section 1: Informasi Kontak */}
       <div className="bg-card text-card-foreground border border-border/80 p-5 rounded-2xl space-y-4 shadow-xs">
@@ -202,7 +211,7 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
         </div>
 
         {/* WhatsApp & Email */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className={cn('grid grid-cols-1 gap-4', isEditMode && 'sm:grid-cols-2')}>
           <div>
             <label className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground mb-2">
               <Phone size={12} /> Nomor WhatsApp <span className="text-red-500">*</span>
@@ -218,19 +227,21 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
             />
           </div>
 
-          <div>
-            <label className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground mb-2">
-              <Mail size={12} /> Alamat Email
-            </label>
-            <input
-              type="email"
-              value={form.email}
-              onChange={e => update('email', e.target.value)}
-              placeholder="nama@domain.com"
-              className={inputClass}
-              style={inputStyle}
-            />
-          </div>
+          {isEditMode && (
+            <div>
+              <label className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground mb-2">
+                <Mail size={12} /> Alamat Email
+              </label>
+              <input
+                type="email"
+                value={form.email}
+                onChange={e => update('email', e.target.value)}
+                placeholder="nama@domain.com"
+                className={inputClass}
+                style={inputStyle}
+              />
+            </div>
+          )}
         </div>
       </div>
 
@@ -256,7 +267,7 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
         </div>
 
         {/* PIC & Status */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className={cn('grid grid-cols-1 gap-4', isEditMode && 'sm:grid-cols-2')}>
           <div>
             <label className="block text-xs font-bold text-muted-foreground mb-2">PIC CRO</label>
             <select value={form.assigned_cro_id} onChange={e => update('assigned_cro_id', e.target.value)} className={inputClass} style={inputStyle}>
@@ -265,12 +276,14 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
             </select>
           </div>
 
-          <div>
-            <label className="block text-xs font-bold text-muted-foreground mb-2">Status Pipeline</label>
-            <select value={form.current_status} onChange={e => update('current_status', e.target.value)} className={inputClass} style={inputStyle}>
-              {statusOptions.map(s => <option key={s} value={s} className="bg-card text-foreground">{s}</option>)}
-            </select>
-          </div>
+          {isEditMode && (
+            <div>
+              <label className="block text-xs font-bold text-muted-foreground mb-2">Status Pipeline</label>
+              <select value={form.current_status} onChange={e => update('current_status', e.target.value)} className={inputClass} style={inputStyle}>
+                {statusOptions.map(s => <option key={s} value={s} className="bg-card text-foreground">{s}</option>)}
+              </select>
+            </div>
+          )}
         </div>
 
         {LOST_STATUSES.includes(form.current_status) && (
@@ -326,6 +339,7 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
       </div>
 
       {/* Section 3: Funnel Mapping */}
+      {isEditMode && (
       <div className="bg-card text-card-foreground border border-border/80 p-5 rounded-2xl space-y-4 shadow-xs">
         <h3 className="text-xs font-bold text-foreground uppercase tracking-wider border-b border-border pb-2 mb-3">
           Funnel Mapping
@@ -389,6 +403,7 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
           />
         </div>
       </div>
+      )}
 
       {/* Section 4: Catatan & Tanggal */}
       <div className="bg-card text-card-foreground border border-border/80 p-5 rounded-2xl space-y-4 shadow-xs">
@@ -397,18 +412,20 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
         </h3>
 
         {/* Entry Date */}
-        <div>
-          <label className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground mb-2">
-            <Calendar size={12} /> Tanggal Lead Masuk
-          </label>
-          <input
-            type="date"
-            value={form.lead_entry_date}
-            onChange={e => update('lead_entry_date', e.target.value)}
-            className={inputClass}
-            style={inputStyle}
-          />
-        </div>
+        {isEditMode && (
+          <div>
+            <label className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground mb-2">
+              <Calendar size={12} /> Tanggal Lead Masuk
+            </label>
+            <input
+              type="date"
+              value={form.lead_entry_date}
+              onChange={e => update('lead_entry_date', e.target.value)}
+              className={inputClass}
+              style={inputStyle}
+            />
+          </div>
+        )}
 
         {/* Notes */}
         <div>

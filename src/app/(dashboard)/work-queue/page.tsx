@@ -88,14 +88,30 @@ const EMPTY_FORM: WorkForm = {
 }
 
 const STEP_LABELS = ['Hubungi', 'Catat Handling', 'Next Action', 'Review']
+const QUEUE_FILTERS = [
+  { key: 'all', label: 'Semua' },
+  { key: 'fu', label: 'FU Hari Ini' },
+  { key: 'needs', label: 'Needs Action' },
+  { key: 'new', label: 'New Lead' },
+] as const
+
+type QueueFilter = typeof QUEUE_FILTERS[number]['key']
 
 function todayInput() {
   return new Date().toISOString().split('T')[0]
 }
 
+function dateTime(value?: string | null) {
+  if (!value) return 0
+  const parsed = new Date(value.includes('T') ? value : `${value}T00:00:00+07:00`).getTime()
+  return Number.isNaN(parsed) ? 0 : parsed
+}
+
 function formatDate(value?: string | null) {
   if (!value) return '-'
-  return new Date(`${value}T00:00:00+07:00`).toLocaleDateString('id-ID', {
+  const parsed = new Date(value.includes('T') ? value : `${value}T00:00:00+07:00`)
+  if (Number.isNaN(parsed.getTime())) return '-'
+  return parsed.toLocaleDateString('id-ID', {
     day: 'numeric',
     month: 'short',
     year: '2-digit',
@@ -120,6 +136,7 @@ export default function WorkQueuePage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [query, setQuery] = useState('')
+  const [queueFilter, setQueueFilter] = useState<QueueFilter>('all')
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null)
   const [step, setStep] = useState(0)
   const [form, setForm] = useState<WorkForm>(EMPTY_FORM)
@@ -192,8 +209,39 @@ export default function WorkQueuePage() {
         item.lead.current_status,
         item.reason,
       ].some(value => String(value || '').toLowerCase().includes(keyword)))
-      .sort((a, b) => a.priority - b.priority || new Date(a.lead.lead_entry_date).getTime() - new Date(b.lead.lead_entry_date).getTime())
-  }, [followUps, leads, query])
+      .filter(item => {
+        if (queueFilter === 'fu') return item.reason === 'FU Hari Ini'
+        if (queueFilter === 'needs') return item.reason === 'Needs Action'
+        if (queueFilter === 'new') return item.reason === 'New Lead'
+        return true
+      })
+      .sort((a, b) => {
+        if (a.priority !== b.priority) return a.priority - b.priority
+        if (a.reason === 'FU Hari Ini') return dateTime(a.followUp?.scheduled_date) - dateTime(b.followUp?.scheduled_date)
+        if (a.reason === 'New Lead') return dateTime(b.lead.lead_entry_date) - dateTime(a.lead.lead_entry_date)
+        return dateTime(a.lead.lead_entry_date) - dateTime(b.lead.lead_entry_date)
+      })
+  }, [followUps, leads, query, queueFilter])
+
+  const queueCounts = useMemo(() => {
+    const allItems = new Map<string, QueueItem>()
+    followUps.forEach(fu => {
+      if (!fu.leads) return
+      allItems.set(fu.leads.id, { lead: fu.leads, reason: 'FU Hari Ini', priority: 1, followUp: fu })
+    })
+    leads.forEach(lead => {
+      if (allItems.has(lead.id)) return
+      const isNeedsAction = NEEDS_ACTION_STATUSES.includes(lead.current_status)
+      allItems.set(lead.id, { lead, reason: isNeedsAction ? 'Needs Action' : 'New Lead', priority: isNeedsAction ? 2 : 3 })
+    })
+    const items = Array.from(allItems.values())
+    return {
+      all: items.length,
+      fu: items.filter(item => item.reason === 'FU Hari Ini').length,
+      needs: items.filter(item => item.reason === 'Needs Action').length,
+      new: items.filter(item => item.reason === 'New Lead').length,
+    }
+  }, [followUps, leads])
 
   const selectedItem = queueItems.find(item => item.lead.id === selectedLeadId) || queueItems[0] || null
   const selectedLead = selectedItem?.lead || null
@@ -337,6 +385,31 @@ export default function WorkQueuePage() {
                   className="w-full rounded-xl border border-border bg-background py-2.5 pl-9 pr-3 text-sm text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                 />
               </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {QUEUE_FILTERS.map(filter => {
+                  const active = queueFilter === filter.key
+                  return (
+                    <button
+                      key={filter.key}
+                      type="button"
+                      onClick={() => {
+                        setQueueFilter(filter.key)
+                        setSelectedLeadId(null)
+                      }}
+                      className={`rounded-full border px-3 py-1 text-[10px] font-black transition-all ${
+                        active
+                          ? 'border-primary/30 bg-primary/10 text-primary'
+                          : 'border-border bg-background text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      {filter.label} {queueCounts[filter.key]}
+                    </button>
+                  )
+                })}
+              </div>
+              <p className="mt-3 text-[10px] leading-relaxed text-muted-foreground">
+                Urutan: FU hari ini paling atas, lalu needs action, lalu new lead terbaru.
+              </p>
             </div>
 
             <div className="max-h-[calc(100vh-14rem)] overflow-y-auto p-2">
