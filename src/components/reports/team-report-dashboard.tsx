@@ -8,6 +8,8 @@ import {
   CalendarDays,
   ChevronRight,
   ClipboardList,
+  Copy,
+  CheckCircle2,
   Download,
   Search,
   TrendingUp,
@@ -91,6 +93,7 @@ export function TeamReportDashboard({
 }: TeamReportDashboardProps) {
   const router = useRouter()
   const [query, setQuery] = useState('')
+  const [copied, setCopied] = useState(false)
 
   const report = useMemo(() => {
     const byUser: Record<string, { name: string; activities: number; leads: Set<string>; payments: number; statuses: number; interventions: number }> = {}
@@ -228,6 +231,35 @@ export function TeamReportDashboard({
     router.push(`/reports?${params.toString()}`)
   }
 
+  const eodSummaryText = useMemo(() => {
+    if (filteredInterventions.length === 0) {
+      return 'Belum ada handling/intervention log di tanggal ini.'
+    }
+
+    return filteredInterventions
+      .map((item, index) => {
+        const user = item.users?.name || 'Unknown / sistem lama'
+        const lead = item.leads?.full_name || 'Lead tidak ditemukan'
+        const condition = item.lead_condition || '-'
+        const objection = item.objection_category || '-'
+        const solution = item.solution_given || '-'
+        const commercial = item.commercial_type || 'Free'
+        const expert = item.expert_needed || item.expert_type ? ` | Expert: ${item.expert_type || 'Ya'}` : ''
+        const nextFu = item.next_follow_up_date ? ` (${new Date(item.next_follow_up_date).toLocaleDateString('id-ID')})` : ''
+        const nextAction = item.next_action ? `${item.next_action}${nextFu}` : '-'
+        const result = item.result || item.notes || '-'
+
+        return `${index + 1}. ${user} - ${lead}: kondisi ${condition}; objection ${objection}; solusi ${solution}; ${commercial}${expert}; next ${nextAction}; result ${result}.`
+      })
+      .join('\n')
+  }, [filteredInterventions])
+
+  const copyEodSummary = async () => {
+    await navigator.clipboard.writeText(eodSummaryText)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1800)
+  }
+
   const exportCsv = () => {
     const activityRows = filteredActivities.map(activity => ({
       tanggal: new Date(activity.created_at).toLocaleString('id-ID'),
@@ -243,6 +275,9 @@ export function TeamReportDashboard({
       solution: '',
       commercial_type: '',
       next_action: '',
+      next_follow_up_date: '',
+      expert_type: '',
+      service_opportunity: '',
       result: '',
     }))
 
@@ -260,11 +295,14 @@ export function TeamReportDashboard({
       solution: item.solution_given || '',
       commercial_type: item.commercial_type || '',
       next_action: item.next_action || '',
+      next_follow_up_date: item.next_follow_up_date || '',
+      expert_type: item.expert_type || '',
+      service_opportunity: item.service_opportunity || '',
       result: item.result || '',
     }))
 
     const rows = [...interventionRows, ...activityRows]
-    const headers = ['tanggal', 'user', 'activity_type', 'lead', 'whatsapp', 'campaign', 'status', 'lead_condition', 'objection', 'solution', 'commercial_type', 'next_action', 'result', 'description']
+    const headers = ['tanggal', 'user', 'activity_type', 'lead', 'whatsapp', 'campaign', 'status', 'lead_condition', 'objection', 'solution', 'commercial_type', 'expert_type', 'service_opportunity', 'next_action', 'next_follow_up_date', 'result', 'description']
     const escapeCsv = (value: unknown) => `"${String(value ?? '').replace(/"/g, '""')}"`
     const csv = [
       headers.join(','),
@@ -487,6 +525,27 @@ export function TeamReportDashboard({
             </tbody>
           </table>
         </div>
+      </div>
+
+      <div className="rounded-2xl border border-border bg-card p-5 shadow-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+          <div>
+            <h2 className="text-sm font-extrabold uppercase tracking-wide text-foreground">Ringkasan EOD Siap Kirim</h2>
+            <p className="text-xs text-muted-foreground mt-1">Narasi otomatis per CRO, lead, objection, solusi, expert, next action, dan result.</p>
+          </div>
+          <button
+            type="button"
+            onClick={copyEodSummary}
+            disabled={filteredInterventions.length === 0}
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-xs font-bold text-foreground transition-all hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:bg-white/5"
+          >
+            {copied ? <CheckCircle2 size={15} /> : <Copy size={15} />}
+            {copied ? 'Tersalin' : 'Copy Report'}
+          </button>
+        </div>
+        <pre className="max-h-64 overflow-auto whitespace-pre-wrap rounded-xl border border-border bg-slate-50/70 p-4 text-xs leading-relaxed text-foreground dark:bg-white/[0.03]">
+          {eodSummaryText}
+        </pre>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
