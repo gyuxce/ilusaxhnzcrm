@@ -184,6 +184,11 @@ export default function WorkQueuePage() {
       setQueueFilter('new')
       setSelectedLeadId(null)
     }
+    const leadId = searchParams.get('lead')
+    if (leadId) {
+      setQueueFilter('all')
+      setSelectedLeadId(leadId)
+    }
   }, [searchParams])
 
   const queueItems = useMemo(() => {

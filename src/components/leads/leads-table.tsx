@@ -1,20 +1,17 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import {
-  Search, Filter, ExternalLink, MessageCircle,
-  ChevronUp, ChevronDown, Copy, Calendar, RefreshCw,
+  Search, Filter,
+  ChevronUp, ChevronDown,
   ChevronLeft, ChevronRight,
-  Edit, Trash2, CreditCard, Lock, FileUp
+  FileUp
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { Lead } from '@/lib/supabase/types'
-import { WhatsAppModal } from './WhatsAppModal'
 import { CsvUploadModal } from './csv-upload-modal'
-import { createClient } from '@/lib/supabase/client'
 import { NEEDS_ACTION_STATUSES } from '@/lib/funnel-framework'
 
 type LeadWithRelations = Lead & {
@@ -30,91 +27,26 @@ interface LeadsTableProps {
   pics: { id: string; name: string }[]
 }
 
-const renderMilestones = (lead: LeadWithRelations) => {
+const paymentBadgeClass = (status: string) => {
+  if (status === 'verified') return 'border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+  if (status === 'pending') return 'border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-300'
+  return 'border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-800 dark:bg-white/5 dark:text-slate-400'
+}
+
+const renderPaymentSummary = (lead: LeadWithRelations) => {
   const pemetaanPayment = lead.payments?.find(p => p.payment_type === 'pemetaan')
   const seatLockPayment = lead.payments?.find(p => p.payment_type === 'seat_lock')
-
-  // Step 1: Payment Pemetaan
-  let step1: 'success' | 'warning' | 'empty' = 'empty'
-  let step1Text = 'Payment Pemetaan: Belum Bayar'
-  if (pemetaanPayment) {
-    if (pemetaanPayment.verification_status === 'verified') {
-      step1 = 'success'
-      step1Text = 'Payment Pemetaan: Lunas & Terverifikasi'
-    } else if (pemetaanPayment.verification_status === 'pending') {
-      step1 = 'warning'
-      step1Text = 'Payment Pemetaan: Menunggu Verifikasi'
-    } else {
-      step1 = 'empty'
-      step1Text = 'Payment Pemetaan: Ditolak'
-    }
-  }
-
-  // Step 2: Seat Lock Payment
-  let step4: 'success' | 'warning' | 'empty' = 'empty'
-  let step4Text = 'Seat Lock: Belum Bayar'
-  if (seatLockPayment) {
-    if (seatLockPayment.verification_status === 'verified') {
-      step4 = 'success'
-      step4Text = 'Seat Lock: Lunas (Verified)'
-    } else if (seatLockPayment.verification_status === 'pending') {
-      step4 = 'warning'
-      step4Text = 'Seat Lock: Menunggu Verifikasi'
-    }
-  }
-
-  const steps = [
-    { id: 1, label: 'Payment', icon: CreditCard, status: step1, tooltip: step1Text, colorClass: 'emerald' },
-    { id: 2, label: 'Seat Lock', icon: Lock, status: step4, tooltip: step4Text, colorClass: 'red' }
-  ]
+  const pemetaanStatus = pemetaanPayment?.verification_status || 'not_paid'
+  const seatLockStatus = seatLockPayment?.verification_status || 'not_paid'
 
   return (
-    <div className="flex items-center gap-1.5 py-1">
-      {steps.map((step, idx) => {
-        const IconComponent = step.icon
-        return (
-          <div key={step.id} className="flex items-center">
-            <div
-              className={cn(
-                "w-6 h-6 rounded-full flex items-center justify-center border transition-all duration-300 relative group/step cursor-help select-none",
-                // Emerald
-                step.colorClass === 'emerald' && step.status === 'success' && "bg-emerald-500 border-emerald-600 text-white shadow-xs",
-                step.colorClass === 'emerald' && step.status === 'warning' && "bg-emerald-500/10 border-emerald-500 border-dashed text-emerald-600 dark:text-emerald-400",
-                step.colorClass === 'emerald' && step.status === 'empty' && "bg-emerald-500/5 border-emerald-500/40 dark:border-emerald-500/25 text-emerald-500/80 dark:text-emerald-400/60",
-                
-                // Blue
-                step.colorClass === 'blue' && step.status === 'success' && "bg-blue-500 border-blue-600 text-white shadow-xs",
-                step.colorClass === 'blue' && step.status === 'warning' && "bg-blue-500/10 border-blue-500 border-dashed text-blue-600 dark:text-blue-400",
-                step.colorClass === 'blue' && step.status === 'empty' && "bg-blue-500/5 border-blue-500/40 dark:border-blue-500/25 text-blue-500/80 dark:text-blue-400/60",
-                
-                // Purple
-                step.colorClass === 'purple' && step.status === 'success' && "bg-purple-500 border-purple-600 text-white shadow-xs",
-                step.colorClass === 'purple' && step.status === 'warning' && "bg-purple-500/10 border-purple-500 border-dashed text-purple-600 dark:text-purple-400",
-                step.colorClass === 'purple' && step.status === 'empty' && "bg-purple-500/5 border-purple-500/40 dark:border-purple-500/25 text-purple-500/80 dark:text-purple-400/60",
-                
-                // Red
-                step.colorClass === 'red' && step.status === 'success' && "bg-red-500 border-red-600 text-white shadow-xs",
-                step.colorClass === 'red' && step.status === 'warning' && "bg-red-500/10 border-red-500 border-dashed text-red-600 dark:text-red-400",
-                step.colorClass === 'red' && step.status === 'empty' && "bg-red-500/5 border-red-500/40 dark:border-red-500/25 text-red-500/80 dark:text-red-400/60"
-              )}
-            >
-              <IconComponent size={11} />
-              {/* Custom Tooltip on hover */}
-              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover/step:block z-50 bg-slate-950 border border-white/10 text-white text-[10px] px-2.5 py-1.5 rounded-lg whitespace-nowrap shadow-2xl pointer-events-none">
-                {step.tooltip}
-              </div>
-            </div>
-            {idx < steps.length - 1 && (
-              <div
-                className={cn(
-                  "w-3 h-0.5 transition-all duration-300",
-                  steps[idx + 1].status !== 'empty' ? "bg-slate-400 dark:bg-slate-600" : "bg-slate-200 dark:bg-slate-800"
-                )}
-              />
-            )}
-          </div>
-        )
-      })}
+    <div className="flex flex-col gap-1">
+      <span className={cn('w-fit rounded-full border px-2 py-0.5 text-[10px] font-bold', paymentBadgeClass(pemetaanStatus))}>
+        Pemetaan: {pemetaanStatus === 'not_paid' ? 'Belum' : pemetaanStatus}
+      </span>
+      <span className={cn('w-fit rounded-full border px-2 py-0.5 text-[10px] font-bold', paymentBadgeClass(seatLockStatus))}>
+        Seat Lock: {seatLockStatus === 'not_paid' ? 'Belum' : seatLockStatus}
+      </span>
     </div>
   )
 }
@@ -149,38 +81,6 @@ function lastTouchLabel(lead: LeadWithRelations) {
 
 
 export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
-  const router = useRouter()
-  const [deletingId, setDeletingId] = useState<string | null>(null)
-  const [deleteModalOpen, setDeleteModalOpen] = useState(false)
-  const [leadToDelete, setLeadToDelete] = useState<{ id: string; name: string } | null>(null)
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
-
-  const promptDelete = (id: string, name: string) => {
-    setLeadToDelete({ id, name })
-    setDeleteModalOpen(true)
-  }
-
-  const confirmDelete = async () => {
-    if (!leadToDelete) return
-    
-    setDeletingId(leadToDelete.id)
-    const supabase = createClient()
-    const { error } = await supabase.from('leads').delete().eq('id', leadToDelete.id)
-    setDeletingId(null)
-    setDeleteModalOpen(false)
-    setLeadToDelete(null)
-
-    if (error) {
-      alert('Gagal menghapus lead: ' + error.message)
-    } else {
-      router.refresh()
-    }
-  }
-
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState('all')
   const [filterPic, setFilterPic] = useState('all')
@@ -194,9 +94,7 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
   const [sortField, setSortField] = useState<'full_name' | 'lead_entry_date' | 'current_status'>('lead_entry_date')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
   const [showFilters, setShowFilters] = useState(false)
-  const [waModalOpen, setWaModalOpen] = useState(false)
   const [csvModalOpen, setCsvModalOpen] = useState(false)
-  const [activeLead, setActiveLead] = useState<any>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const pageSize = 25
 
@@ -534,7 +432,7 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
                   { label: 'Next Action', field: null },
                   { label: 'Last Update', field: null },
                   { label: 'Payment', field: null },
-                  { label: 'Aksi', field: null }
+                  { label: 'Database Action', field: null }
                 ].map(col => (
                   <th
                     key={col.label}
@@ -640,44 +538,33 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
 
                       {/* Payment Status */}
                       <td className="px-4 py-3 whitespace-nowrap">
-                        {renderMilestones(lead)}
+                        {renderPaymentSummary(lead)}
                       </td>
 
                       {/* Action buttons */}
                       <td className="px-4 py-3 whitespace-nowrap">
-                        <div className="flex items-center gap-1.5 opacity-70 group-hover:opacity-100 transition-opacity">
-                          <button
-                            onClick={() => {
-                              setActiveLead(lead)
-                              setWaModalOpen(true)
-                            }}
-                            className="p-1 rounded-lg text-emerald-500 hover:bg-emerald-500/10 transition-colors"
-                            title="Kirim Pesan WhatsApp"
-                          >
-                            <MessageCircle size={14} />
-                          </button>
+                        <div className="flex items-center gap-2">
                           <Link
                             href={`/leads/${lead.id}`}
-                            className="p-1 rounded-lg text-purple-600 hover:bg-purple-500/10 transition-colors"
+                            className="rounded-lg border border-border bg-card px-2.5 py-1.5 text-[10px] font-bold text-foreground transition-colors hover:bg-slate-50 dark:hover:bg-white/5"
                             title="Lihat Detail"
                           >
-                            <ExternalLink size={14} />
+                            Detail
                           </Link>
                           <Link
                             href={`/leads/${lead.id}/edit`}
-                            className="p-1 rounded-lg text-blue-500 hover:bg-blue-500/10 transition-colors"
-                            title="Edit Lead"
+                            className="rounded-lg border border-border bg-card px-2.5 py-1.5 text-[10px] font-bold text-blue-600 transition-colors hover:bg-blue-500/10 dark:text-blue-300"
+                            title="Edit data master"
                           >
-                            <Edit size={14} />
+                            Edit
                           </Link>
-                          <button
-                            onClick={() => promptDelete(lead.id, lead.full_name)}
-                            disabled={deletingId === lead.id}
-                            className="p-1 rounded-lg text-red-500 hover:bg-red-500/10 transition-colors disabled:opacity-50"
-                            title="Hapus Lead"
+                          <Link
+                            href={`/work-queue?lead=${lead.id}`}
+                            className="rounded-lg border border-primary/20 bg-primary/10 px-2.5 py-1.5 text-[10px] font-bold text-primary transition-colors hover:bg-primary/15"
+                            title="Kerjakan di Work Queue"
                           >
-                            <Trash2 size={14} />
-                          </button>
+                            Work Queue
+                          </Link>
                         </div>
                       </td>
                     </tr>
@@ -716,63 +603,6 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
           </div>
         )}
       </div>
-
-      {activeLead && (
-        <WhatsAppModal
-          isOpen={waModalOpen}
-          onClose={() => {
-            setWaModalOpen(false)
-            setActiveLead(null)
-          }}
-          leadName={activeLead.full_name}
-          leadPhone={activeLead.whatsapp_number}
-          leadId={activeLead.id}
-        />
-      )}
-
-      {/* Custom Delete Confirmation Modal (Rendered at Body level to bypass transformed containers) */}
-      {mounted && deleteModalOpen && leadToDelete && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 backdrop-blur-xs animate-scale-in">
-          <div
-            className="relative w-full max-w-sm rounded-2xl p-6 bg-card border border-border shadow-2xl space-y-4"
-          >
-            <div className="flex items-center gap-3 text-red-500">
-              <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center border border-red-500/20">
-                <Trash2 size={20} />
-              </div>
-              <div>
-                <h3 className="text-sm font-bold text-foreground uppercase tracking-wider">Hapus Lead</h3>
-                <p className="text-[10px] text-muted-foreground">Tindakan ini tidak bisa dibatalkan</p>
-              </div>
-            </div>
-
-            <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
-              Apakah Anda yakin ingin menghapus data lead <span className="font-bold text-foreground">"{leadToDelete.name}"</span>? Semua data pembayaran, pemetaan, dan konsultasi expert yang berkaitan akan terhapus permanen dari sistem.
-            </p>
-
-            <div className="flex items-center justify-end gap-3 pt-2">
-              <button
-                onClick={() => {
-                  setDeleteModalOpen(false)
-                  setLeadToDelete(null)
-                }}
-                disabled={deletingId !== null}
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-slate-100 dark:hover:bg-white/5 transition-all cursor-pointer disabled:opacity-50"
-              >
-                Batal
-              </button>
-              <button
-                onClick={confirmDelete}
-                disabled={deletingId !== null}
-                className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-red-500 hover:bg-red-600 transition-all cursor-pointer disabled:opacity-50 flex items-center gap-1.5 shadow-lg shadow-red-500/10 border border-red-500/20"
-              >
-                {deletingId !== null ? 'Menghapus...' : 'Ya, Hapus'}
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
 
       {csvModalOpen && createPortal(
         <CsvUploadModal
