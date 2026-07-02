@@ -98,6 +98,7 @@ export function TeamReportDashboard({
   const [loadingReport, setLoadingReport] = useState(false)
   const [query, setQuery] = useState('')
   const [copied, setCopied] = useState(false)
+  const [showAllEod, setShowAllEod] = useState(false)
 
   const dateRange = useMemo(() => {
     const start = new Date(`${selectedDate}T00:00:00+07:00`)
@@ -321,12 +322,72 @@ export function TeamReportDashboard({
     router.push(`/reports?${params.toString()}`)
   }
 
+  const eodInsights = useMemo(() => {
+    const objectionCounts = filteredInterventions.reduce<Record<string, number>>((counts, item) => {
+      const objection = item.objection_category || 'Belum dikategorikan'
+      counts[objection] = (counts[objection] || 0) + 1
+      return counts
+    }, {})
+
+    const topObjections = Object.entries(objectionCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+
+    const isPotentialPaid = (item: InterventionRow) =>
+      (item.commercial_type || '').toLowerCase().includes('paid')
+
+    const priorityItems = [...filteredInterventions]
+      .map(item => ({
+        item,
+        score:
+          (item.expert_needed || item.expert_type ? 4 : 0) +
+          (isPotentialPaid(item) ? 3 : 0) +
+          (item.next_follow_up_date ? 2 : 0) +
+          (!item.result ? 1 : 0),
+      }))
+      .filter(entry => entry.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .map(entry => entry.item)
+
+    const byCro = filteredInterventions.reduce<Record<string, number>>((counts, item) => {
+      const cro = item.users?.name || 'Unknown / sistem lama'
+      counts[cro] = (counts[cro] || 0) + 1
+      return counts
+    }, {})
+
+    return {
+      totalHandling: filteredInterventions.length,
+      expertNeeded: filteredInterventions.filter(item => item.expert_needed || item.expert_type).length,
+      potentialPaid: filteredInterventions.filter(isPotentialPaid).length,
+      scheduledFollowUps: filteredInterventions.filter(item => item.next_follow_up_date).length,
+      topObjections,
+      priorityItems,
+      byCro: Object.entries(byCro).sort((a, b) => b[1] - a[1]),
+    }
+  }, [filteredInterventions])
+
+  const visibleEodItems = showAllEod
+    ? filteredInterventions
+    : eodInsights.priorityItems.slice(0, 8)
+
   const eodSummaryText = useMemo(() => {
     if (filteredInterventions.length === 0) {
       return 'Belum ada handling/intervention log di tanggal ini.'
     }
 
-    return filteredInterventions
+    const dateLabel = new Date(`${selectedDate}T00:00:00+07:00`).toLocaleDateString('id-ID', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    })
+    const objectionSummary = eodInsights.topObjections.length
+      ? eodInsights.topObjections.map(([name, count]) => `${name} (${count})`).join(', ')
+      : '-'
+    const croSummary = eodInsights.byCro.map(([name, count]) => `${name} (${count})`).join(', ')
+    const priorityItems = eodInsights.priorityItems.slice(0, 8)
+    const priorityText = priorityItems.length === 0
+      ? 'Tidak ada kasus prioritas.'
+      : priorityItems
       .map((item, index) => {
         const user = item.users?.name || 'Unknown / sistem lama'
         const lead = item.leads?.full_name || 'Lead tidak ditemukan'
@@ -351,7 +412,23 @@ export function TeamReportDashboard({
         ].join('\n')
       })
       .join('\n\n')
-  }, [filteredInterventions])
+
+    return [
+      `EOD REPORT - ${dateLabel}`,
+      '',
+      `Total handling: ${eodInsights.totalHandling} lead`,
+      `CRO aktif: ${croSummary || '-'}`,
+      `Objection terbanyak: ${objectionSummary}`,
+      `Butuh expert: ${eodInsights.expertNeeded}`,
+      `Potential paid: ${eodInsights.potentialPaid}`,
+      `Follow-up dijadwalkan: ${eodInsights.scheduledFollowUps}`,
+      '',
+      `KASUS PRIORITAS (${priorityItems.length})`,
+      priorityText,
+      '',
+      `Detail lengkap: Export CSV dari Team Report (${eodInsights.totalHandling} handling).`,
+    ].join('\n')
+  }, [filteredInterventions, eodInsights, selectedDate])
 
   const copyEodSummary = async () => {
     await navigator.clipboard.writeText(eodSummaryText)
@@ -635,7 +712,7 @@ export function TeamReportDashboard({
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
           <div>
             <h2 className="text-sm font-extrabold uppercase tracking-wide text-foreground">Ringkasan EOD Siap Kirim</h2>
-            <p className="text-xs text-muted-foreground mt-1">Narasi otomatis per CRO, lead, objection, solusi, expert, next action, dan result.</p>
+            <p className="text-xs text-muted-foreground mt-1">Ringkasan manajemen dan kasus prioritas. Detail lengkap tersedia melalui Export CSV.</p>
           </div>
           <button
             type="button"
@@ -652,8 +729,83 @@ export function TeamReportDashboard({
             Belum ada handling/intervention log di tanggal ini.
           </div>
         ) : (
-          <div className="grid max-h-[34rem] grid-cols-1 gap-3 overflow-auto pr-1 lg:grid-cols-2">
-            {filteredInterventions.map((item, index) => {
+          <div className="space-y-5">
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+              <div className="rounded-xl border border-border bg-slate-50/70 p-3 dark:bg-white/[0.03]">
+                <p className="text-[10px] font-extrabold uppercase text-muted-foreground">Total Handling</p>
+                <p className="mt-1 text-xl font-black text-foreground">{eodInsights.totalHandling}</p>
+              </div>
+              <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-3 dark:border-amber-500/20 dark:bg-amber-500/[0.06]">
+                <p className="text-[10px] font-extrabold uppercase text-amber-700 dark:text-amber-300">Butuh Expert</p>
+                <p className="mt-1 text-xl font-black text-foreground">{eodInsights.expertNeeded}</p>
+              </div>
+              <div className="rounded-xl border border-blue-200 bg-blue-50/70 p-3 dark:border-blue-500/20 dark:bg-blue-500/[0.06]">
+                <p className="text-[10px] font-extrabold uppercase text-blue-700 dark:text-blue-300">Potential Paid</p>
+                <p className="mt-1 text-xl font-black text-foreground">{eodInsights.potentialPaid}</p>
+              </div>
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-3 dark:border-emerald-500/20 dark:bg-emerald-500/[0.06]">
+                <p className="text-[10px] font-extrabold uppercase text-emerald-700 dark:text-emerald-300">FU Terjadwal</p>
+                <p className="mt-1 text-xl font-black text-foreground">{eodInsights.scheduledFollowUps}</p>
+              </div>
+            </div>
+
+            <div className="grid gap-3 lg:grid-cols-2">
+              <div className="rounded-xl border border-border p-4">
+                <p className="mb-3 text-[10px] font-extrabold uppercase text-muted-foreground">Objection Terbanyak</p>
+                <div className="space-y-2">
+                  {eodInsights.topObjections.map(([name, count], index) => (
+                    <div key={name} className="flex items-center justify-between gap-3 text-xs">
+                      <span className="min-w-0 truncate text-foreground">{index + 1}. {name}</span>
+                      <span className="rounded-full bg-muted px-2 py-0.5 font-extrabold text-foreground">{count}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="rounded-xl border border-border p-4">
+                <p className="mb-3 text-[10px] font-extrabold uppercase text-muted-foreground">Handling per CRO</p>
+                <div className="space-y-2">
+                  {eodInsights.byCro.map(([name, count]) => (
+                    <div key={name} className="flex items-center justify-between gap-3 text-xs">
+                      <span className="min-w-0 truncate text-foreground">{name}</span>
+                      <span className="rounded-full bg-muted px-2 py-0.5 font-extrabold text-foreground">{count}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h3 className="text-xs font-extrabold uppercase text-foreground">Kasus Prioritas</h3>
+                <p className="mt-0.5 text-[10px] text-muted-foreground">Expert, potential paid, follow-up terjadwal, atau belum memiliki hasil.</p>
+              </div>
+              {filteredInterventions.length > visibleEodItems.length && (
+                <button
+                  type="button"
+                  onClick={() => setShowAllEod(true)}
+                  className="shrink-0 text-xs font-bold text-primary hover:underline"
+                >
+                  Tampilkan semua ({filteredInterventions.length})
+                </button>
+              )}
+              {showAllEod && filteredInterventions.length > 8 && (
+                <button
+                  type="button"
+                  onClick={() => setShowAllEod(false)}
+                  className="shrink-0 text-xs font-bold text-primary hover:underline"
+                >
+                  Ringkas kembali
+                </button>
+              )}
+            </div>
+
+            {visibleEodItems.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-border px-4 py-6 text-center text-xs text-muted-foreground">
+                Tidak ada kasus prioritas. Gunakan Export CSV untuk melihat seluruh handling.
+              </div>
+            ) : (
+              <div className="grid max-h-[34rem] grid-cols-1 gap-3 overflow-auto pr-1 lg:grid-cols-2">
+            {visibleEodItems.map((item, index) => {
               const nextFu = item.next_follow_up_date
                 ? new Date(item.next_follow_up_date).toLocaleDateString('id-ID')
                 : null
@@ -691,6 +843,8 @@ export function TeamReportDashboard({
                 </article>
               )
             })}
+              </div>
+            )}
           </div>
         )}
       </div>
