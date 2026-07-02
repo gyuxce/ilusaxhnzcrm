@@ -379,7 +379,7 @@ export default function WorkQueuePage() {
   return (
     <>
       <Header title="Work Queue" subtitle="Meja kerja utama CRO: hubungi lead, catat handling, tentukan next action, lalu simpan agar report otomatis terisi." />
-      <div className="mx-auto max-w-7xl p-6 animate-fade-in">
+      <div className="w-full p-6 animate-fade-in">
         <div className="mb-4 rounded-2xl border border-emerald-500/15 bg-emerald-500/5 px-5 py-4">
           <p className="text-sm font-extrabold text-foreground">Work Queue = tempat kerja harian CRO</p>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">

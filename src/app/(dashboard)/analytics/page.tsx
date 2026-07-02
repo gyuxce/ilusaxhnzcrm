@@ -27,7 +27,7 @@ export default async function AnalyticsPage() {
   return (
     <>
       <Header title="Analytics" subtitle="Insight performa tim CRO Harunokaze" />
-      <div className="p-6 animate-fade-in max-w-7xl mx-auto">
+      <div className="w-full p-6 animate-fade-in">
         <AnalyticsDashboard
           allLeads={allLeads}
           payments={payments}

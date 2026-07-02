@@ -147,7 +147,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
   return (
     <>
       <Header title="Team Report" subtitle="Laporan aktivitas harian otomatis dari update CRM tim CRO." />
-      <div className="p-6 animate-fade-in max-w-7xl mx-auto">
+      <div className="w-full p-6 animate-fade-in">
         <TeamReportDashboard
           activities={mergedActivities as any[]}
           interventions={(interventionsRes.data || []) as any[]}

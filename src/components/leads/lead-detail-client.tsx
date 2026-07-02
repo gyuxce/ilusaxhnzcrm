@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import {
   MessageCircle, Clock, Calendar, CheckCircle2,
@@ -649,7 +650,7 @@ export function LeadDetailClient({
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
+    <div className="w-full p-6 space-y-6">
       
       {/* Top Banner: Name & Quick WA Link */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 p-6 glass-card rounded-2xl border border-border relative overflow-hidden">
@@ -668,53 +669,21 @@ export function LeadDetailClient({
           </div>
         </div>
         <div className="flex gap-2">
-          <button
-            onClick={() => setIsWaOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-all cursor-pointer shadow-sm"
+          <Link
+            href={`/work-queue?lead=${lead.id}`}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white bg-primary hover:opacity-90 transition-all cursor-pointer shadow-sm"
           >
-            <MessageCircle size={14} />
-            Hubungi via WA
-          </button>
-          <button
-            onClick={() => {
-              setCoreError('')
-              setIsEditingCore(true)
-            }}
+            <ArrowRight size={14} />
+            Kerjakan di Work Queue
+          </Link>
+          <Link
+            href={`/leads/${lead.id}/edit`}
             className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-slate-700 dark:text-white/70 bg-slate-100 dark:bg-white/5 border border-border hover:bg-slate-200/50 dark:hover:bg-white/10 transition-all cursor-pointer"
           >
             <Edit size={14} />
-            Edit Profile
-          </button>
+            Edit Data
+          </Link>
         </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="flex gap-1 p-1 rounded-xl bg-slate-100 dark:bg-slate-900 border border-border w-fit">
-        {[
-          { id: 'overview', label: 'Overview & Timeline', icon: Activity },
-          { id: 'payments', label: 'Payments', icon: DollarSign },
-          { id: 'pemetaan', label: 'Pemetaan', icon: FileText, disabled: true },
-          { id: 'expert', label: 'Expert Consultation', icon: UserCheck, disabled: true }
-        ].map(tab => {
-          const Icon = tab.icon
-          const active = activeTab === tab.id
-          return (
-            <button
-              key={tab.id}
-              onClick={() => !tab.disabled && setActiveTab(tab.id as any)}
-              disabled={tab.disabled}
-              className={cn(
-                "flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-bold transition-all cursor-pointer",
-                active ? "bg-purple-500 text-white shadow-lg glow-purple" : "text-slate-600 dark:text-white/50 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/50 dark:hover:bg-white/5",
-                tab.disabled && "cursor-not-allowed opacity-50 hover:bg-transparent"
-              )}
-            >
-              <Icon size={13} />
-              {tab.label}
-              {tab.disabled && <span className="text-[9px] font-black uppercase text-muted-foreground">Soon</span>}
-            </button>
-          )
-        })}
       </div>
 
       {/* Tab Contents */}
@@ -724,7 +693,7 @@ export function LeadDetailClient({
         <div className="lg:col-span-2 space-y-6">
           
           {/* Tab 1: Overview */}
-          {activeTab === 'overview' && (
+          {true && (
             <div className="glass-card rounded-2xl p-6 border border-border space-y-6">
               <h3 className="text-foreground font-bold text-sm uppercase tracking-wider flex items-center gap-2">
                 <FileText size={16} className="text-purple-650 dark:text-purple-400" />
@@ -1080,32 +1049,17 @@ export function LeadDetailClient({
               </div>
             ) : (
               <div className="rounded-xl border border-dashed border-amber-300/70 bg-card/60 p-3 text-xs leading-relaxed text-muted-foreground dark:border-amber-500/25">
-                Lead ini belum punya handling log. Setelah CRO menghubungi lead, klik <strong className="text-foreground">Tambah Log</strong> agar masuk Team Report dan Reason Penolakan.
+                Lead ini belum punya handling log. Kerjakan lead ini dari Work Queue agar data masuk ke Team Report dan Reason Penolakan.
               </div>
             )}
 
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              <button
-                type="button"
-                onClick={() => setShowInterventionForm(true)}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-orange-500 px-3 py-2 text-xs font-bold text-white hover:opacity-90 transition-all"
-              >
-                <Plus size={13} />
-                Tambah Log
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (latestIntervention?.next_follow_up_date) setNewFuDate(latestIntervention.next_follow_up_date)
-                  setNewFuNotes(recommendedAction.body)
-                  setShowAddFu(true)
-                }}
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-xs font-bold text-foreground hover:bg-muted transition-all"
-              >
-                <Calendar size={13} />
-                Jadwalkan FU
-              </button>
-            </div>
+            <Link
+              href={`/work-queue?lead=${lead.id}`}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-3 py-2.5 text-xs font-bold text-primary-foreground hover:opacity-90 transition-all"
+            >
+              <ArrowRight size={13} />
+              Buka di Work Queue
+            </Link>
           </div>
 
           {/* Objection & Intervention Log */}
@@ -1115,12 +1069,12 @@ export function LeadDetailClient({
                 <AlertCircle size={14} className="text-orange-500" />
                 Objection & Intervention ({interventions.length})
               </h3>
-              <button
-                onClick={() => setShowInterventionForm(!showInterventionForm)}
-                className="px-2.5 py-1.5 rounded-lg text-[10px] font-bold text-white bg-orange-500 hover:opacity-90 transition-all cursor-pointer"
+              <Link
+                href={`/work-queue?lead=${lead.id}`}
+                className="px-2.5 py-1.5 rounded-lg text-[10px] font-bold text-primary bg-primary/10 hover:bg-primary/15 transition-all"
               >
-                {showInterventionForm ? 'Batal' : 'Tambah Log'}
-              </button>
+                Work Queue
+              </Link>
             </div>
 
             {interventionMessage.text && (
@@ -1315,12 +1269,12 @@ export function LeadDetailClient({
                 <Calendar size={14} className="text-purple-650 dark:text-purple-400" />
                 Jadwal Follow-Up ({followUps.filter(f => !f.is_done).length})
               </h3>
-              <button
-                onClick={() => setShowAddFu(!showAddFu)}
-                className="px-2.5 py-1.5 rounded-lg text-[10px] font-bold text-white bg-purple-500 hover:opacity-90 transition-all cursor-pointer"
+              <Link
+                href={`/work-queue?lead=${lead.id}`}
+                className="px-2.5 py-1.5 rounded-lg text-[10px] font-bold text-primary bg-primary/10 hover:bg-primary/15 transition-all"
               >
-                {showAddFu ? 'Batal' : 'Jadwalkan'}
-              </button>
+                Work Queue
+              </Link>
             </div>
 
             {fuMessage.text && (

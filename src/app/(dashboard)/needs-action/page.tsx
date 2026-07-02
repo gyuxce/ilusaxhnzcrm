@@ -289,7 +289,7 @@ export default function NeedsActionPage() {
   return (
     <>
       <Header title="Needs Action" subtitle="Daftar leads yang membutuhkan tindakan follow-up segera berdasarkan status pipeline." />
-      <div className="p-6 max-w-7xl mx-auto space-y-6 animate-fade-in">
+      <div className="w-full p-6 space-y-6 animate-fade-in">
         
         {/* Actions Bar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">

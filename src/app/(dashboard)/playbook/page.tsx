@@ -160,7 +160,7 @@ export default async function PlaybookPage() {
         subtitle="Insight objection, solusi, expert need, dan peluang monetisasi dari handling CRO."
       />
 
-      <div className="mx-auto max-w-7xl space-y-6 p-6 animate-fade-in">
+      <div className="w-full space-y-6 p-6 animate-fade-in">
         {error && (
           <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300">
             Gagal memuat objection analytics: {error.message}

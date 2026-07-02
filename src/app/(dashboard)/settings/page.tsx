@@ -267,7 +267,7 @@ export default function SettingsPage() {
     <>
       <Header title="Pengaturan" subtitle="Kelola data profil dan preferensi CRM" />
       
-      <div className="p-6 max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-4 gap-6 animate-fade-in">
+      <div className="w-full p-6 grid grid-cols-1 lg:grid-cols-4 gap-6 animate-fade-in">
         
         {/* Left Side: Navigation Sidebar */}
         <div className="lg:col-span-1 space-y-2">

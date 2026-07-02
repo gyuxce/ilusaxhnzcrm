@@ -488,7 +488,7 @@ export default function DashboardPage() {
     <>
       <Header title="Dashboard" subtitle={`Monitor progres leads dan pencapaian target CRO`} />
       
-      <div className="p-6 space-y-6 max-w-7xl mx-auto animate-fade-in">
+      <div className="w-full p-6 space-y-6 animate-fade-in">
         
         {/* Top Section: Revenue & Campaign Snapshot */}
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
