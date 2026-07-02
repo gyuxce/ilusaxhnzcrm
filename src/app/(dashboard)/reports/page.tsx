@@ -72,9 +72,39 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
     createdLeadsQuery = createdLeadsQuery.or(`created_by.eq.${selectedUser},assigned_cro_id.eq.${selectedUser}`)
   }
 
-  const [activitiesRes, createdLeadsRes, usersRes] = await Promise.all([
+  let interventionsQuery = supabase
+    .from('lead_interventions')
+    .select(`
+      id,
+      lead_id,
+      created_by,
+      lead_condition,
+      objection_category,
+      solution_given,
+      expert_needed,
+      expert_type,
+      commercial_type,
+      service_opportunity,
+      next_action,
+      next_follow_up_date,
+      result,
+      notes,
+      created_at,
+      users:created_by(id, name),
+      leads:lead_id(id, full_name, whatsapp_number, source_campaign, current_status)
+    `)
+    .gte('created_at', `${selectedDate}T00:00:00+07:00`)
+    .lt('created_at', `${nextDateInput(selectedDate)}T00:00:00+07:00`)
+    .order('created_at', { ascending: false })
+
+  if (selectedUser) {
+    interventionsQuery = interventionsQuery.eq('created_by', selectedUser)
+  }
+
+  const [activitiesRes, createdLeadsRes, interventionsRes, usersRes] = await Promise.all([
     activitiesQuery,
     createdLeadsQuery,
+    interventionsQuery,
     supabase
       .from('users')
       .select('id, name')
@@ -120,6 +150,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
       <div className="p-6 animate-fade-in max-w-7xl mx-auto">
         <TeamReportDashboard
           activities={mergedActivities as any[]}
+          interventions={(interventionsRes.data || []) as any[]}
           users={(usersRes.data || []) as any[]}
           selectedDate={selectedDate}
           selectedUser={selectedUser}

@@ -11,11 +11,16 @@ import { WhatsAppModal } from './WhatsAppModal'
 import { cn } from '@/lib/utils'
 import { LOST_REASON_OPTIONS, LOST_STATUSES } from '@/lib/lost-reasons'
 import {
+  COMMERCIAL_TYPE_OPTIONS,
   ENTRY_CHANNEL_OPTIONS,
+  EXPERT_TYPE_OPTIONS,
   FUNNEL_STATUS_OPTIONS,
+  LEAD_CONDITION_OPTIONS,
   LEAD_QUALITY_OPTIONS,
   LEAD_SEGMENT_OPTIONS,
   NEXT_ACTION_OPTIONS,
+  OBJECTION_CATEGORY_OPTIONS,
+  SOLUTION_OPTIONS,
 } from '@/lib/funnel-framework'
 
 interface LeadDetailClientProps {
@@ -25,6 +30,7 @@ interface LeadDetailClientProps {
   initialExpertConsultations: any[]
   initialActivities: any[]
   initialFollowUps?: any[]
+  initialInterventions?: any[]
   pics: any[]
 }
 
@@ -35,6 +41,7 @@ export function LeadDetailClient({
   initialExpertConsultations,
   initialActivities,
   initialFollowUps,
+  initialInterventions,
   pics
 }: LeadDetailClientProps) {
   const [lead, setLead] = useState(initialLead)
@@ -43,10 +50,27 @@ export function LeadDetailClient({
   const [expert, setExpert] = useState(initialExpertConsultations[0] || null)
   const [activities, setActivities] = useState(initialActivities)
   const [followUps, setFollowUps] = useState<any[]>(initialFollowUps || [])
+  const [interventions, setInterventions] = useState<any[]>(initialInterventions || [])
   const [activeTab, setActiveTab] = useState<'overview' | 'payments' | 'pemetaan' | 'expert'>('overview')
   const [deletingPaymentId, setDeletingPaymentId] = useState<string | null>(null)
   const [paymentMessage, setPaymentMessage] = useState<{ text: string; type: 'success' | 'error' | '' }>({ text: '', type: '' })
   const [fuMessage, setFuMessage] = useState<{ text: string; type: 'success' | 'error' | '' }>({ text: '', type: '' })
+  const [interventionMessage, setInterventionMessage] = useState<{ text: string; type: 'success' | 'error' | '' }>({ text: '', type: '' })
+  const [showInterventionForm, setShowInterventionForm] = useState(false)
+  const [savingIntervention, setSavingIntervention] = useState(false)
+  const [interventionForm, setInterventionForm] = useState({
+    lead_condition: lead.current_status || '',
+    objection_category: lead.lead_segment || '',
+    solution_given: '',
+    expert_needed: false,
+    expert_type: '',
+    commercial_type: 'Free',
+    service_opportunity: '',
+    next_action: lead.next_action || '',
+    next_follow_up_date: lead.next_follow_up_date || '',
+    result: '',
+    notes: '',
+  })
 
   // Follow-Up Form States
   const [showAddFu, setShowAddFu] = useState(false)
@@ -97,6 +121,10 @@ export function LeadDetailClient({
   const [consultNext, setConsultNext] = useState(expert?.next_step || '')
 
   const supabase = createClient()
+
+  const updateIntervention = (field: string, value: string | boolean) => {
+    setInterventionForm(prev => ({ ...prev, [field]: value }))
+  }
 
   const normalizePhone = (value: string) => {
     let cleanPhone = value.replace(/\D/g, '')
@@ -236,6 +264,86 @@ export function LeadDetailClient({
       updated_at: new Date().toISOString(),
       updated_by: actorId
     }).eq('id', lead.id)
+  }
+
+  const handleAddIntervention = async () => {
+    setInterventionMessage({ text: '', type: '' })
+
+    if (!interventionForm.lead_condition || !interventionForm.objection_category || !interventionForm.solution_given) {
+      setInterventionMessage({ text: 'Kondisi lead, objection, dan solusi wajib diisi.', type: 'error' })
+      return
+    }
+
+    setSavingIntervention(true)
+    const { data: authData } = await supabase.auth.getUser()
+    const actorId = authData.user?.id || null
+
+    const payload = {
+      lead_id: lead.id,
+      created_by: actorId,
+      lead_condition: interventionForm.lead_condition,
+      objection_category: interventionForm.objection_category,
+      solution_given: interventionForm.solution_given,
+      expert_needed: interventionForm.expert_needed,
+      expert_type: interventionForm.expert_needed ? interventionForm.expert_type || null : null,
+      commercial_type: interventionForm.commercial_type,
+      service_opportunity: interventionForm.service_opportunity || null,
+      next_action: interventionForm.next_action || null,
+      next_follow_up_date: interventionForm.next_follow_up_date || null,
+      result: interventionForm.result || null,
+      notes: interventionForm.notes || null,
+    }
+
+    const { data, error } = await supabase
+      .from('lead_interventions')
+      .insert(payload)
+      .select('*, users:created_by(id, name)')
+
+    setSavingIntervention(false)
+
+    if (error) {
+      setInterventionMessage({ text: 'Gagal menyimpan intervention log: ' + error.message, type: 'error' })
+      return
+    }
+
+    if (data?.[0]) {
+      setInterventions(prev => [data[0], ...prev])
+      setInterventionMessage({ text: 'Intervention log berhasil disimpan.', type: 'success' })
+      setTimeout(() => setInterventionMessage({ text: '', type: '' }), 4500)
+      setShowInterventionForm(false)
+
+      const leadUpdates = {
+        lead_segment: interventionForm.objection_category || lead.lead_segment || null,
+        next_action: interventionForm.next_action || lead.next_action || null,
+        next_follow_up_date: interventionForm.next_follow_up_date || lead.next_follow_up_date || null,
+        funnel_notes: interventionForm.notes || lead.funnel_notes || null,
+        updated_by: actorId,
+        updated_at: new Date().toISOString(),
+      }
+
+      await supabase.from('leads').update(leadUpdates).eq('id', lead.id)
+      setLead((prev: any) => ({ ...prev, ...leadUpdates }))
+
+      await logActivity(
+        'Intervention Logged',
+        `${interventionForm.lead_condition} | Objection: ${interventionForm.objection_category} | Solusi: ${interventionForm.solution_given}`,
+        actorId
+      )
+
+      setInterventionForm({
+        lead_condition: interventionForm.next_action || lead.current_status || '',
+        objection_category: '',
+        solution_given: '',
+        expert_needed: false,
+        expert_type: '',
+        commercial_type: 'Free',
+        service_opportunity: '',
+        next_action: '',
+        next_follow_up_date: '',
+        result: '',
+        notes: '',
+      })
+    }
   }
 
   // Save Core Lead Data
@@ -811,6 +919,205 @@ export function LeadDetailClient({
 
         {/* Right 1 Column: Activity Log */}
         <div className="space-y-6">
+          {/* Objection & Intervention Log */}
+          <div className="glass-card rounded-2xl p-5 border border-border space-y-4">
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="text-foreground font-bold text-xs uppercase tracking-wider flex items-center gap-2">
+                <AlertCircle size={14} className="text-orange-500" />
+                Objection & Intervention ({interventions.length})
+              </h3>
+              <button
+                onClick={() => setShowInterventionForm(!showInterventionForm)}
+                className="px-2.5 py-1.5 rounded-lg text-[10px] font-bold text-white bg-orange-500 hover:opacity-90 transition-all cursor-pointer"
+              >
+                {showInterventionForm ? 'Batal' : 'Tambah Log'}
+              </button>
+            </div>
+
+            {interventionMessage.text && (
+              <div className={cn(
+                "p-3 rounded-xl text-xs font-bold border",
+                interventionMessage.type === 'success'
+                  ? "bg-emerald-50 border-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:border-emerald-500/20 dark:text-emerald-400"
+                  : "bg-red-50 border-red-100 text-red-750 dark:bg-red-500/10 dark:border-red-500/20 dark:text-red-400"
+              )}>
+                {interventionMessage.text}
+              </div>
+            )}
+
+            {showInterventionForm && (
+              <div className="p-3.5 rounded-xl border border-border bg-slate-50/50 dark:bg-white/[0.02] space-y-3">
+                <div>
+                  <label className="block text-[9px] text-muted-foreground font-bold uppercase mb-1">Kondisi Lead</label>
+                  <select
+                    value={interventionForm.lead_condition}
+                    onChange={e => updateIntervention('lead_condition', e.target.value)}
+                    className="w-full px-2.5 py-1.5 text-xs text-foreground bg-card border border-border rounded-lg outline-none"
+                  >
+                    <option value="">Pilih kondisi</option>
+                    {LEAD_CONDITION_OPTIONS.map(item => <option key={item} value={item}>{item}</option>)}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[9px] text-muted-foreground font-bold uppercase mb-1">Objection</label>
+                  <select
+                    value={interventionForm.objection_category}
+                    onChange={e => updateIntervention('objection_category', e.target.value)}
+                    className="w-full px-2.5 py-1.5 text-xs text-foreground bg-card border border-border rounded-lg outline-none"
+                  >
+                    <option value="">Pilih objection</option>
+                    {OBJECTION_CATEGORY_OPTIONS.map(item => <option key={item} value={item}>{item}</option>)}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[9px] text-muted-foreground font-bold uppercase mb-1">Solusi / Intervensi</label>
+                  <select
+                    value={interventionForm.solution_given}
+                    onChange={e => updateIntervention('solution_given', e.target.value)}
+                    className="w-full px-2.5 py-1.5 text-xs text-foreground bg-card border border-border rounded-lg outline-none"
+                  >
+                    <option value="">Pilih solusi</option>
+                    {SOLUTION_OPTIONS.map(item => <option key={item} value={item}>{item}</option>)}
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[9px] text-muted-foreground font-bold uppercase mb-1">Free / Paid</label>
+                    <select
+                      value={interventionForm.commercial_type}
+                      onChange={e => updateIntervention('commercial_type', e.target.value)}
+                      className="w-full px-2.5 py-1.5 text-xs text-foreground bg-card border border-border rounded-lg outline-none"
+                    >
+                      {COMMERCIAL_TYPE_OPTIONS.map(item => <option key={item} value={item}>{item}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[9px] text-muted-foreground font-bold uppercase mb-1">Butuh Expert</label>
+                    <select
+                      value={interventionForm.expert_needed ? 'yes' : 'no'}
+                      onChange={e => updateIntervention('expert_needed', e.target.value === 'yes')}
+                      className="w-full px-2.5 py-1.5 text-xs text-foreground bg-card border border-border rounded-lg outline-none"
+                    >
+                      <option value="no">Tidak</option>
+                      <option value="yes">Ya</option>
+                    </select>
+                  </div>
+                </div>
+
+                {interventionForm.expert_needed && (
+                  <div>
+                    <label className="block text-[9px] text-muted-foreground font-bold uppercase mb-1">Tipe Expert</label>
+                    <select
+                      value={interventionForm.expert_type}
+                      onChange={e => updateIntervention('expert_type', e.target.value)}
+                      className="w-full px-2.5 py-1.5 text-xs text-foreground bg-card border border-border rounded-lg outline-none"
+                    >
+                      <option value="">Pilih expert</option>
+                      {EXPERT_TYPE_OPTIONS.map(item => <option key={item} value={item}>{item}</option>)}
+                    </select>
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-[9px] text-muted-foreground font-bold uppercase mb-1">Service Opportunity</label>
+                  <input
+                    value={interventionForm.service_opportunity}
+                    onChange={e => updateIntervention('service_opportunity', e.target.value)}
+                    placeholder="Contoh: kelas bahasa, document support, career mapping..."
+                    className="w-full px-2.5 py-1.5 text-xs text-foreground bg-card border border-border rounded-lg outline-none"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[9px] text-muted-foreground font-bold uppercase mb-1">Next Action</label>
+                    <select
+                      value={interventionForm.next_action}
+                      onChange={e => updateIntervention('next_action', e.target.value)}
+                      className="w-full px-2.5 py-1.5 text-xs text-foreground bg-card border border-border rounded-lg outline-none"
+                    >
+                      <option value="">Pilih next action</option>
+                      {NEXT_ACTION_OPTIONS.map(item => <option key={item} value={item}>{item}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[9px] text-muted-foreground font-bold uppercase mb-1">Next FU</label>
+                    <input
+                      type="date"
+                      value={interventionForm.next_follow_up_date}
+                      onChange={e => updateIntervention('next_follow_up_date', e.target.value)}
+                      className="w-full px-2.5 py-1.5 text-xs text-foreground bg-card border border-border rounded-lg outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[9px] text-muted-foreground font-bold uppercase mb-1">Result</label>
+                  <input
+                    value={interventionForm.result}
+                    onChange={e => updateIntervention('result', e.target.value)}
+                    placeholder="Contoh: waiting response, expert needed, ready closing..."
+                    className="w-full px-2.5 py-1.5 text-xs text-foreground bg-card border border-border rounded-lg outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[9px] text-muted-foreground font-bold uppercase mb-1">Notes</label>
+                  <textarea
+                    value={interventionForm.notes}
+                    onChange={e => updateIntervention('notes', e.target.value)}
+                    rows={2}
+                    placeholder="Detail handling singkat..."
+                    className="w-full px-2.5 py-1.5 text-xs text-foreground bg-card border border-border rounded-lg resize-none outline-none"
+                  />
+                </div>
+
+                <button
+                  onClick={handleAddIntervention}
+                  disabled={savingIntervention}
+                  className="w-full py-1.5 rounded-lg text-xs font-bold text-white bg-orange-500 hover:opacity-90 transition-all cursor-pointer disabled:opacity-60"
+                >
+                  {savingIntervention ? 'Menyimpan...' : 'Simpan Intervention Log'}
+                </button>
+              </div>
+            )}
+
+            <div className="space-y-2 max-h-[40vh] overflow-y-auto pr-1">
+              {interventions.length === 0 ? (
+                <p className="text-muted-foreground/50 text-[10px] py-4 text-center">Belum ada intervention log.</p>
+              ) : interventions.map(item => (
+                <div key={item.id} className="rounded-xl border border-border bg-card p-3 text-xs space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="font-bold text-foreground">{item.lead_condition || '-'}</p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {new Date(item.created_at).toLocaleString('id-ID')} {item.users?.name ? `oleh ${item.users.name}` : ''}
+                      </p>
+                    </div>
+                    <span className={cn(
+                      'rounded-full px-2 py-0.5 text-[9px] font-black',
+                      item.commercial_type === 'Paid' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-300' :
+                      item.commercial_type === 'Potential Paid' ? 'bg-amber-500/10 text-amber-600 dark:text-amber-300' :
+                      'bg-slate-500/10 text-muted-foreground'
+                    )}>
+                      {item.commercial_type || 'Free'}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 gap-1 text-[10px] text-muted-foreground">
+                    <p><strong className="text-foreground">Objection:</strong> {item.objection_category || '-'}</p>
+                    <p><strong className="text-foreground">Solusi:</strong> {item.solution_given || '-'}</p>
+                    <p><strong className="text-foreground">Next:</strong> {item.next_action || '-'}{item.next_follow_up_date ? ` (${new Date(item.next_follow_up_date).toLocaleDateString('id-ID')})` : ''}</p>
+                    {item.expert_needed && <p><strong className="text-foreground">Expert:</strong> {item.expert_type || 'Ya'}</p>}
+                    {item.service_opportunity && <p><strong className="text-foreground">Opportunity:</strong> {item.service_opportunity}</p>}
+                    {item.result && <p><strong className="text-foreground">Result:</strong> {item.result}</p>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
           
           {/* Follow-Up Tracker */}
           <div className="glass-card rounded-2xl p-5 border border-border space-y-4">

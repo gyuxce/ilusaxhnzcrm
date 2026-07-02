@@ -37,8 +37,35 @@ type UserRow = {
   name: string
 }
 
+type InterventionRow = {
+  id: string
+  lead_id: string
+  created_by: string | null
+  lead_condition: string | null
+  objection_category: string | null
+  solution_given: string | null
+  expert_needed: boolean
+  expert_type: string | null
+  commercial_type: string | null
+  service_opportunity: string | null
+  next_action: string | null
+  next_follow_up_date: string | null
+  result: string | null
+  notes: string | null
+  created_at: string
+  users?: { id?: string; name?: string } | null
+  leads?: {
+    id: string
+    full_name: string
+    whatsapp_number: string
+    source_campaign: string
+    current_status: string
+  } | null
+}
+
 interface TeamReportDashboardProps {
   activities: ActivityRow[]
+  interventions: InterventionRow[]
   users: UserRow[]
   selectedDate: string
   selectedUser: string
@@ -57,6 +84,7 @@ const ACTIVITY_COLORS: Record<string, string> = {
 
 export function TeamReportDashboard({
   activities,
+  interventions,
   users,
   selectedDate,
   selectedUser,
@@ -65,7 +93,7 @@ export function TeamReportDashboard({
   const [query, setQuery] = useState('')
 
   const report = useMemo(() => {
-    const byUser: Record<string, { name: string; activities: number; leads: Set<string>; payments: number; statuses: number }> = {}
+    const byUser: Record<string, { name: string; activities: number; leads: Set<string>; payments: number; statuses: number; interventions: number }> = {}
     const byType: Record<string, number> = {}
     const byCampaign: Record<string, { activities: number; leads: Set<string> }> = {}
 
@@ -75,7 +103,7 @@ export function TeamReportDashboard({
       const campaign = activity.leads?.source_campaign || 'Tanpa campaign'
 
       if (!byUser[userId]) {
-        byUser[userId] = { name: userName, activities: 0, leads: new Set(), payments: 0, statuses: 0 }
+        byUser[userId] = { name: userName, activities: 0, leads: new Set(), payments: 0, statuses: 0, interventions: 0 }
       }
       byUser[userId].activities += 1
       if (activity.lead_id) byUser[userId].leads.add(activity.lead_id)
@@ -91,7 +119,31 @@ export function TeamReportDashboard({
       if (activity.lead_id) byCampaign[campaign].leads.add(activity.lead_id)
     })
 
-    const uniqueLeads = new Set(activities.map(activity => activity.lead_id).filter(Boolean))
+    interventions.forEach(item => {
+      const userId = item.created_by || 'unassigned'
+      const userName = item.users?.name || 'Unknown / sistem lama'
+      const campaign = item.leads?.source_campaign || 'Tanpa campaign'
+
+      if (!byUser[userId]) {
+        byUser[userId] = { name: userName, activities: 0, leads: new Set(), payments: 0, statuses: 0, interventions: 0 }
+      }
+      byUser[userId].activities += 1
+      byUser[userId].interventions += 1
+      if (item.lead_id) byUser[userId].leads.add(item.lead_id)
+
+      byType['Intervention Logged'] = (byType['Intervention Logged'] || 0) + 1
+
+      if (!byCampaign[campaign]) {
+        byCampaign[campaign] = { activities: 0, leads: new Set() }
+      }
+      byCampaign[campaign].activities += 1
+      if (item.lead_id) byCampaign[campaign].leads.add(item.lead_id)
+    })
+
+    const uniqueLeads = new Set([
+      ...activities.map(activity => activity.lead_id).filter(Boolean),
+      ...interventions.map(item => item.lead_id).filter(Boolean),
+    ])
     const teamRows = Object.entries(byUser)
       .map(([id, data]) => ({
         id,
@@ -100,6 +152,7 @@ export function TeamReportDashboard({
         touchedLeads: data.leads.size,
         payments: data.payments,
         statuses: data.statuses,
+        interventions: data.interventions,
       }))
       .sort((a, b) => b.activities - a.activities)
 
@@ -117,7 +170,7 @@ export function TeamReportDashboard({
       .slice(0, 8)
 
     return {
-      totalActivities: activities.length,
+      totalActivities: activities.length + interventions.length,
       touchedLeads: uniqueLeads.size,
       activeUsers: teamRows.filter(row => row.id !== 'unassigned').length,
       statusChanges: activities.filter(activity => activity.activity_type.toLowerCase().includes('status')).length,
@@ -125,7 +178,7 @@ export function TeamReportDashboard({
       typeRows,
       campaignRows,
     }
-  }, [activities])
+  }, [activities, interventions])
 
   const filteredActivities = activities.filter(activity => {
     const keyword = query.trim().toLowerCase()
@@ -144,6 +197,29 @@ export function TeamReportDashboard({
       .some(value => String(value).toLowerCase().includes(keyword))
   })
 
+  const filteredInterventions = interventions.filter(item => {
+    const keyword = query.trim().toLowerCase()
+    if (!keyword) return true
+
+    return [
+      item.lead_condition,
+      item.objection_category,
+      item.solution_given,
+      item.commercial_type,
+      item.service_opportunity,
+      item.next_action,
+      item.result,
+      item.notes,
+      item.users?.name,
+      item.leads?.full_name,
+      item.leads?.whatsapp_number,
+      item.leads?.source_campaign,
+      item.leads?.current_status,
+    ]
+      .filter(Boolean)
+      .some(value => String(value).toLowerCase().includes(keyword))
+  })
+
   const updateFilter = (next: { date?: string; user?: string }) => {
     const params = new URLSearchParams()
     params.set('date', next.date ?? selectedDate)
@@ -153,7 +229,7 @@ export function TeamReportDashboard({
   }
 
   const exportCsv = () => {
-    const rows = filteredActivities.map(activity => ({
+    const activityRows = filteredActivities.map(activity => ({
       tanggal: new Date(activity.created_at).toLocaleString('id-ID'),
       user: activity.users?.name || 'Unknown / sistem lama',
       activity_type: activity.activity_type,
@@ -162,9 +238,33 @@ export function TeamReportDashboard({
       campaign: activity.leads?.source_campaign || '',
       status: activity.leads?.current_status || '',
       description: activity.description,
+      lead_condition: '',
+      objection: '',
+      solution: '',
+      commercial_type: '',
+      next_action: '',
+      result: '',
     }))
 
-    const headers = ['tanggal', 'user', 'activity_type', 'lead', 'whatsapp', 'campaign', 'status', 'description']
+    const interventionRows = filteredInterventions.map(item => ({
+      tanggal: new Date(item.created_at).toLocaleString('id-ID'),
+      user: item.users?.name || 'Unknown / sistem lama',
+      activity_type: 'Intervention Logged',
+      lead: item.leads?.full_name || '',
+      whatsapp: item.leads?.whatsapp_number || '',
+      campaign: item.leads?.source_campaign || '',
+      status: item.leads?.current_status || '',
+      description: item.notes || '',
+      lead_condition: item.lead_condition || '',
+      objection: item.objection_category || '',
+      solution: item.solution_given || '',
+      commercial_type: item.commercial_type || '',
+      next_action: item.next_action || '',
+      result: item.result || '',
+    }))
+
+    const rows = [...interventionRows, ...activityRows]
+    const headers = ['tanggal', 'user', 'activity_type', 'lead', 'whatsapp', 'campaign', 'status', 'lead_condition', 'objection', 'solution', 'commercial_type', 'next_action', 'result', 'description']
     const escapeCsv = (value: unknown) => `"${String(value ?? '').replace(/"/g, '""')}"`
     const csv = [
       headers.join(','),
@@ -223,7 +323,7 @@ export function TeamReportDashboard({
           <button
             type="button"
             onClick={exportCsv}
-            disabled={filteredActivities.length === 0}
+            disabled={filteredActivities.length === 0 && filteredInterventions.length === 0}
             className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-bold text-foreground transition-all hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:bg-white/5"
           >
             <Download size={16} />
@@ -270,12 +370,13 @@ export function TeamReportDashboard({
                   <th className="py-3 px-4 text-right">Lead</th>
                   <th className="py-3 px-4 text-right">Status</th>
                   <th className="py-3 pl-4 text-right">Payment</th>
+                  <th className="py-3 pl-4 text-right">Handling</th>
                 </tr>
               </thead>
               <tbody>
                 {report.teamRows.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="py-8 text-center text-xs text-muted-foreground">Belum ada aktivitas di tanggal ini.</td>
+                    <td colSpan={6} className="py-8 text-center text-xs text-muted-foreground">Belum ada aktivitas di tanggal ini.</td>
                   </tr>
                 ) : report.teamRows.map(row => (
                   <tr key={row.id} className="border-b border-border/70 last:border-b-0">
@@ -287,6 +388,7 @@ export function TeamReportDashboard({
                     <td className="py-3 px-4 text-right text-muted-foreground">{row.touchedLeads}</td>
                     <td className="py-3 px-4 text-right text-muted-foreground">{row.statuses}</td>
                     <td className="py-3 pl-4 text-right text-muted-foreground">{row.payments}</td>
+                    <td className="py-3 pl-4 text-right font-extrabold text-orange-500">{row.interventions}</td>
                   </tr>
                 ))}
               </tbody>
@@ -314,6 +416,76 @@ export function TeamReportDashboard({
               )
             })}
           </div>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-border bg-card p-5 shadow-xs">
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <div>
+            <h2 className="text-sm font-extrabold uppercase tracking-wide text-foreground">EOD Handling Detail</h2>
+            <p className="text-xs text-muted-foreground mt-1">Format: lead, kondisi, objection, solusi, free/paid, next action.</p>
+          </div>
+          <span className="text-xs text-muted-foreground">{filteredInterventions.length} handling</span>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border text-left text-[10px] uppercase tracking-wide text-muted-foreground">
+                <th className="py-3 pr-4">CRO & Lead</th>
+                <th className="py-3 px-4">Kondisi</th>
+                <th className="py-3 px-4">Objection</th>
+                <th className="py-3 px-4">Solusi</th>
+                <th className="py-3 px-4">Free/Paid</th>
+                <th className="py-3 px-4">Next Action</th>
+                <th className="py-3 pl-4">Result</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredInterventions.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="py-8 text-center text-xs text-muted-foreground">Belum ada handling log di tanggal ini.</td>
+                </tr>
+              ) : filteredInterventions.map(item => (
+                <tr key={item.id} className="border-b border-border/70 last:border-b-0 align-top">
+                  <td className="py-3 pr-4">
+                    <p className="font-bold text-foreground">{item.users?.name || 'Unknown / sistem lama'}</p>
+                    {item.leads ? (
+                      <Link href={`/leads/${item.leads.id}`} className="mt-1 block text-xs font-semibold text-primary hover:underline">
+                        {item.leads.full_name}
+                      </Link>
+                    ) : (
+                      <p className="mt-1 text-xs text-muted-foreground">Lead tidak ditemukan</p>
+                    )}
+                    <p className="text-[10px] text-muted-foreground">
+                      {new Date(item.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                  </td>
+                  <td className="py-3 px-4 text-muted-foreground">{item.lead_condition || '-'}</td>
+                  <td className="py-3 px-4 font-semibold text-foreground">{item.objection_category || '-'}</td>
+                  <td className="py-3 px-4 text-muted-foreground">{item.solution_given || '-'}</td>
+                  <td className="py-3 px-4">
+                    <span className="rounded-full border border-border bg-muted px-2 py-0.5 text-[11px] font-bold text-foreground">
+                      {item.commercial_type || 'Free'}
+                    </span>
+                    {item.service_opportunity && (
+                      <p className="mt-1 text-[10px] text-muted-foreground">{item.service_opportunity}</p>
+                    )}
+                  </td>
+                  <td className="py-3 px-4 text-muted-foreground">
+                    {item.next_action || '-'}
+                    {item.next_follow_up_date && (
+                      <p className="mt-1 text-[10px]">FU: {new Date(item.next_follow_up_date).toLocaleDateString('id-ID')}</p>
+                    )}
+                    {item.expert_needed && (
+                      <p className="mt-1 text-[10px] font-bold text-amber-600 dark:text-amber-300">Expert: {item.expert_type || 'Ya'}</p>
+                    )}
+                  </td>
+                  <td className="py-3 pl-4 text-muted-foreground">{item.result || item.notes || '-'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
 
