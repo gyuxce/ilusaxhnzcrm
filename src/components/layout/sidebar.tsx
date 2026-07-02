@@ -5,16 +5,15 @@ import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard,
   Users,
-  AlertCircle,
   Settings,
   LogOut,
   Zap,
   KanbanSquare,
-  Calendar,
   BarChart3,
   ClipboardList,
   Tags,
   UserRoundCheck,
+  ClipboardCheck,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
@@ -23,15 +22,14 @@ import { useLayoutStore } from '@/lib/store'
 import { useState, useEffect } from 'react'
 import { NEEDS_ACTION_STATUSES } from '@/lib/funnel-framework'
 
-const mainNav: { href: string; label: string; icon: React.ComponentType<{ size?: number; className?: string }>; badgeKey?: 'needsAction' | 'followUps' }[] = [
+const mainNav: { href: string; label: string; icon: React.ComponentType<{ size?: number; className?: string }>; badgeKey?: 'workQueue' | 'needsAction' | 'followUps' }[] = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/work-queue', label: 'Work Queue', icon: ClipboardCheck, badgeKey: 'workQueue' },
   { href: '/leads', label: 'Leads', icon: Users },
-  { href: '/needs-action', label: 'Needs Action', icon: AlertCircle, badgeKey: 'needsAction' },
   { href: '/pipeline', label: 'Pipeline Board', icon: KanbanSquare },
 ]
 
-const toolsNav: { href: string; label: string; icon: React.ComponentType<{ size?: number; className?: string }>; badgeKey?: 'needsAction' | 'followUps' }[] = [
-  { href: '/follow-ups', label: 'Follow-Up Tracker', icon: Calendar, badgeKey: 'followUps' },
+const toolsNav: { href: string; label: string; icon: React.ComponentType<{ size?: number; className?: string }>; badgeKey?: 'workQueue' | 'needsAction' | 'followUps' }[] = [
   { href: '/expert-queue', label: 'Expert Queue', icon: UserRoundCheck },
   { href: '/reports', label: 'Team Report', icon: ClipboardList },
   { href: '/analytics', label: 'Analytics', icon: BarChart3 },
@@ -42,7 +40,8 @@ export function Sidebar() {
   const pathname = usePathname()
   const router = useRouter()
   const { sidebarOpen, closeSidebar } = useLayoutStore()
-  const [badges, setBadges] = useState<{ needsAction: number; followUps: number }>({
+  const [badges, setBadges] = useState<{ workQueue: number; needsAction: number; followUps: number }>({
+    workQueue: 0,
     needsAction: 0,
     followUps: 0,
   })
@@ -70,6 +69,7 @@ export function Sidebar() {
         .lte('scheduled_date', today)
 
       setBadges({
+        workQueue: (naCount || 0) + (fuCount || 0),
         needsAction: naCount || 0,
         followUps: fuCount || 0,
       })
@@ -92,7 +92,7 @@ export function Sidebar() {
     href: string
     label: string
     icon: React.ComponentType<{ size?: number; className?: string }>
-    badgeKey?: 'needsAction' | 'followUps'
+    badgeKey?: 'workQueue' | 'needsAction' | 'followUps'
   }) {
     const isActive = pathname === href || pathname.startsWith(href + '/')
     const count = badgeKey ? badges[badgeKey] : 0
@@ -123,7 +123,9 @@ export function Sidebar() {
             style={{
               background: badgeKey === 'followUps'
                 ? 'hsl(25,95%,53%)'
-                : 'hsl(0,72%,51%)',
+                : badgeKey === 'workQueue'
+                  ? 'hsl(250,84%,60%)'
+                  : 'hsl(0,72%,51%)',
               color: 'white',
             }}
           >
