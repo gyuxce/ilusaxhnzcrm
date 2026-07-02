@@ -59,7 +59,7 @@ export function ExpertQueueDashboard({ initialItems }: ExpertQueueDashboardProps
   const [query, setQuery] = useState('')
   const [expertType, setExpertType] = useState('all')
   const [commercialType, setCommercialType] = useState('all')
-  const [status, setStatus] = useState<(typeof statusOptions)[number]>('pending')
+  const [status, setStatus] = useState<(typeof statusOptions)[number]>('all')
   const [updatingId, setUpdatingId] = useState<string | null>(null)
 
   const expertTypes = useMemo(() => {
@@ -180,9 +180,9 @@ export function ExpertQueueDashboard({ initialItems }: ExpertQueueDashboardProps
           </select>
 
           <select value={status} onChange={event => setStatus(event.target.value as any)} className="px-3 py-2.5 rounded-xl bg-card border border-border text-sm text-foreground outline-none">
+            <option value="all">Semua status</option>
             <option value="pending">Pending</option>
             <option value="done">Done</option>
-            <option value="all">Semua status</option>
           </select>
         </div>
       </div>
