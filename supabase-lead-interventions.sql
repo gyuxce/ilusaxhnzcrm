@@ -28,3 +28,35 @@ create index if not exists lead_interventions_objection_idx on public.lead_inter
 create index if not exists lead_interventions_commercial_idx on public.lead_interventions(commercial_type);
 
 grant select, insert, update, delete on public.lead_interventions to authenticated;
+
+alter table public.lead_interventions enable row level security;
+
+drop policy if exists "lead_interventions_select_authenticated" on public.lead_interventions;
+drop policy if exists "lead_interventions_insert_authenticated" on public.lead_interventions;
+drop policy if exists "lead_interventions_update_authenticated" on public.lead_interventions;
+drop policy if exists "lead_interventions_delete_authenticated" on public.lead_interventions;
+
+create policy "lead_interventions_select_authenticated"
+on public.lead_interventions
+for select
+to authenticated
+using (true);
+
+create policy "lead_interventions_insert_authenticated"
+on public.lead_interventions
+for insert
+to authenticated
+with check (true);
+
+create policy "lead_interventions_update_authenticated"
+on public.lead_interventions
+for update
+to authenticated
+using (true)
+with check (true);
+
+create policy "lead_interventions_delete_authenticated"
+on public.lead_interventions
+for delete
+to authenticated
+using (true);
