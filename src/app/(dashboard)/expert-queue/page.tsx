@@ -36,8 +36,11 @@ export default async function ExpertQueuePage() {
         users:assigned_cro_id(id, name)
       )
     `)
-    .eq('expert_needed', true)
     .order('created_at', { ascending: false })
+
+  const expertItems = (data || []).filter((item: any) => {
+    return item.expert_needed === true || Boolean(item.expert_type)
+  })
 
   return (
     <>
@@ -46,7 +49,7 @@ export default async function ExpertQueuePage() {
         subtitle="Daftar lead yang perlu bantuan expert, sensei, atau konsultasi lanjutan."
       />
       <div className="p-6 animate-fade-in w-full">
-        <ExpertQueueDashboard initialItems={(data || []) as any[]} />
+        <ExpertQueueDashboard initialItems={expertItems as any[]} />
       </div>
     </>
   )
