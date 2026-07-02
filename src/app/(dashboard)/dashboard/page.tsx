@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import {
   Users,
@@ -15,7 +16,12 @@ import {
   Percent,
   CheckCircle2,
   BookOpen,
-  Plus
+  Plus,
+  AlertTriangle,
+  Clock3,
+  Target,
+  BriefcaseBusiness,
+  ArrowRight,
 } from 'lucide-react'
 import { Header } from '@/components/layout/header'
 
@@ -28,6 +34,7 @@ interface DashboardStats {
   notEligible: number
   pemetaanScheduled: number
   waitingResult: number
+  sentResultPemetaan: number
   expertScheduled: number
   seatLockOffered: number
   seatLockPaid: number
@@ -58,6 +65,44 @@ interface CampaignProgress {
   hasManualTarget: boolean
 }
 
+interface FunnelInsight {
+  label: string
+  reached: number
+  conversion: number
+}
+
+interface CampaignInsight {
+  name: string
+  total: number
+  qualified: number
+  seatLocks: number
+  conversion: number
+}
+
+interface IntelligenceStats {
+  funnel: FunnelInsight[]
+  campaigns: CampaignInsight[]
+  staleLeads: number
+  stalePreview: { id: string; name: string; status: string; days: number }[]
+  expertPending: number
+  potentialPaidPending: number
+  topObjection: string
+  topObjectionCount: number
+  biggestDrop: { from: string; to: string; count: number; pct: number } | null
+}
+
+const EMPTY_INTELLIGENCE: IntelligenceStats = {
+  funnel: [],
+  campaigns: [],
+  staleLeads: 0,
+  stalePreview: [],
+  expertPending: 0,
+  potentialPaidPending: 0,
+  topObjection: '-',
+  topObjectionCount: 0,
+  biggestDrop: null,
+}
+
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats>({
     totalLeads: 0,
@@ -83,6 +128,7 @@ export default function DashboardPage() {
   const [userRole, setUserRole] = useState<string>('cro')
   const [recentLeads, setRecentLeads] = useState<any[]>([])
   const [fuTodayCount, setFuTodayCount] = useState(0)
+  const [intelligence, setIntelligence] = useState<IntelligenceStats>(EMPTY_INTELLIGENCE)
   
   // Edit Batch Target Modal
   const [isEditingTarget, setIsEditingTarget] = useState(false)
@@ -113,7 +159,12 @@ export default function DashboardPage() {
     // 2. Fetch all leads for status counting
     const { data: leads } = await supabase
       .from('leads')
-      .select('current_status, source_campaign')
+      .select('id, full_name, current_status, source_campaign, updated_at, lead_entry_date')
+
+    const { data: interventions } = await supabase
+      .from('lead_interventions')
+      .select('lead_id, objection_category, expert_needed, expert_type, commercial_type, result, created_at')
+      .order('created_at', { ascending: false })
 
     // 3. Fetch verified payments for revenue
     const { data: payments } = await supabase
@@ -224,6 +275,102 @@ export default function DashboardPage() {
       .sort((a, b) => b.totalLeads - a.totalLeads || a.name.localeCompare(b.name))
 
     setCampaignProgress(progressRows)
+
+    const statusRank: Record<string, number> = {
+      'New Lead': 0,
+      'Pitching': 1,
+      'Interested': 2,
+      'Pemetaan Scheduled': 3,
+      'Waiting Result': 3,
+      'Sent Result Pemetaan': 3,
+      'Expert Consultation Scheduled': 4,
+      'Seat Lock Offered': 5,
+      'Seat Lock Paid': 6,
+      'Onboarding': 6,
+      'Class Started': 6,
+    }
+    const funnelDefinitions = [
+      { label: 'Lead Masuk', rank: 0 },
+      { label: 'Pitching', rank: 1 },
+      { label: 'Interested', rank: 2 },
+      { label: 'Pemetaan', rank: 3 },
+      { label: 'Expert', rank: 4 },
+      { label: 'Seat Lock', rank: 5 },
+    ]
+    const activeLeads = (leads || []).filter((lead: any) => !['Not Interested', 'Not Eligible'].includes(lead.current_status))
+    const funnel = funnelDefinitions.map(stage => {
+      const reached = stage.rank === 0
+        ? (leads || []).length
+        : activeLeads.filter((lead: any) => (statusRank[lead.current_status] ?? -1) >= stage.rank).length
+      return {
+        label: stage.label,
+        reached,
+        conversion: total > 0 ? Math.round((reached / total) * 100) : 0,
+      }
+    })
+    const funnelDrops = funnel.slice(0, -1).map((stage, index) => {
+      const next = funnel[index + 1]
+      const count = Math.max(stage.reached - next.reached, 0)
+      return {
+        from: stage.label,
+        to: next.label,
+        count,
+        pct: stage.reached > 0 ? Math.round((count / stage.reached) * 100) : 0,
+      }
+    })
+    const biggestDrop = funnelDrops.sort((a, b) => b.count - a.count)[0] || null
+
+    const campaignInsights = Array.from(campaignMap.entries())
+      .map(([name, value]) => {
+        const campaignLeads = (leads || []).filter((lead: any) => (lead.source_campaign?.trim() || 'No Campaign') === name)
+        const qualified = campaignLeads.filter((lead: any) => (statusRank[lead.current_status] ?? -1) >= 2).length
+        return {
+          name,
+          total: value.totalLeads,
+          qualified,
+          seatLocks: value.seatLocks,
+          conversion: value.totalLeads > 0 ? Math.round((value.seatLocks / value.totalLeads) * 100) : 0,
+        }
+      })
+      .filter(row => row.total > 0)
+      .sort((a, b) => b.conversion - a.conversion || b.qualified - a.qualified || b.total - a.total)
+      .slice(0, 5)
+
+    const now = Date.now()
+    const terminalStatuses = ['Not Interested', 'Not Eligible', 'Seat Lock Paid', 'Onboarding', 'Class Started']
+    const staleRows = (leads || [])
+      .filter((lead: any) => !terminalStatuses.includes(lead.current_status))
+      .map((lead: any) => {
+        const lastUpdate = lead.updated_at || lead.lead_entry_date
+        const days = lastUpdate ? Math.floor((now - new Date(lastUpdate).getTime()) / 86400000) : 0
+        return { id: lead.id, name: lead.full_name, status: lead.current_status, days }
+      })
+      .filter(row => row.days >= 3)
+      .sort((a, b) => b.days - a.days)
+
+    const latestInterventionByLead = new Map<string, any>()
+    ;(interventions || []).forEach((item: any) => {
+      if (!latestInterventionByLead.has(item.lead_id)) latestInterventionByLead.set(item.lead_id, item)
+    })
+    const latestInterventions = Array.from(latestInterventionByLead.values())
+    const objectionCounts = (interventions || []).reduce((counts: Record<string, number>, item: any) => {
+      if (item.objection_category) counts[item.objection_category] = (counts[item.objection_category] || 0) + 1
+      return counts
+    }, {})
+    const [topObjection = '-', topObjectionCount = 0] = Object.entries(objectionCounts)
+      .sort((a, b) => b[1] - a[1])[0] || []
+
+    setIntelligence({
+      funnel,
+      campaigns: campaignInsights,
+      staleLeads: staleRows.length,
+      stalePreview: staleRows.slice(0, 4),
+      expertPending: latestInterventions.filter((item: any) => (item.expert_needed || item.expert_type) && !item.result).length,
+      potentialPaidPending: latestInterventions.filter((item: any) => (item.commercial_type || '').toLowerCase().includes('paid') && !item.result).length,
+      topObjection,
+      topObjectionCount,
+      biggestDrop,
+    })
 
     // Calculate revenue
     let revPemetaan = 0
@@ -462,6 +609,146 @@ export default function DashboardPage() {
             ))}
           </div>
         </div>
+
+        {/* Funnel Intelligence */}
+        <section className="space-y-4">
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h2 className="flex items-center gap-2 text-sm font-extrabold uppercase tracking-wider text-foreground">
+                <Target size={16} className="text-blue-600 dark:text-blue-400" />
+                Funnel Intelligence
+              </h2>
+              <p className="mt-1 text-xs text-muted-foreground">Indikator keputusan dari posisi pipeline dan handling terbaru.</p>
+            </div>
+            <Link href="/analytics" className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline">
+              Buka Analytics <ArrowRight size={13} />
+            </Link>
+          </div>
+
+          <div className="glass-card rounded-2xl border border-border p-5">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
+              {intelligence.funnel.map((stage, index) => (
+                <div key={stage.label} className="relative rounded-xl border border-border bg-slate-50/60 p-3 dark:bg-white/[0.03]">
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <span className="text-[10px] font-extrabold uppercase text-muted-foreground">{stage.label}</span>
+                    {index > 0 && <span className="text-[10px] font-black text-primary">{stage.conversion}%</span>}
+                  </div>
+                  <p className="text-xl font-black text-foreground">{stage.reached}</p>
+                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-200 dark:bg-white/10">
+                    <div className="h-full rounded-full bg-primary" style={{ width: `${Math.max(stage.conversion, stage.reached > 0 ? 3 : 0)}%` }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+            <p className="mt-3 text-[10px] text-muted-foreground">Persentase menunjukkan estimasi lead yang telah mencapai tahap dibanding total lead masuk.</p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div className="rounded-2xl border border-red-200 bg-red-50/70 p-4 dark:border-red-500/20 dark:bg-red-500/[0.06]">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-extrabold uppercase text-red-700 dark:text-red-300">Drop-off Terbesar</span>
+                <AlertTriangle size={16} className="text-red-500" />
+              </div>
+              <p className="mt-3 text-lg font-black text-foreground">{intelligence.biggestDrop?.count || 0} lead</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {intelligence.biggestDrop ? `${intelligence.biggestDrop.from} ke ${intelligence.biggestDrop.to} (${intelligence.biggestDrop.pct}%)` : 'Belum ada data funnel'}
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4 dark:border-amber-500/20 dark:bg-amber-500/[0.06]">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-extrabold uppercase text-amber-700 dark:text-amber-300">Objection Dominan</span>
+                <Flame size={16} className="text-amber-500" />
+              </div>
+              <p className="mt-3 truncate text-lg font-black text-foreground">{intelligence.topObjection}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{intelligence.topObjectionCount} handling tercatat</p>
+            </div>
+
+            <Link href="/expert-queue" className="rounded-2xl border border-violet-200 bg-violet-50/70 p-4 transition-colors hover:bg-violet-100/70 dark:border-violet-500/20 dark:bg-violet-500/[0.06] dark:hover:bg-violet-500/10">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-extrabold uppercase text-violet-700 dark:text-violet-300">Expert Pending</span>
+                <Users size={16} className="text-violet-500" />
+              </div>
+              <p className="mt-3 text-lg font-black text-foreground">{intelligence.expertPending}</p>
+              <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">Buka Expert Queue <ArrowRight size={12} /></p>
+            </Link>
+
+            <div className="rounded-2xl border border-blue-200 bg-blue-50/70 p-4 dark:border-blue-500/20 dark:bg-blue-500/[0.06]">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-extrabold uppercase text-blue-700 dark:text-blue-300">Potential Paid Pending</span>
+                <BriefcaseBusiness size={16} className="text-blue-500" />
+              </div>
+              <p className="mt-3 text-lg font-black text-foreground">{intelligence.potentialPaidPending}</p>
+              <p className="mt-1 text-xs text-muted-foreground">Peluang layanan belum memiliki hasil</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-5">
+            <div className="glass-card rounded-2xl border border-border p-5 xl:col-span-3">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-xs font-extrabold uppercase text-foreground">Kualitas Campaign</h3>
+                  <p className="mt-1 text-[10px] text-muted-foreground">Diurutkan dari konversi seat lock tertinggi.</p>
+                </div>
+                <span className="text-[10px] text-muted-foreground">Top 5</span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[34rem] text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-border text-[10px] uppercase text-muted-foreground">
+                      <th className="pb-2 font-extrabold">Campaign</th>
+                      <th className="pb-2 text-right font-extrabold">Lead</th>
+                      <th className="pb-2 text-right font-extrabold">Qualified</th>
+                      <th className="pb-2 text-right font-extrabold">Seat Lock</th>
+                      <th className="pb-2 text-right font-extrabold">Conversion</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {intelligence.campaigns.map(campaign => (
+                      <tr key={campaign.name} className="border-b border-border/60 last:border-b-0">
+                        <td className="max-w-56 truncate py-3 font-bold text-foreground">{campaign.name}</td>
+                        <td className="py-3 text-right text-muted-foreground">{campaign.total}</td>
+                        <td className="py-3 text-right text-muted-foreground">{campaign.qualified}</td>
+                        <td className="py-3 text-right text-muted-foreground">{campaign.seatLocks}</td>
+                        <td className="py-3 text-right font-black text-primary">{campaign.conversion}%</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="glass-card rounded-2xl border border-border p-5 xl:col-span-2">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div>
+                  <h3 className="flex items-center gap-2 text-xs font-extrabold uppercase text-foreground">
+                    <Clock3 size={14} className="text-orange-500" /> Lead Belum Disentuh
+                  </h3>
+                  <p className="mt-1 text-[10px] text-muted-foreground">Tidak diperbarui minimal 3 hari.</p>
+                </div>
+                <span className="rounded-full bg-orange-100 px-2 py-1 text-xs font-black text-orange-700 dark:bg-orange-500/15 dark:text-orange-300">{intelligence.staleLeads}</span>
+              </div>
+              <div className="space-y-2">
+                {intelligence.stalePreview.length === 0 ? (
+                  <p className="py-8 text-center text-xs text-muted-foreground">Semua lead aktif masih terpantau.</p>
+                ) : intelligence.stalePreview.map(lead => (
+                  <Link key={lead.id} href={`/leads/${lead.id}`} className="flex items-center justify-between gap-3 rounded-xl border border-border px-3 py-2.5 transition-colors hover:bg-slate-50 dark:hover:bg-white/[0.04]">
+                    <div className="min-w-0">
+                      <p className="truncate text-xs font-bold text-foreground">{lead.name}</p>
+                      <p className="truncate text-[10px] text-muted-foreground">{lead.status}</p>
+                    </div>
+                    <span className="shrink-0 text-[10px] font-extrabold text-orange-600 dark:text-orange-300">{lead.days} hari</span>
+                  </Link>
+                ))}
+              </div>
+              {intelligence.staleLeads > intelligence.stalePreview.length && (
+                <Link href="/leads" className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline">
+                  Lihat semua lead <ArrowRight size={12} />
+                </Link>
+              )}
+            </div>
+          </div>
+        </section>
 
       </div>
 
