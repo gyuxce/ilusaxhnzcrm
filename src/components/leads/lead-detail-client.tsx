@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import { WhatsAppModal } from './WhatsAppModal'
 import { cn } from '@/lib/utils'
+import { LOST_REASON_OPTIONS, LOST_STATUSES } from '@/lib/lost-reasons'
 
 interface LeadDetailClientProps {
   initialLead: any
@@ -249,7 +250,7 @@ export function LeadDetailClient({
       p_current_status: editStatus,
       p_assigned_cro_id: editPic || null,
       p_notes: editNotes || null,
-      p_lost_reason: ['Not Interested', 'Not Eligible'].includes(editStatus) ? editLostReason : null,
+      p_lost_reason: LOST_STATUSES.includes(editStatus) ? editLostReason : null,
     })
 
     if (error) {
@@ -273,7 +274,7 @@ export function LeadDetailClient({
       current_status: editStatus,
       assigned_cro_id: editPic || null,
       notes: editNotes || null,
-      lost_reason: ['Not Interested', 'Not Eligible'].includes(editStatus) ? editLostReason : null,
+      lost_reason: LOST_STATUSES.includes(editStatus) ? editLostReason : null,
       updated_at: updatedAt
     }
     setLead(updatedLead)
@@ -1056,23 +1057,22 @@ export function LeadDetailClient({
               </div>
             </div>
 
-            {['Not Interested', 'Not Eligible'].includes(editStatus) && (
+            {LOST_STATUSES.includes(editStatus) && (
               <div>
-                <label className="block text-xs text-muted-foreground mb-1">Alasan Lost / Drop-off</label>
+                <label className="block text-xs text-muted-foreground mb-1">Kategori Alasan Penolakan</label>
                 <select
                   value={editLostReason}
                   onChange={e => setEditLostReason(e.target.value)}
                   className="w-full px-3 py-2 text-sm text-foreground bg-card border border-border outline-none rounded-xl cursor-pointer focus:ring-1 focus:ring-primary focus:border-primary"
                 >
-                  <option value="">Pilih Alasan...</option>
-                  <option value="Financial constraint / kendala biaya">Financial constraint / kendala biaya</option>
-                  <option value="Belum siap berangkat">Belum siap berangkat</option>
-                  <option value="Perlu diskusi keluarga">Perlu diskusi keluarga</option>
-                  <option value="Tidak memenuhi kualifikasi">Tidak memenuhi kualifikasi</option>
-                  <option value="Tidak merespons">Tidak merespons</option>
-                  <option value="Pilih program lain">Pilih program lain</option>
-                  <option value="Lainnya">Lainnya</option>
+                  <option value="">Pilih kategori alasan...</option>
+                  {LOST_REASON_OPTIONS.map(reason => (
+                    <option key={reason} value={reason}>{reason}</option>
+                  ))}
                 </select>
+                <p className="mt-1 text-[10px] text-muted-foreground">
+                  Reason ini masuk ke dashboard Reason Penolakan untuk evaluasi strategi.
+                </p>
               </div>
             )}
 

@@ -37,6 +37,7 @@ export default async function EditLeadPage({ params }: { params: Promise<{ id: s
             assigned_cro_id: lead.assigned_cro_id || undefined,
             notes: lead.notes || undefined,
             lead_entry_date: lead.lead_entry_date || undefined,
+            lost_reason: lead.lost_reason || undefined,
           }}
         />
       </div>

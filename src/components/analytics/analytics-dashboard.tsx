@@ -3,6 +3,7 @@
 import { useMemo } from 'react'
 import { TrendingUp, Users, DollarSign, Award, Target, BarChart3, AlertCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { LOST_STATUSES } from '@/lib/lost-reasons'
 
 const PIPELINE_STAGES = [
   'New Lead', 'Interested', 'Payment Pemetaan Pending', 'Payment Pemetaan Paid',
@@ -11,8 +12,6 @@ const PIPELINE_STAGES = [
   'Expert Consultation Done', 'Seat Lock Offered', 'Seat Lock Paid',
   'Onboarding', 'Class Started',
 ]
-const LOST_STAGES = ['Not Interested', 'No Response', 'Need Follow Up Later', 'Failed Closing', 'Not Qualified']
-
 const STAGE_COLORS: Record<string, string> = {
   'New Lead': '#64748b',
   'Interested': '#3b82f6',
@@ -38,7 +37,7 @@ export function AnalyticsDashboard({ allLeads, payments, users }: AnalyticsDashb
     const inbound = allLeads.filter(l => l.lead_type === 'inbound').length
     const outbound = allLeads.filter(l => l.lead_type === 'outbound').length
     const seatLockPaid = allLeads.filter(l => l.current_status === 'Seat Lock Paid' || l.current_status === 'Onboarding' || l.current_status === 'Class Started').length
-    const lost = allLeads.filter(l => LOST_STAGES.includes(l.current_status)).length
+    const lost = allLeads.filter(l => LOST_STATUSES.includes(l.current_status)).length
     const convRate = total > 0 ? ((seatLockPaid / total) * 100).toFixed(1) : '0.0'
 
     // Revenue

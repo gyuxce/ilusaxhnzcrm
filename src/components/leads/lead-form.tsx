@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 import { Loader2, Phone, User, Calendar, MessageSquare, Mail, TrendingUp, Users } from 'lucide-react'
+import { LOST_REASON_OPTIONS, LOST_STATUSES } from '@/lib/lost-reasons'
 
 interface LeadFormProps {
   pics: { id: string; name: string }[]
@@ -20,6 +21,7 @@ interface LeadFormProps {
     lead_entry_date: string
     referral_source: string
     whatsapp_normalized: string
+    lost_reason: string
   }>
   leadId?: string
 }
@@ -39,6 +41,7 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
     notes: defaultValues?.notes || '',
     lead_entry_date: defaultValues?.lead_entry_date?.split('T')[0] || new Date().toISOString().split('T')[0],
     referral_source: defaultValues?.referral_source || '',
+    lost_reason: defaultValues?.lost_reason || '',
   })
 
   function update(field: string, value: string) {
@@ -96,7 +99,7 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
       ? await supabase.rpc('update_lead_core_fast', {
           p_lead_id: leadId,
           ...params,
-          p_lost_reason: null,
+          p_lost_reason: LOST_STATUSES.includes(form.current_status) ? form.lost_reason : null,
         })
       : await supabase.rpc('create_lead_fast', {
           ...params,
@@ -247,6 +250,26 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
             </select>
           </div>
         </div>
+
+        {LOST_STATUSES.includes(form.current_status) && (
+          <div>
+            <label className="block text-xs font-bold text-muted-foreground mb-2">Kategori Alasan Penolakan</label>
+            <select
+              value={form.lost_reason}
+              onChange={e => update('lost_reason', e.target.value)}
+              className={inputClass}
+              style={inputStyle}
+            >
+              <option value="" className="bg-card text-foreground">Pilih kategori alasan...</option>
+              {LOST_REASON_OPTIONS.map(reason => (
+                <option key={reason} value={reason} className="bg-card text-foreground">{reason}</option>
+              ))}
+            </select>
+            <p className="mt-1.5 text-[11px] text-muted-foreground">
+              Dipakai untuk membaca pola penolakan dan menentukan strategi follow up berikutnya.
+            </p>
+          </div>
+        )}
 
         {/* Lead Type */}
         <div>

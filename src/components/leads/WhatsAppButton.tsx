@@ -33,7 +33,7 @@ export function WhatsAppButton({ leadName, leadPhone, leadId, picName, iconOnly 
           <MessageCircle size={18} className="text-emerald-600 dark:text-emerald-405 flex-shrink-0" />
           <div>
             <p className="text-sm font-medium text-emerald-650 dark:text-emerald-400">Buka WhatsApp</p>
-            <p className="text-xs text-muted-foreground">Kirim template playbook</p>
+            <p className="text-xs text-muted-foreground">Kirim template pesan</p>
           </div>
         </button>
       )}

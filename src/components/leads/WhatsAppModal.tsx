@@ -161,7 +161,7 @@ export function WhatsAppModal({ isOpen, onClose, leadName, leadPhone, leadId, pi
               {/* Template Selector */}
               {templates.length > 0 && (
                 <div>
-                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">Pilih Template Playbook</label>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">Pilih Template Pesan</label>
                   <select
                     value={selectedTemplateId}
                     onChange={(e) => handleTemplateChange(e.target.value)}
