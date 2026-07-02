@@ -98,7 +98,6 @@ export function TeamReportDashboard({
   const [loadingReport, setLoadingReport] = useState(false)
   const [query, setQuery] = useState('')
   const [copied, setCopied] = useState(false)
-  const [showAllEod, setShowAllEod] = useState(false)
 
   const dateRange = useMemo(() => {
     const start = new Date(`${selectedDate}T00:00:00+07:00`)
@@ -366,15 +365,14 @@ export function TeamReportDashboard({
     }
   }, [filteredInterventions])
 
-  const visibleEodItems = showAllEod
-    ? filteredInterventions
-    : eodInsights.priorityItems.slice(0, 8)
-
   const eodSummaryText = useMemo(() => {
     if (filteredInterventions.length === 0) {
       return 'Belum ada handling/intervention log di tanggal ini.'
     }
 
+    const selectedUserLabel = selectedUser
+      ? users.find(user => user.id === selectedUser)?.name || 'Tim terpilih'
+      : 'Semua Tim'
     const dateLabel = new Date(`${selectedDate}T00:00:00+07:00`).toLocaleDateString('id-ID', {
       day: 'numeric',
       month: 'long',
@@ -383,52 +381,41 @@ export function TeamReportDashboard({
     const objectionSummary = eodInsights.topObjections.length
       ? eodInsights.topObjections.map(([name, count]) => `${name} (${count})`).join(', ')
       : '-'
-    const croSummary = eodInsights.byCro.map(([name, count]) => `${name} (${count})`).join(', ')
-    const priorityItems = eodInsights.priorityItems.slice(0, 8)
+    const priorityItems = eodInsights.priorityItems.slice(0, 10)
     const priorityText = priorityItems.length === 0
       ? 'Tidak ada kasus prioritas.'
       : priorityItems
       .map((item, index) => {
-        const user = item.users?.name || 'Unknown / sistem lama'
         const lead = item.leads?.full_name || 'Lead tidak ditemukan'
-        const condition = item.lead_condition || '-'
         const objection = item.objection_category || '-'
-        const solution = item.solution_given || '-'
         const commercial = item.commercial_type || 'Free'
-        const expert = item.expert_needed || item.expert_type ? ` | Expert: ${item.expert_type || 'Ya'}` : ''
-        const nextFu = item.next_follow_up_date ? ` (${new Date(item.next_follow_up_date).toLocaleDateString('id-ID')})` : ''
+        const expert = item.expert_needed || item.expert_type ? `Butuh Expert: ${item.expert_type || 'Ya'}` : null
+        const nextFu = item.next_follow_up_date ? ` ${new Date(item.next_follow_up_date).toLocaleDateString('id-ID', {
+          day: 'numeric',
+          month: 'long',
+        })}` : ''
         const nextAction = item.next_action ? `${item.next_action}${nextFu}` : '-'
-        const result = item.result || item.notes || '-'
+        const tags = [nextAction, expert, commercial.toLowerCase().includes('paid') ? 'Potential Paid' : null]
+          .filter(Boolean)
+          .join(' | ')
 
-        return [
-          `${index + 1}. ${lead}`,
-          `   CRO: ${user}`,
-          `   - Kondisi: ${condition}`,
-          `   - Objection: ${objection}`,
-          `   - Solusi: ${solution}`,
-          `   - Layanan: ${commercial}${expert}`,
-          `   - Next Action: ${nextAction}`,
-          `   - Result: ${result}`,
-        ].join('\n')
+        return `${index + 1}. ${lead} - ${objection} - ${tags || '-'}`
       })
-      .join('\n\n')
+      .join('\n')
 
     return [
-      `EOD REPORT - ${dateLabel}`,
-      '',
-      `Total handling: ${eodInsights.totalHandling} lead`,
-      `CRO aktif: ${croSummary || '-'}`,
+      `EOD ${selectedUserLabel} - ${dateLabel}`,
+      `Total handling: ${eodInsights.totalHandling} leads`,
       `Objection terbanyak: ${objectionSummary}`,
       `Butuh expert: ${eodInsights.expertNeeded}`,
       `Potential paid: ${eodInsights.potentialPaid}`,
       `Follow-up dijadwalkan: ${eodInsights.scheduledFollowUps}`,
       '',
-      `KASUS PRIORITAS (${priorityItems.length})`,
+      'Detail prioritas:',
       priorityText,
-      '',
-      `Detail lengkap: Export CSV dari Team Report (${eodInsights.totalHandling} handling).`,
+      eodInsights.totalHandling > priorityItems.length ? `\nDetail lengkap: export CSV (${eodInsights.totalHandling} handling).` : '',
     ].join('\n')
-  }, [filteredInterventions, eodInsights, selectedDate])
+  }, [filteredInterventions, eodInsights, selectedDate, selectedUser, users])
 
   const copyEodSummary = async () => {
     await navigator.clipboard.writeText(eodSummaryText)
@@ -729,123 +716,9 @@ export function TeamReportDashboard({
             Belum ada handling/intervention log di tanggal ini.
           </div>
         ) : (
-          <div className="space-y-5">
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-              <div className="rounded-xl border border-border bg-slate-50/70 p-3 dark:bg-white/[0.03]">
-                <p className="text-[10px] font-extrabold uppercase text-muted-foreground">Total Handling</p>
-                <p className="mt-1 text-xl font-black text-foreground">{eodInsights.totalHandling}</p>
-              </div>
-              <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-3 dark:border-amber-500/20 dark:bg-amber-500/[0.06]">
-                <p className="text-[10px] font-extrabold uppercase text-amber-700 dark:text-amber-300">Butuh Expert</p>
-                <p className="mt-1 text-xl font-black text-foreground">{eodInsights.expertNeeded}</p>
-              </div>
-              <div className="rounded-xl border border-blue-200 bg-blue-50/70 p-3 dark:border-blue-500/20 dark:bg-blue-500/[0.06]">
-                <p className="text-[10px] font-extrabold uppercase text-blue-700 dark:text-blue-300">Potential Paid</p>
-                <p className="mt-1 text-xl font-black text-foreground">{eodInsights.potentialPaid}</p>
-              </div>
-              <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-3 dark:border-emerald-500/20 dark:bg-emerald-500/[0.06]">
-                <p className="text-[10px] font-extrabold uppercase text-emerald-700 dark:text-emerald-300">FU Terjadwal</p>
-                <p className="mt-1 text-xl font-black text-foreground">{eodInsights.scheduledFollowUps}</p>
-              </div>
-            </div>
-
-            <div className="grid gap-3 lg:grid-cols-2">
-              <div className="rounded-xl border border-border p-4">
-                <p className="mb-3 text-[10px] font-extrabold uppercase text-muted-foreground">Objection Terbanyak</p>
-                <div className="space-y-2">
-                  {eodInsights.topObjections.map(([name, count], index) => (
-                    <div key={name} className="flex items-center justify-between gap-3 text-xs">
-                      <span className="min-w-0 truncate text-foreground">{index + 1}. {name}</span>
-                      <span className="rounded-full bg-muted px-2 py-0.5 font-extrabold text-foreground">{count}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div className="rounded-xl border border-border p-4">
-                <p className="mb-3 text-[10px] font-extrabold uppercase text-muted-foreground">Handling per CRO</p>
-                <div className="space-y-2">
-                  {eodInsights.byCro.map(([name, count]) => (
-                    <div key={name} className="flex items-center justify-between gap-3 text-xs">
-                      <span className="min-w-0 truncate text-foreground">{name}</span>
-                      <span className="rounded-full bg-muted px-2 py-0.5 font-extrabold text-foreground">{count}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <h3 className="text-xs font-extrabold uppercase text-foreground">Kasus Prioritas</h3>
-                <p className="mt-0.5 text-[10px] text-muted-foreground">Expert, potential paid, follow-up terjadwal, atau belum memiliki hasil.</p>
-              </div>
-              {filteredInterventions.length > visibleEodItems.length && (
-                <button
-                  type="button"
-                  onClick={() => setShowAllEod(true)}
-                  className="shrink-0 text-xs font-bold text-primary hover:underline"
-                >
-                  Tampilkan semua ({filteredInterventions.length})
-                </button>
-              )}
-              {showAllEod && filteredInterventions.length > 8 && (
-                <button
-                  type="button"
-                  onClick={() => setShowAllEod(false)}
-                  className="shrink-0 text-xs font-bold text-primary hover:underline"
-                >
-                  Ringkas kembali
-                </button>
-              )}
-            </div>
-
-            {visibleEodItems.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-border px-4 py-6 text-center text-xs text-muted-foreground">
-                Tidak ada kasus prioritas. Gunakan Export CSV untuk melihat seluruh handling.
-              </div>
-            ) : (
-              <div className="grid max-h-[34rem] grid-cols-1 gap-3 overflow-auto pr-1 lg:grid-cols-2">
-            {visibleEodItems.map((item, index) => {
-              const nextFu = item.next_follow_up_date
-                ? new Date(item.next_follow_up_date).toLocaleDateString('id-ID')
-                : null
-
-              return (
-                <article key={item.id} className="rounded-xl border border-border bg-slate-50/70 p-4 dark:bg-white/[0.03]">
-                  <div className="mb-3 flex items-start gap-3 border-b border-border/70 pb-3">
-                    <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-violet-100 text-xs font-extrabold text-violet-700 dark:bg-violet-500/15 dark:text-violet-300">
-                      {index + 1}
-                    </span>
-                    <div className="min-w-0">
-                      <h3 className="truncate text-sm font-extrabold text-foreground">{item.leads?.full_name || 'Lead tidak ditemukan'}</h3>
-                      <p className="truncate text-[11px] text-muted-foreground">CRO: {item.users?.name || 'Unknown / sistem lama'}</p>
-                    </div>
-                  </div>
-                  <dl className="grid grid-cols-[6.5rem_minmax(0,1fr)] gap-x-3 gap-y-2 text-xs leading-relaxed">
-                    <dt className="font-bold text-muted-foreground">Kondisi</dt>
-                    <dd className="text-foreground">{item.lead_condition || '-'}</dd>
-                    <dt className="font-bold text-muted-foreground">Objection</dt>
-                    <dd className="text-foreground">{item.objection_category || '-'}</dd>
-                    <dt className="font-bold text-muted-foreground">Solusi</dt>
-                    <dd className="text-foreground">{item.solution_given || '-'}</dd>
-                    <dt className="font-bold text-muted-foreground">Layanan</dt>
-                    <dd className="text-foreground">
-                      {item.commercial_type || 'Free'}
-                      {(item.expert_needed || item.expert_type) && ` | Expert: ${item.expert_type || 'Ya'}`}
-                    </dd>
-                    <dt className="font-bold text-muted-foreground">Next Action</dt>
-                    <dd className="text-foreground">
-                      {item.next_action || '-'}{nextFu ? ` (${nextFu})` : ''}
-                    </dd>
-                    <dt className="font-bold text-muted-foreground">Result</dt>
-                    <dd className="font-semibold text-foreground">{item.result || item.notes || '-'}</dd>
-                  </dl>
-                </article>
-              )
-            })}
-              </div>
-            )}
-          </div>
+          <pre className="max-h-[28rem] overflow-auto whitespace-pre-wrap rounded-xl border border-border bg-slate-50/80 p-4 text-sm leading-7 text-foreground shadow-inner dark:bg-white/[0.03]">
+            {eodSummaryText}
+          </pre>
         )}
       </div>
 
