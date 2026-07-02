@@ -13,8 +13,8 @@ export default async function NewLeadPage() {
 
   return (
     <>
-      <Header title="Tambah Lead Baru" subtitle="Input data lead inbound atau outbound" backUrl="/leads" />
-      <div className="p-6 max-w-2xl animate-fade-in mx-auto">
+      <Header title="Tambah Lead Baru" subtitle="Input data lead inbound untuk tim CRO" backUrl="/leads" />
+      <div className="p-6 max-w-4xl animate-fade-in mx-auto">
         <LeadForm pics={pics || []} />
       </div>
     </>

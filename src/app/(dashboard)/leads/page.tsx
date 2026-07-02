@@ -32,7 +32,7 @@ export default async function LeadsPage() {
   return (
     <>
       <Header title="Leads Table" subtitle="Daftar seluruh leads dengan filter lengkap" />
-      <div className="p-6 animate-fade-in max-w-7xl mx-auto">
+      <div className="p-6 animate-fade-in w-full">
         <LeadsTable
           initialLeads={leads || []}
           pics={pics || []}

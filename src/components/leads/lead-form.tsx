@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
-import { Loader2, Phone, User, Calendar, MessageSquare, Mail, TrendingUp, Users } from 'lucide-react'
+import { CheckCircle2, Loader2, Phone, User, Calendar, MessageSquare, Mail, TrendingUp } from 'lucide-react'
 import { LOST_REASON_OPTIONS, LOST_STATUSES } from '@/lib/lost-reasons'
 
 interface LeadFormProps {
@@ -30,6 +30,7 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
   const [form, setForm] = useState({
     whatsapp_number: defaultValues?.whatsapp_number || '',
     full_name: defaultValues?.full_name || '',
@@ -82,6 +83,7 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
 
     setLoading(true)
     setError('')
+    setSuccess('')
 
     const supabase = createClient()
 
@@ -125,8 +127,12 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
         })
       }
 
-      router.push('/leads')
-      router.refresh()
+      setLoading(false)
+      setSuccess(leadId ? 'Perubahan lead berhasil disimpan. Mengalihkan ke daftar leads...' : 'Lead baru berhasil ditambahkan. Mengalihkan ke daftar leads...')
+      setTimeout(() => {
+        router.push('/leads')
+        router.refresh()
+      }, 700)
     }
   }
 
@@ -211,34 +217,19 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
           📊 Kampanye & PIC
         </h3>
 
-        {/* Source Campaign & Referral */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground mb-2">
-              <TrendingUp size={12} /> Source Campaign <span className="text-red-500">*</span>
-            </label>
-            <input
-              value={form.source_campaign}
-              onChange={e => update('source_campaign', e.target.value)}
-              placeholder="Contoh: Campaign Construction, Webinar Regular, Organic..."
-              required
-              className={inputClass}
-              style={inputStyle}
-            />
-          </div>
-
-          <div>
-            <label className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground mb-2">
-              <Users size={12} /> Nomor/Nama Referensi
-            </label>
-            <input
-              value={form.referral_source || ''}
-              onChange={e => update('referral_source', e.target.value)}
-              placeholder="Kosongkan jika tidak ada referensi"
-              className={inputClass}
-              style={inputStyle}
-            />
-          </div>
+        {/* Source Campaign */}
+        <div>
+          <label className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground mb-2">
+            <TrendingUp size={12} /> Source Campaign <span className="text-red-500">*</span>
+          </label>
+          <input
+            value={form.source_campaign}
+            onChange={e => update('source_campaign', e.target.value)}
+            placeholder="Contoh: Campaign Construction, Webinar Regular, Organic..."
+            required
+            className={inputClass}
+            style={inputStyle}
+          />
         </div>
 
         {/* PIC & Status */}
@@ -279,8 +270,12 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
           </div>
         )}
 
+        <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-xs font-bold text-emerald-700 dark:text-emerald-300">
+          Tipe lead: Inbound
+        </div>
+
         {/* Lead Type */}
-        <div>
+        <div className="hidden">
           <label className="block text-xs font-bold text-muted-foreground mb-2">Tipe Lead</label>
           <div className="flex gap-2">
             {[
@@ -349,6 +344,13 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
         </div>
       )}
 
+      {success && (
+        <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm bg-emerald-50 border border-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:border-emerald-500/20 dark:text-emerald-300 font-bold">
+          <CheckCircle2 size={16} />
+          {success}
+        </div>
+      )}
+
       {/* Actions */}
       <div className="flex gap-3 pt-1">
         <button
@@ -360,13 +362,20 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
         </button>
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || Boolean(success)}
           className="flex-1 py-2.5 rounded-xl text-sm font-extrabold text-primary-foreground bg-primary hover:opacity-90 transition-all disabled:opacity-60 cursor-pointer shadow-xs flex items-center justify-center gap-1.5"
         >
           {loading && <Loader2 size={14} className="animate-spin" />}
-          {loading ? 'Menyimpan...' : leadId ? 'Simpan Perubahan' : 'Tambah Lead'}
+          {success ? 'Berhasil Disimpan' : loading ? 'Menyimpan...' : leadId ? 'Simpan Perubahan' : 'Tambah Lead'}
         </button>
       </div>
+
+      {loading && (
+        <div className="fixed bottom-5 right-5 z-50 flex items-center gap-2 rounded-2xl border border-border bg-card px-4 py-3 text-sm font-bold text-foreground shadow-2xl">
+          <Loader2 size={16} className="animate-spin text-primary" />
+          Menyimpan lead...
+        </div>
+      )}
     </form>
   )
 }

@@ -8,7 +8,7 @@ import {
   Search, Filter, ExternalLink, MessageCircle,
   ChevronUp, ChevronDown, Copy, Calendar, RefreshCw,
   ChevronLeft, ChevronRight,
-  Edit, Trash2, CreditCard, ClipboardList, UserCheck, Lock, FileUp
+  Edit, Trash2, CreditCard, Lock, FileUp
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { Lead } from '@/lib/supabase/types'
@@ -32,8 +32,6 @@ interface LeadsTableProps {
 const renderMilestones = (lead: LeadWithRelations) => {
   const pemetaanPayment = lead.payments?.find(p => p.payment_type === 'pemetaan')
   const seatLockPayment = lead.payments?.find(p => p.payment_type === 'seat_lock')
-  const pemRecord = lead.pemetaan && lead.pemetaan.length > 0 ? lead.pemetaan[0] : null
-  const expRecord = lead.expert_consultations && lead.expert_consultations.length > 0 ? lead.expert_consultations[0] : null
 
   // Step 1: Payment Pemetaan
   let step1: 'success' | 'warning' | 'empty' = 'empty'
@@ -51,41 +49,7 @@ const renderMilestones = (lead: LeadWithRelations) => {
     }
   }
 
-  // Step 2: Pemetaan Session
-  let step2: 'success' | 'warning' | 'empty' = 'empty'
-  let step2Text = 'Sesi Pemetaan: Belum Dimulai'
-  if (pemRecord) {
-    if (pemRecord.result_status === 'ready') {
-      step2 = 'success'
-      step2Text = 'Sesi Pemetaan: Hasil Siap (Ready)'
-    } else if (pemRecord.scheduled_at) {
-      step2 = 'warning'
-      const date = new Date(pemRecord.scheduled_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })
-      step2Text = `Sesi Pemetaan: Terjadwal (${date})`
-    } else if (pemRecord.form_status === 'submitted') {
-      step2 = 'warning'
-      step2Text = 'Sesi Pemetaan: Form Diisi'
-    } else if (pemRecord.form_status === 'sent') {
-      step2 = 'warning'
-      step2Text = 'Sesi Pemetaan: Form Dikirim'
-    }
-  }
-
-  // Step 3: Expert Consultation
-  let step3: 'success' | 'warning' | 'empty' = 'empty'
-  let step3Text = 'Konsultasi Expert: Belum Terjadwal'
-  if (expRecord) {
-    if (expRecord.consultation_result) {
-      step3 = 'success'
-      step3Text = `Konsultasi Expert: Selesai (${expRecord.consultation_result})`
-    } else if (expRecord.scheduled_at) {
-      step3 = 'warning'
-      const date = new Date(expRecord.scheduled_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })
-      step3Text = `Konsultasi Expert: Terjadwal (${date})`
-    }
-  }
-
-  // Step 4: Seat Lock Payment
+  // Step 2: Seat Lock Payment
   let step4: 'success' | 'warning' | 'empty' = 'empty'
   let step4Text = 'Seat Lock: Belum Bayar'
   if (seatLockPayment) {
@@ -100,9 +64,7 @@ const renderMilestones = (lead: LeadWithRelations) => {
 
   const steps = [
     { id: 1, label: 'Payment', icon: CreditCard, status: step1, tooltip: step1Text, colorClass: 'emerald' },
-    { id: 2, label: 'Pemetaan', icon: ClipboardList, status: step2, tooltip: step2Text, colorClass: 'blue' },
-    { id: 3, label: 'Expert', icon: UserCheck, status: step3, tooltip: step3Text, colorClass: 'purple' },
-    { id: 4, label: 'Seat Lock', icon: Lock, status: step4, tooltip: step4Text, colorClass: 'red' }
+    { id: 2, label: 'Seat Lock', icon: Lock, status: step4, tooltip: step4Text, colorClass: 'red' }
   ]
 
   return (
@@ -574,7 +536,7 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
                   { label: 'PIC CRO', field: null },
                   { label: 'Status Pipeline', field: 'current_status' as const },
                   { label: 'Last Update', field: null },
-                  { label: 'Progress Milestone', field: null },
+                  { label: 'Payment', field: null },
                   { label: 'Aksi', field: null }
                 ].map(col => (
                   <th
@@ -653,7 +615,7 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
                         </div>
                       </td>
 
-                      {/* Progress Milestone */}
+                      {/* Payment Status */}
                       <td className="px-4 py-3 whitespace-nowrap">
                         {renderMilestones(lead)}
                       </td>
