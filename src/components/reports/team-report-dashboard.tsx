@@ -339,9 +339,18 @@ export function TeamReportDashboard({
         const nextAction = item.next_action ? `${item.next_action}${nextFu}` : '-'
         const result = item.result || item.notes || '-'
 
-        return `${index + 1}. ${user} - ${lead}: kondisi ${condition}; objection ${objection}; solusi ${solution}; ${commercial}${expert}; next ${nextAction}; result ${result}.`
+        return [
+          `${index + 1}. ${lead}`,
+          `   CRO: ${user}`,
+          `   - Kondisi: ${condition}`,
+          `   - Objection: ${objection}`,
+          `   - Solusi: ${solution}`,
+          `   - Layanan: ${commercial}${expert}`,
+          `   - Next Action: ${nextAction}`,
+          `   - Result: ${result}`,
+        ].join('\n')
       })
-      .join('\n')
+      .join('\n\n')
   }, [filteredInterventions])
 
   const copyEodSummary = async () => {
@@ -638,9 +647,52 @@ export function TeamReportDashboard({
             {copied ? 'Tersalin' : 'Copy Report'}
           </button>
         </div>
-        <pre className="max-h-64 overflow-auto whitespace-pre-wrap rounded-xl border border-border bg-slate-50/70 p-4 text-xs leading-relaxed text-foreground dark:bg-white/[0.03]">
-          {eodSummaryText}
-        </pre>
+        {filteredInterventions.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-border px-4 py-8 text-center text-xs text-muted-foreground">
+            Belum ada handling/intervention log di tanggal ini.
+          </div>
+        ) : (
+          <div className="grid max-h-[34rem] grid-cols-1 gap-3 overflow-auto pr-1 lg:grid-cols-2">
+            {filteredInterventions.map((item, index) => {
+              const nextFu = item.next_follow_up_date
+                ? new Date(item.next_follow_up_date).toLocaleDateString('id-ID')
+                : null
+
+              return (
+                <article key={item.id} className="rounded-xl border border-border bg-slate-50/70 p-4 dark:bg-white/[0.03]">
+                  <div className="mb-3 flex items-start gap-3 border-b border-border/70 pb-3">
+                    <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-violet-100 text-xs font-extrabold text-violet-700 dark:bg-violet-500/15 dark:text-violet-300">
+                      {index + 1}
+                    </span>
+                    <div className="min-w-0">
+                      <h3 className="truncate text-sm font-extrabold text-foreground">{item.leads?.full_name || 'Lead tidak ditemukan'}</h3>
+                      <p className="truncate text-[11px] text-muted-foreground">CRO: {item.users?.name || 'Unknown / sistem lama'}</p>
+                    </div>
+                  </div>
+                  <dl className="grid grid-cols-[6.5rem_minmax(0,1fr)] gap-x-3 gap-y-2 text-xs leading-relaxed">
+                    <dt className="font-bold text-muted-foreground">Kondisi</dt>
+                    <dd className="text-foreground">{item.lead_condition || '-'}</dd>
+                    <dt className="font-bold text-muted-foreground">Objection</dt>
+                    <dd className="text-foreground">{item.objection_category || '-'}</dd>
+                    <dt className="font-bold text-muted-foreground">Solusi</dt>
+                    <dd className="text-foreground">{item.solution_given || '-'}</dd>
+                    <dt className="font-bold text-muted-foreground">Layanan</dt>
+                    <dd className="text-foreground">
+                      {item.commercial_type || 'Free'}
+                      {(item.expert_needed || item.expert_type) && ` | Expert: ${item.expert_type || 'Ya'}`}
+                    </dd>
+                    <dt className="font-bold text-muted-foreground">Next Action</dt>
+                    <dd className="text-foreground">
+                      {item.next_action || '-'}{nextFu ? ` (${nextFu})` : ''}
+                    </dd>
+                    <dt className="font-bold text-muted-foreground">Result</dt>
+                    <dd className="font-semibold text-foreground">{item.result || item.notes || '-'}</dd>
+                  </dl>
+                </article>
+              )
+            })}
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
