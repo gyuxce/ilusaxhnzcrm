@@ -20,7 +20,7 @@ export default async function LeadsPage() {
         expert_consultations(*)
       `)
       .order('lead_entry_date', { ascending: false })
-      .limit(2000),
+      .limit(10000),
     supabase
       .from('users')
       .select('id, name, email')

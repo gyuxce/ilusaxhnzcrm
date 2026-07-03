@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
-import { CalendarDays, CheckCircle2, Clock, ExternalLink, Search, UserRoundCheck, WalletCards } from 'lucide-react'
+import { CalendarDays, CheckCircle2, Clock, ExternalLink, PencilLine, Search, Trash2, UserRoundCheck, WalletCards } from 'lucide-react'
 
 type ExpertQueueItem = {
   id: string
@@ -117,7 +117,7 @@ export function ExpertQueueDashboard({ initialItems }: ExpertQueueDashboardProps
   }, [items])
 
   const markDone = async (item: ExpertQueueItem) => {
-    const result = window.prompt('Isi hasil bantuan / catatan singkat:', item.result || '')
+    const result = window.prompt(item.result ? 'Ubah hasil bantuan / catatan singkat:' : 'Isi hasil bantuan / catatan singkat:', item.result || '')
     if (result === null) return
     const cleanResult = result.trim()
     if (!cleanResult) return
@@ -140,6 +140,28 @@ export function ExpertQueueDashboard({ initialItems }: ExpertQueueDashboardProps
     }
 
     setItems(prev => prev.map(row => row.id === item.id ? { ...row, result: cleanResult } : row))
+  }
+
+  const deleteItem = async (item: ExpertQueueItem) => {
+    const leadName = item.leads?.full_name || 'lead ini'
+    const ok = window.confirm(`Hapus catatan bantuan untuk ${leadName}? Lead utama tidak ikut terhapus.`)
+    if (!ok) return
+
+    setUpdatingId(item.id)
+    const supabase = createClient()
+    const { error } = await supabase
+      .from('lead_interventions')
+      .delete()
+      .eq('id', item.id)
+
+    setUpdatingId(null)
+
+    if (error) {
+      alert('Gagal menghapus catatan bantuan: ' + error.message)
+      return
+    }
+
+    setItems(prev => prev.filter(row => row.id !== item.id))
   }
 
   return (
@@ -278,8 +300,8 @@ export function ExpertQueueDashboard({ initialItems }: ExpertQueueDashboardProps
                       )}
                     </td>
 
-                    <td className="px-4 py-4 min-w-36">
-                      <div className="flex items-center gap-2">
+                    <td className="px-4 py-4 min-w-52">
+                      <div className="flex flex-wrap items-center gap-2">
                         <Link
                           href={`/leads/${item.lead_id}`}
                           className="rounded-lg border border-border p-2 text-primary hover:bg-primary/10"
@@ -287,16 +309,24 @@ export function ExpertQueueDashboard({ initialItems }: ExpertQueueDashboardProps
                         >
                           <ExternalLink size={14} />
                         </Link>
-                        {!done && (
-                          <button
-                            type="button"
-                            onClick={() => markDone(item)}
-                            disabled={updatingId === item.id}
-                            className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-700 disabled:opacity-50"
-                          >
-                            {updatingId === item.id ? '...' : 'Selesai'}
-                          </button>
-                        )}
+                        <button
+                          type="button"
+                          onClick={() => markDone(item)}
+                          disabled={updatingId === item.id}
+                          className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-700 disabled:opacity-50"
+                        >
+                          {done && <PencilLine size={12} />}
+                          {updatingId === item.id ? '...' : done ? 'Ubah Hasil' : 'Selesai'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => deleteItem(item)}
+                          disabled={updatingId === item.id}
+                          className="inline-flex items-center gap-1 rounded-lg border border-red-500/25 bg-red-500/10 px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-500/15 disabled:opacity-50 dark:text-red-300"
+                        >
+                          <Trash2 size={12} />
+                          Hapus
+                        </button>
                       </div>
                     </td>
                   </tr>
