@@ -148,6 +148,7 @@ export default function WorkQueuePage() {
   async function fetchData() {
     setLoading(true)
     const today = todayInput()
+    const requestedLeadId = searchParams.get('lead')
 
     const [leadsRes, followUpsRes] = await Promise.all([
       supabase
@@ -168,9 +169,27 @@ export default function WorkQueuePage() {
       lead.current_status === 'New Lead' || NEEDS_ACTION_STATUSES.includes(lead.current_status)
     )
     const nextFollowUps = (followUpsRes.data || []) as any[]
+
+    if (requestedLeadId) {
+      const alreadyLoaded = nextLeads.some(lead => lead.id === requestedLeadId)
+        || nextFollowUps.some(fu => fu.leads?.id === requestedLeadId)
+
+      if (!alreadyLoaded) {
+        const { data: requestedLead } = await supabase
+          .from('leads')
+          .select('id, full_name, whatsapp_number, email, source_campaign, current_status, lead_entry_date, assigned_cro_id, next_action, next_follow_up_date, lead_segment, funnel_notes, users:assigned_cro_id(id, name)')
+          .eq('id', requestedLeadId)
+          .maybeSingle()
+
+        if (requestedLead) {
+          nextLeads.unshift(requestedLead as any)
+        }
+      }
+    }
+
     setLeads(nextLeads)
     setFollowUps(nextFollowUps)
-    setSelectedLeadId(prev => prev || nextFollowUps[0]?.leads?.id || nextLeads[0]?.id || null)
+    setSelectedLeadId(prev => requestedLeadId || prev || nextFollowUps[0]?.leads?.id || nextLeads[0]?.id || null)
     setLoading(false)
   }
 
@@ -257,7 +276,7 @@ export default function WorkQueuePage() {
     }
   }, [followUps, leads])
 
-  const selectedItem = queueItems.find(item => item.lead.id === selectedLeadId) || queueItems[0] || null
+  const selectedItem = queueItems.find(item => item.lead.id === selectedLeadId) || (!selectedLeadId ? queueItems[0] : null)
   const selectedLead = selectedItem?.lead || null
   const nextStatus = selectedLead ? inferNextStatus(selectedLead.current_status, form.next_action) : '-'
 
