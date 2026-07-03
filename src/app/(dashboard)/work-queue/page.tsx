@@ -36,6 +36,8 @@ type LeadRow = {
   source_campaign: string
   current_status: string
   lead_entry_date: string
+  last_contacted_date: string | null
+  updated_at: string | null
   assigned_cro_id: string | null
   next_action: string | null
   next_follow_up_date: string | null
@@ -55,7 +57,7 @@ type FollowUpRow = {
 
 type QueueItem = {
   lead: LeadRow
-  reason: 'FU Hari Ini' | 'Needs Action' | 'New Lead'
+  reason: 'FU Hari Ini' | 'Needs Action' | 'New Lead' | 'Belum Disentuh'
   priority: number
   followUp?: FollowUpRow
 }
@@ -94,6 +96,7 @@ const QUEUE_FILTERS = [
   { key: 'fu', label: 'FU Hari Ini' },
   { key: 'needs', label: 'Needs Action' },
   { key: 'new', label: 'New Lead' },
+  { key: 'stale', label: 'Belum Disentuh' },
 ] as const
 
 type QueueFilter = typeof QUEUE_FILTERS[number]['key']
@@ -117,6 +120,23 @@ function formatDate(value?: string | null) {
     month: 'short',
     year: '2-digit',
   })
+}
+
+function daysSinceTouch(lead: Pick<LeadRow, 'last_contacted_date' | 'updated_at' | 'lead_entry_date'>) {
+  const latestDate = lead.last_contacted_date || lead.updated_at || lead.lead_entry_date
+  if (!latestDate) return 0
+  const latest = new Date(latestDate)
+  if (Number.isNaN(latest.getTime())) return 0
+  const now = new Date()
+  return Math.max(0, Math.floor((now.getTime() - latest.getTime()) / (1000 * 60 * 60 * 24)))
+}
+
+function isClosedStatus(status: string) {
+  return ['Seat Lock Paid', 'Onboarding', 'Not Interested', 'Not Eligible'].includes(status)
+}
+
+function isStaleLead(lead: LeadRow) {
+  return !isClosedStatus(lead.current_status) && daysSinceTouch(lead) >= 3
 }
 
 function inferNextStatus(currentStatus: string, nextAction: string) {
@@ -153,20 +173,20 @@ export default function WorkQueuePage() {
     const [leadsRes, followUpsRes] = await Promise.all([
       supabase
         .from('leads')
-        .select('id, full_name, whatsapp_number, email, source_campaign, current_status, lead_entry_date, assigned_cro_id, next_action, next_follow_up_date, lead_segment, funnel_notes, users:assigned_cro_id(id, name)')
+        .select('id, full_name, whatsapp_number, email, source_campaign, current_status, lead_entry_date, last_contacted_date, updated_at, assigned_cro_id, next_action, next_follow_up_date, lead_segment, funnel_notes, users:assigned_cro_id(id, name)')
         .order('lead_entry_date', { ascending: false })
-        .limit(350),
+        .limit(10000),
       supabase
         .from('follow_ups')
-        .select('id, lead_id, scheduled_date, fu_type, notes, leads:lead_id(id, full_name, whatsapp_number, email, source_campaign, current_status, lead_entry_date, assigned_cro_id, next_action, next_follow_up_date, lead_segment, funnel_notes, users:assigned_cro_id(id, name))')
+        .select('id, lead_id, scheduled_date, fu_type, notes, leads:lead_id(id, full_name, whatsapp_number, email, source_campaign, current_status, lead_entry_date, last_contacted_date, updated_at, assigned_cro_id, next_action, next_follow_up_date, lead_segment, funnel_notes, users:assigned_cro_id(id, name))')
         .eq('is_done', false)
         .lte('scheduled_date', today)
         .order('scheduled_date', { ascending: true })
-        .limit(120),
+        .limit(10000),
     ])
 
     const nextLeads = ((leadsRes.data || []) as any[]).filter(lead =>
-      lead.current_status === 'New Lead' || NEEDS_ACTION_STATUSES.includes(lead.current_status)
+      lead.current_status === 'New Lead' || NEEDS_ACTION_STATUSES.includes(lead.current_status) || isStaleLead(lead)
     )
     const nextFollowUps = (followUpsRes.data || []) as any[]
 
@@ -177,7 +197,7 @@ export default function WorkQueuePage() {
       if (!alreadyLoaded) {
         const { data: requestedLead } = await supabase
           .from('leads')
-          .select('id, full_name, whatsapp_number, email, source_campaign, current_status, lead_entry_date, assigned_cro_id, next_action, next_follow_up_date, lead_segment, funnel_notes, users:assigned_cro_id(id, name)')
+          .select('id, full_name, whatsapp_number, email, source_campaign, current_status, lead_entry_date, last_contacted_date, updated_at, assigned_cro_id, next_action, next_follow_up_date, lead_segment, funnel_notes, users:assigned_cro_id(id, name)')
           .eq('id', requestedLeadId)
           .maybeSingle()
 
@@ -226,10 +246,11 @@ export default function WorkQueuePage() {
     leads.forEach(lead => {
       if (map.has(lead.id)) return
       const isNeedsAction = NEEDS_ACTION_STATUSES.includes(lead.current_status)
+      const isStale = isStaleLead(lead)
       map.set(lead.id, {
         lead,
-        reason: isNeedsAction ? 'Needs Action' : 'New Lead',
-        priority: isNeedsAction ? 2 : 3,
+        reason: isNeedsAction ? 'Needs Action' : lead.current_status === 'New Lead' ? 'New Lead' : 'Belum Disentuh',
+        priority: isNeedsAction ? 2 : lead.current_status === 'New Lead' ? 3 : isStale ? 4 : 5,
       })
     })
 
@@ -246,12 +267,14 @@ export default function WorkQueuePage() {
         if (queueFilter === 'fu') return item.reason === 'FU Hari Ini'
         if (queueFilter === 'needs') return item.reason === 'Needs Action'
         if (queueFilter === 'new') return item.reason === 'New Lead'
+        if (queueFilter === 'stale') return item.reason === 'Belum Disentuh'
         return true
       })
       .sort((a, b) => {
         if (a.priority !== b.priority) return a.priority - b.priority
         if (a.reason === 'FU Hari Ini') return dateTime(a.followUp?.scheduled_date) - dateTime(b.followUp?.scheduled_date)
         if (a.reason === 'New Lead') return dateTime(b.lead.lead_entry_date) - dateTime(a.lead.lead_entry_date)
+        if (a.reason === 'Belum Disentuh') return daysSinceTouch(b.lead) - daysSinceTouch(a.lead)
         return dateTime(a.lead.lead_entry_date) - dateTime(b.lead.lead_entry_date)
       })
   }, [followUps, leads, query, queueFilter])
@@ -265,7 +288,12 @@ export default function WorkQueuePage() {
     leads.forEach(lead => {
       if (allItems.has(lead.id)) return
       const isNeedsAction = NEEDS_ACTION_STATUSES.includes(lead.current_status)
-      allItems.set(lead.id, { lead, reason: isNeedsAction ? 'Needs Action' : 'New Lead', priority: isNeedsAction ? 2 : 3 })
+      const isStale = isStaleLead(lead)
+      allItems.set(lead.id, {
+        lead,
+        reason: isNeedsAction ? 'Needs Action' : lead.current_status === 'New Lead' ? 'New Lead' : 'Belum Disentuh',
+        priority: isNeedsAction ? 2 : lead.current_status === 'New Lead' ? 3 : isStale ? 4 : 5,
+      })
     })
     const items = Array.from(allItems.values())
     return {
@@ -273,6 +301,7 @@ export default function WorkQueuePage() {
       fu: items.filter(item => item.reason === 'FU Hari Ini').length,
       needs: items.filter(item => item.reason === 'Needs Action').length,
       new: items.filter(item => item.reason === 'New Lead').length,
+      stale: items.filter(item => item.reason === 'Belum Disentuh').length,
     }
   }, [followUps, leads])
 
@@ -447,7 +476,7 @@ export default function WorkQueuePage() {
                 })}
               </div>
               <p className="mt-3 text-[10px] leading-relaxed text-muted-foreground">
-                Urutan: FU hari ini paling atas, lalu needs action, lalu new lead terbaru.
+                Urutan: FU hari ini paling atas, lalu needs action, new lead terbaru, lalu lead lama yang belum disentuh.
               </p>
             </div>
 
@@ -482,7 +511,9 @@ export default function WorkQueuePage() {
                           ? 'bg-red-500/10 text-red-600 dark:text-red-300'
                           : item.reason === 'Needs Action'
                             ? 'bg-amber-500/10 text-amber-600 dark:text-amber-300'
-                            : 'bg-blue-500/10 text-blue-600 dark:text-blue-300'
+                            : item.reason === 'Belum Disentuh'
+                              ? 'bg-slate-500/10 text-slate-600 dark:text-slate-300'
+                              : 'bg-blue-500/10 text-blue-600 dark:text-blue-300'
                       }`}>
                         {item.reason}
                       </span>
