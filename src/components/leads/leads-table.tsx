@@ -8,7 +8,7 @@ import {
   Search, Filter,
   ChevronUp, ChevronDown,
   ChevronLeft, ChevronRight,
-  FileUp, Trash2
+  FileUp, Loader2, Trash2
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
@@ -81,6 +81,10 @@ function lastTouchLabel(lead: LeadWithRelations) {
   return `${days} hari lalu`
 }
 
+function normalizePhone(value: string | null | undefined) {
+  return (value || '').replace(/\D/g, '')
+}
+
 
 export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
   const router = useRouter()
@@ -102,6 +106,10 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
   const [leadToDelete, setLeadToDelete] = useState<{ id: string; name: string } | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [deleteError, setDeleteError] = useState('')
+  const [duplicateModalOpen, setDuplicateModalOpen] = useState(false)
+  const [bulkDeletingDuplicates, setBulkDeletingDuplicates] = useState(false)
+  const [duplicateError, setDuplicateError] = useState('')
+  const [toast, setToast] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [mounted, setMounted] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const pageSize = 25
@@ -237,6 +245,42 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
     }
   }, [initialLeads])
 
+  const duplicateGroups = useMemo(() => {
+    const groups = new Map<string, LeadWithRelations[]>()
+
+    initialLeads.forEach(lead => {
+      const phone = lead.whatsapp_normalized || normalizePhone(lead.whatsapp_number)
+      if (!phone) return
+      const current = groups.get(phone) || []
+      current.push(lead)
+      groups.set(phone, current)
+    })
+
+    return Array.from(groups.entries())
+      .filter(([, leads]) => leads.length > 1)
+      .map(([phone, leads]) => {
+        const sorted = [...leads].sort((a, b) => {
+          const aTime = new Date(a.created_at || a.lead_entry_date || 0).getTime()
+          const bTime = new Date(b.created_at || b.lead_entry_date || 0).getTime()
+          return aTime - bTime
+        })
+        return {
+          phone,
+          keep: sorted[0],
+          duplicates: sorted.slice(1),
+        }
+      })
+  }, [initialLeads])
+
+  const duplicateDeleteIds = useMemo(() => {
+    return duplicateGroups.flatMap(group => group.duplicates.map(lead => lead.id))
+  }, [duplicateGroups])
+
+  const showToast = (type: 'success' | 'error', text: string) => {
+    setToast({ type, text })
+    window.setTimeout(() => setToast(null), 3200)
+  }
+
   const setQuick = (value: QuickFilter) => {
     setQuickFilter(value)
     setCurrentPage(1)
@@ -269,6 +313,36 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
     setDeleteModalOpen(false)
     setLeadToDelete(null)
     setDeletingId(null)
+    showToast('success', 'Lead berhasil dihapus.')
+    router.refresh()
+  }
+
+  const deleteDuplicateLeads = async () => {
+    if (duplicateDeleteIds.length === 0) return
+
+    setBulkDeletingDuplicates(true)
+    setDuplicateError('')
+
+    const supabase = createClient()
+    const chunkSize = 500
+    for (let i = 0; i < duplicateDeleteIds.length; i += chunkSize) {
+      const chunk = duplicateDeleteIds.slice(i, i + chunkSize)
+      const { error } = await supabase
+        .from('leads')
+        .delete()
+        .in('id', chunk)
+
+      if (error) {
+        setDuplicateError(error.message)
+        setBulkDeletingDuplicates(false)
+        showToast('error', 'Gagal menghapus sebagian duplikat.')
+        return
+      }
+    }
+
+    setBulkDeletingDuplicates(false)
+    setDuplicateModalOpen(false)
+    showToast('success', `${duplicateDeleteIds.length} data duplikat berhasil dihapus.`)
     router.refresh()
   }
 
@@ -281,6 +355,17 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
 
   return (
     <div className="space-y-4">
+      {toast && (
+        <div className={cn(
+          'fixed right-5 top-5 z-50 rounded-2xl border px-4 py-3 text-sm font-bold shadow-xl',
+          toast.type === 'success'
+            ? 'border-emerald-500/20 bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300'
+            : 'border-red-500/20 bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-300'
+        )}>
+          {toast.text}
+        </div>
+      )}
+
       {/* Top bar info */}
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
@@ -292,6 +377,19 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
           )}
         </p>
         <div className="flex items-center gap-2">
+          {duplicateDeleteIds.length > 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                setDuplicateError('')
+                setDuplicateModalOpen(true)
+              }}
+              className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-red-600 bg-red-50 border border-red-200 transition-all hover:bg-red-100 dark:text-red-300 dark:bg-red-500/10 dark:border-red-500/20"
+            >
+              <Trash2 size={14} />
+              Hapus Duplikat ({duplicateDeleteIds.length})
+            </button>
+          )}
           <button
             onClick={() => setCsvModalOpen(true)}
             className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-slate-700 bg-white border border-slate-200 dark:text-slate-200 dark:bg-slate-900 dark:border-slate-800 transition-all hover:bg-slate-50 dark:hover:bg-slate-800 shadow-sm"
@@ -705,6 +803,72 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
                 className="rounded-xl bg-red-600 px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {deletingId !== null ? 'Menghapus...' : 'Ya, Hapus'}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {mounted && duplicateModalOpen && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-2xl rounded-2xl border border-border bg-card p-6 shadow-2xl">
+            <div className="flex items-start gap-3">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-red-500/20 bg-red-500/10 text-red-600 dark:text-red-300">
+                <Trash2 size={20} />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-foreground">Hapus data WhatsApp duplikat?</h3>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                  Sistem menemukan <span className="font-bold text-foreground">{duplicateGroups.length}</span> nomor dobel. Data paling awal akan disimpan, lalu <span className="font-bold text-foreground">{duplicateDeleteIds.length}</span> data duplikat yang lebih baru akan dihapus.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-4 max-h-56 overflow-auto rounded-2xl border border-border bg-slate-50/50 p-3 dark:bg-white/[0.02]">
+              <div className="space-y-2">
+                {duplicateGroups.slice(0, 8).map(group => (
+                  <div key={group.phone} className="rounded-xl border border-border bg-card px-3 py-2">
+                    <p className="text-xs font-black text-foreground">{group.phone}</p>
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      Simpan: <span className="font-bold text-foreground">{group.keep.full_name}</span> | Hapus: {group.duplicates.map(lead => lead.full_name).join(', ')}
+                    </p>
+                  </div>
+                ))}
+                {duplicateGroups.length > 8 && (
+                  <p className="px-2 py-1 text-xs text-muted-foreground">
+                    + {duplicateGroups.length - 8} grup duplikat lainnya.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {duplicateError && (
+              <div className="mt-4 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-xs font-semibold text-red-700 dark:text-red-300">
+                Gagal menghapus duplikat: {duplicateError}
+              </div>
+            )}
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setDuplicateModalOpen(false)
+                  setDuplicateError('')
+                }}
+                disabled={bulkDeletingDuplicates}
+                className="rounded-xl border border-border bg-card px-4 py-2 text-xs font-bold text-foreground transition-colors hover:bg-slate-50 disabled:opacity-50 dark:hover:bg-white/5"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={deleteDuplicateLeads}
+                disabled={bulkDeletingDuplicates}
+                className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {bulkDeletingDuplicates && <Loader2 size={13} className="animate-spin" />}
+                {bulkDeletingDuplicates ? 'Menghapus...' : `Hapus ${duplicateDeleteIds.length} Duplikat`}
               </button>
             </div>
           </div>

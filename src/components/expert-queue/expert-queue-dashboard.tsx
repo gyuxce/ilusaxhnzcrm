@@ -2,9 +2,10 @@
 
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
+import { createPortal } from 'react-dom'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
-import { CalendarDays, CheckCircle2, Clock, ExternalLink, PencilLine, Search, Trash2, UserRoundCheck, WalletCards } from 'lucide-react'
+import { CalendarDays, CheckCircle2, Clock, ExternalLink, Loader2, PencilLine, Search, Trash2, UserRoundCheck, WalletCards } from 'lucide-react'
 
 type ExpertQueueItem = {
   id: string
@@ -68,6 +69,13 @@ export function ExpertQueueDashboard({ initialItems }: ExpertQueueDashboardProps
   const [commercialType, setCommercialType] = useState('all')
   const [status, setStatus] = useState<(typeof statusOptions)[number]>('all')
   const [updatingId, setUpdatingId] = useState<string | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<ExpertQueueItem | null>(null)
+  const [toast, setToast] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
+  const showToast = (type: 'success' | 'error', text: string) => {
+    setToast({ type, text })
+    window.setTimeout(() => setToast(null), 3200)
+  }
 
   const expertTypes = useMemo(() => {
     return Array.from(new Set(items.map(item => item.expert_type).filter(Boolean) as string[])).sort()
@@ -143,10 +151,6 @@ export function ExpertQueueDashboard({ initialItems }: ExpertQueueDashboardProps
   }
 
   const deleteItem = async (item: ExpertQueueItem) => {
-    const leadName = item.leads?.full_name || 'lead ini'
-    const ok = window.confirm(`Hapus catatan bantuan untuk ${leadName}? Lead utama tidak ikut terhapus.`)
-    if (!ok) return
-
     setUpdatingId(item.id)
     const supabase = createClient()
     const { error } = await supabase
@@ -157,15 +161,28 @@ export function ExpertQueueDashboard({ initialItems }: ExpertQueueDashboardProps
     setUpdatingId(null)
 
     if (error) {
-      alert('Gagal menghapus catatan bantuan: ' + error.message)
+      showToast('error', 'Gagal menghapus catatan bantuan: ' + error.message)
       return
     }
 
+    setPendingDelete(null)
     setItems(prev => prev.filter(row => row.id !== item.id))
+    showToast('success', 'Catatan bantuan berhasil dihapus. Lead utama tetap aman.')
   }
 
   return (
     <div className="space-y-6">
+      {toast && (
+        <div className={cn(
+          'fixed right-5 top-5 z-50 rounded-2xl border px-4 py-3 text-sm font-bold shadow-xl',
+          toast.type === 'success'
+            ? 'border-emerald-500/20 bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300'
+            : 'border-red-500/20 bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-300'
+        )}>
+          {toast.text}
+        </div>
+      )}
+
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         {[
           { label: 'Total Butuh Dibantu', value: stats.total, icon: UserRoundCheck, tone: 'hsl(250,84%,64%)' },
@@ -300,8 +317,8 @@ export function ExpertQueueDashboard({ initialItems }: ExpertQueueDashboardProps
                       )}
                     </td>
 
-                    <td className="px-4 py-4 min-w-52">
-                      <div className="flex flex-wrap items-center gap-2">
+                    <td className="px-4 py-4 min-w-36">
+                      <div className="flex items-center gap-2">
                         <Link
                           href={`/leads/${item.lead_id}`}
                           className="rounded-lg border border-border p-2 text-primary hover:bg-primary/10"
@@ -315,17 +332,17 @@ export function ExpertQueueDashboard({ initialItems }: ExpertQueueDashboardProps
                           disabled={updatingId === item.id}
                           className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-700 disabled:opacity-50"
                         >
-                          {done && <PencilLine size={12} />}
+                          {updatingId === item.id ? <Loader2 size={12} className="animate-spin" /> : done && <PencilLine size={12} />}
                           {updatingId === item.id ? '...' : done ? 'Ubah Hasil' : 'Selesai'}
                         </button>
                         <button
                           type="button"
-                          onClick={() => deleteItem(item)}
+                          onClick={() => setPendingDelete(item)}
                           disabled={updatingId === item.id}
-                          className="inline-flex items-center gap-1 rounded-lg border border-red-500/25 bg-red-500/10 px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-500/15 disabled:opacity-50 dark:text-red-300"
+                          className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-red-500/25 bg-red-500/10 text-red-600 hover:bg-red-500/15 disabled:opacity-50 dark:text-red-300"
+                          title="Hapus catatan bantuan"
                         >
-                          <Trash2 size={12} />
-                          Hapus
+                          <Trash2 size={14} />
                         </button>
                       </div>
                     </td>
@@ -336,6 +353,45 @@ export function ExpertQueueDashboard({ initialItems }: ExpertQueueDashboardProps
           </table>
         </div>
       </div>
+
+      {pendingDelete && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl">
+            <div className="flex items-start gap-3">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-red-500/20 bg-red-500/10 text-red-600 dark:text-red-300">
+                <Trash2 size={20} />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-foreground">Hapus catatan bantuan?</h3>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                  Catatan bantuan untuk <span className="font-bold text-foreground">{pendingDelete.leads?.full_name || 'lead ini'}</span> akan dihapus. Lead utama tidak ikut terhapus.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setPendingDelete(null)}
+                disabled={updatingId === pendingDelete.id}
+                className="rounded-xl border border-border bg-card px-4 py-2 text-xs font-bold text-foreground transition-colors hover:bg-slate-50 disabled:opacity-50 dark:hover:bg-white/5"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={() => deleteItem(pendingDelete)}
+                disabled={updatingId === pendingDelete.id}
+                className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {updatingId === pendingDelete.id && <Loader2 size={13} className="animate-spin" />}
+                {updatingId === pendingDelete.id ? 'Menghapus...' : 'Ya, Hapus'}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   )
 }
