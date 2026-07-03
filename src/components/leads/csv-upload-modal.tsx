@@ -21,6 +21,7 @@ export function CsvUploadModal({ isOpen, onClose, pics }: CsvUploadModalProps) {
   const [isUploading, setIsUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0, success: 0, failed: 0 })
   const [errorMsg, setErrorMsg] = useState('')
+  const [failedRows, setFailedRows] = useState<string[]>([])
   const [defaultCampaign, setDefaultCampaign] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -99,13 +100,13 @@ export function CsvUploadModal({ isOpen, onClose, pics }: CsvUploadModalProps) {
     setIsUploading(true)
     setUploadProgress({ current: 0, total: parsedData.length, success: 0, failed: 0 })
     setErrorMsg('')
+    setFailedRows([])
 
     const supabase = createClient()
-    const { data: authData } = await supabase.auth.getUser()
-    const actorId = authData.user?.id || null
 
     let successCount = 0
     let failedCount = 0
+    const failures: string[] = []
 
     // Process row by row to prevent one duplicate from failing the whole batch
     for (let i = 0; i < parsedData.length; i++) {
@@ -125,6 +126,8 @@ export function CsvUploadModal({ isOpen, onClose, pics }: CsvUploadModalProps) {
       ]))
       if (!whatsapp) {
         failedCount++
+        failures.push(`Baris ${i + 1}: nomor WhatsApp kosong/tidak terbaca.`)
+        setFailedRows(failures.slice(0, 5))
         setUploadProgress(prev => ({ ...prev, current: i + 1, failed: failedCount }))
         continue
       }
@@ -135,24 +138,23 @@ export function CsvUploadModal({ isOpen, onClose, pics }: CsvUploadModalProps) {
       const entryDate = parseDateString(getField(row, ['Tanggal Lead Masuk', 'Tanggal Masuk', 'Lead Entry Date', 'Date']))
       const status = getField(row, ['Status Pipeline', 'Status', 'Current Status']) || 'New Lead'
 
-      const leadData = {
-        full_name: fullName,
-        whatsapp_number: whatsapp,
-        whatsapp_normalized: whatsapp, // this has unique constraint
-        source_campaign: sourceCampaign,
-        current_status: status,
-        assigned_cro_id: assignedId,
-        lead_type: 'inbound',
-        entry_channel: 'Ads Import',
-        lead_entry_date: entryDate,
-        created_by: actorId,
-        updated_by: actorId
-      }
-
-      const { error } = await supabase.from('leads').insert(leadData)
+      const { data, error } = await supabase.rpc('create_lead_fast', {
+        p_full_name: fullName,
+        p_whatsapp_number: whatsapp,
+        p_email: null,
+        p_source_campaign: sourceCampaign,
+        p_lead_type: 'inbound',
+        p_current_status: status,
+        p_assigned_cro_id: assignedId,
+        p_notes: 'Imported from CSV',
+        p_lead_entry_date: entryDate ? new Date(entryDate).toISOString() : new Date().toISOString(),
+      })
       
-      if (error) {
+      if (error || !data?.ok) {
         failedCount++
+        const reason = error?.message || data?.message || 'Gagal menyimpan lead.'
+        failures.push(`Baris ${i + 1} (${fullName} / ${whatsapp}): ${reason}`)
+        setFailedRows(failures.slice(0, 5))
       } else {
         successCount++
       }
@@ -170,6 +172,7 @@ export function CsvUploadModal({ isOpen, onClose, pics }: CsvUploadModalProps) {
     setParsedData([])
     setIsUploading(false)
     setErrorMsg('')
+    setFailedRows([])
     setUploadProgress({ current: 0, total: 0, success: 0, failed: 0 })
     setDefaultCampaign('')
   }
@@ -214,6 +217,14 @@ export function CsvUploadModal({ isOpen, onClose, pics }: CsvUploadModalProps) {
                   Gagal / Duplikat: <strong className="text-red-500">{uploadProgress.failed}</strong> baris.
                 </p>
               </div>
+              {failedRows.length > 0 && (
+                <div className="mx-auto max-w-2xl rounded-2xl border border-red-200 bg-red-50 p-4 text-left dark:border-red-500/20 dark:bg-red-500/10">
+                  <p className="text-xs font-black uppercase tracking-wide text-red-700 dark:text-red-300">Contoh baris gagal</p>
+                  <ul className="mt-2 space-y-1 text-xs leading-relaxed text-red-700 dark:text-red-300">
+                    {failedRows.map(item => <li key={item}>{item}</li>)}
+                  </ul>
+                </div>
+              )}
               <button
                 onClick={() => {
                   resetModal()
