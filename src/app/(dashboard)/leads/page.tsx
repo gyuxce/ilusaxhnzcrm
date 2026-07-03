@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic'
 export default async function LeadsPage() {
   const supabase = await createClient()
 
-  // Fetch leads list and pics list in parallel to avoid sequential waterfall
+  // Fetch enough rows for client-side filters after large CSV imports.
   const [leadsRes, picsRes] = await Promise.all([
     supabase
       .from('leads')
@@ -20,7 +20,7 @@ export default async function LeadsPage() {
         expert_consultations(*)
       `)
       .order('lead_entry_date', { ascending: false })
-      .limit(300),
+      .limit(2000),
     supabase
       .from('users')
       .select('id, name, email')
