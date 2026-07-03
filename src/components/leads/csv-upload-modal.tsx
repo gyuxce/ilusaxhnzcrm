@@ -39,12 +39,18 @@ export function CsvUploadModal({ isOpen, onClose, pics }: CsvUploadModalProps) {
   const parseDateString = (dateStr: string) => {
     if (!dateStr) return null
     const cleanDate = String(dateStr).trim()
-    const parts = cleanDate.split('/')
+    const parts = cleanDate.split(/[/-]/)
     if (parts.length === 3) {
-      return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}T00:00:00+07:00`
+      const day = Number(parts[0])
+      const month = Number(parts[1])
+      let year = Number(parts[2])
+      if (!day || !month || !year) return null
+      if (year < 100) year += year >= 70 ? 1900 : 2000
+      const parsed = new Date(`${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}T00:00:00+07:00`)
+      return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString()
     }
     const parsed = new Date(cleanDate)
-    return Number.isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString()
+    return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString()
   }
 
   const getField = (row: any, aliases: string[]) => {
@@ -114,62 +120,80 @@ export function CsvUploadModal({ isOpen, onClose, pics }: CsvUploadModalProps) {
     let failedCount = 0
     const failures: string[] = []
 
-    // Process row by row to prevent one duplicate from failing the whole batch
-    for (let i = 0; i < parsedData.length; i++) {
-      const row = parsedData[i]
-      
-      const whatsapp = normalizePhone(getField(row, [
-        'Nomor HP',
-        'No. HP',
-        'No HP',
-        'No Hp',
-        'HP',
-        'Handphone',
-        'No Telepon',
-        'Telepon',
-        'No Handphone',
-        'Nomor WhatsApp',
-        'WhatsApp',
-        'Whatsapp',
-        'WA',
-        'Phone',
-        'Nomor',
-      ]))
-      if (!whatsapp) {
-        failedCount++
-        failures.push(`Baris ${i + 1}: nomor WhatsApp kosong/tidak terbaca.`)
-        setFailedRows(failures.slice(0, 5))
-        setUploadProgress(prev => ({ ...prev, current: i + 1, failed: failedCount }))
-        continue
+    const importRow = async (row: any, i: number) => {
+      try {
+        const whatsapp = normalizePhone(getField(row, [
+          'Nomor HP',
+          'No. HP',
+          'No HP',
+          'No Hp',
+          'HP',
+          'Handphone',
+          'No Telepon',
+          'Telepon',
+          'No Handphone',
+          'Nomor WhatsApp',
+          'WhatsApp',
+          'Whatsapp',
+          'WA',
+          'Phone',
+          'Nomor',
+        ]))
+        if (!whatsapp) {
+          return { ok: false, message: `Baris ${i + 1}: nomor WhatsApp kosong/tidak terbaca.` }
+        }
+
+        const fullName = getField(row, ['Nama', 'Name', 'Full Name', 'Nama Lengkap', 'Nama Lead']) || `Lead ${whatsapp}`
+        const sourceCampaign = getField(row, ['Source Campaign', 'Campaign', 'Campaign Name', 'Nama Campaign', 'Source']) || 'Ads Import'
+        const assignedId = findCroId(getField(row, ['PIC CRO', 'PIC', 'CRO', 'Assigned CRO']))
+        const entryDate = parseDateString(getField(row, ['Tanggal Lead Masuk', 'Tanggal Masuk', 'Lead Entry Date', 'Date']))
+        const status = getField(row, ['Status Pipeline', 'Status', 'Current Status']) || 'New Lead'
+
+        const { data, error } = await supabase.rpc('create_lead_fast', {
+          p_full_name: fullName,
+          p_whatsapp_number: whatsapp,
+          p_email: null,
+          p_source_campaign: sourceCampaign,
+          p_lead_type: 'inbound',
+          p_current_status: status,
+          p_assigned_cro_id: assignedId,
+          p_notes: 'Imported from CSV',
+          p_lead_entry_date: entryDate || new Date().toISOString(),
+        })
+        
+        if (error || !data?.ok) {
+          const reason = error?.message || data?.message || 'Gagal menyimpan lead.'
+          return { ok: false, message: `Baris ${i + 1} (${fullName} / ${whatsapp}): ${reason}` }
+        }
+
+        return { ok: true, message: '' }
+      } catch (error: any) {
+        return { ok: false, message: `Baris ${i + 1}: ${error?.message || 'Gagal membaca/menyimpan baris ini.'}` }
       }
+    }
 
-      const fullName = getField(row, ['Nama', 'Name', 'Full Name', 'Nama Lengkap', 'Nama Lead']) || `Lead ${whatsapp}`
-      const sourceCampaign = getField(row, ['Source Campaign', 'Campaign', 'Campaign Name', 'Nama Campaign', 'Source']) || defaultCampaign.trim() || 'Ads Import'
-      const assignedId = findCroId(getField(row, ['PIC CRO', 'PIC', 'CRO', 'Assigned CRO']))
-      const entryDate = parseDateString(getField(row, ['Tanggal Lead Masuk', 'Tanggal Masuk', 'Lead Entry Date', 'Date']))
-      const status = getField(row, ['Status Pipeline', 'Status', 'Current Status']) || 'New Lead'
+    const batchSize = 10
 
-      const { data, error } = await supabase.rpc('create_lead_fast', {
-        p_full_name: fullName,
-        p_whatsapp_number: whatsapp,
-        p_email: null,
-        p_source_campaign: sourceCampaign,
-        p_lead_type: 'inbound',
-        p_current_status: status,
-        p_assigned_cro_id: assignedId,
-        p_notes: 'Imported from CSV',
-        p_lead_entry_date: entryDate ? new Date(entryDate).toISOString() : new Date().toISOString(),
+    for (let start = 0; start < parsedData.length; start += batchSize) {
+      const batch = parsedData.slice(start, start + batchSize)
+      const results = await Promise.all(batch.map((row, offset) => importRow(row, start + offset)))
+
+      results.forEach(result => {
+        if (result.ok) {
+          successCount++
+        } else {
+          failedCount++
+          failures.push(result.message)
+        }
       })
-      
-      if (error || !data?.ok) {
-        failedCount++
-        const reason = error?.message || data?.message || 'Gagal menyimpan lead.'
-        failures.push(`Baris ${i + 1} (${fullName} / ${whatsapp}): ${reason}`)
-        setFailedRows(failures.slice(0, 5))
-      } else {
-        successCount++
-      }
-      setUploadProgress(prev => ({ ...prev, current: i + 1, success: successCount, failed: failedCount }))
+
+      setFailedRows(failures.slice(0, 8))
+      setUploadProgress({
+        current: Math.min(start + batch.length, parsedData.length),
+        total: parsedData.length,
+        success: successCount,
+        failed: failedCount,
+      })
     }
 
     setIsUploading(false)
@@ -185,7 +209,6 @@ export function CsvUploadModal({ isOpen, onClose, pics }: CsvUploadModalProps) {
     setErrorMsg('')
     setFailedRows([])
     setUploadProgress({ current: 0, total: 0, success: 0, failed: 0 })
-    setDefaultCampaign('')
   }
 
   if (!isOpen) return null
@@ -280,7 +303,7 @@ export function CsvUploadModal({ isOpen, onClose, pics }: CsvUploadModalProps) {
                 </div>
               )}
 
-              <div className="rounded-2xl border border-border bg-slate-50/60 p-4 dark:bg-white/[0.02]">
+              <div className="hidden rounded-2xl border border-border bg-slate-50/60 p-4 dark:bg-white/[0.02]">
                 <label className="block text-xs font-bold uppercase tracking-wide text-muted-foreground">Default Campaign Import</label>
                 <input
                   value={defaultCampaign}
@@ -292,6 +315,10 @@ export function CsvUploadModal({ isOpen, onClose, pics }: CsvUploadModalProps) {
                 <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
                   Jika CSV tidak punya kolom campaign, semua lead akan memakai campaign ini. Jika tetap kosong, sistem memakai “Ads Import”.
                 </p>
+              </div>
+
+              <div className="rounded-2xl border border-blue-200 bg-blue-50/70 p-4 text-xs leading-relaxed text-blue-800 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-200">
+                Campaign diambil dari kolom <strong>Source Campaign</strong> pada CSV. Jika ada baris tanpa campaign, sistem otomatis mengisi <strong>Ads Import</strong>.
               </div>
 
               {/* Preview & Progress */}
@@ -363,7 +390,7 @@ export function CsvUploadModal({ isOpen, onClose, pics }: CsvUploadModalProps) {
                                     {getField(row, ['Nomor HP', 'No. HP', 'No HP', 'No Hp', 'HP', 'Handphone', 'No Telepon', 'Telepon', 'No Handphone', 'Nomor WhatsApp', 'WhatsApp', 'Whatsapp', 'WA', 'Phone', 'Nomor']) || '-'}
                                   </td>
                                   <td className="px-4 py-2 text-foreground">{getField(row, ['Status Pipeline', 'Status', 'Current Status']) || 'New Lead'}</td>
-                                  <td className="px-4 py-2 text-foreground">{getField(row, ['Source Campaign', 'Campaign', 'Campaign Name', 'Nama Campaign', 'Source']) || defaultCampaign || 'Ads Import'}</td>
+                                  <td className="px-4 py-2 text-foreground">{getField(row, ['Source Campaign', 'Campaign', 'Campaign Name', 'Nama Campaign', 'Source']) || 'Ads Import'}</td>
                                   <td className="px-4 py-2 text-foreground">{getField(row, ['PIC CRO', 'PIC', 'CRO', 'Assigned CRO']) || '-'}</td>
                                   <td className="px-4 py-2 text-foreground">{getField(row, ['Tanggal Lead Masuk', 'Tanggal Masuk', 'Lead Entry Date', 'Date']) || 'Hari ini'}</td>
                                 </tr>
