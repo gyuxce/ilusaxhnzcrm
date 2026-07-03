@@ -471,10 +471,10 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
                   { label: 'Tanggal Masuk', field: 'lead_entry_date' as const },
                   { label: 'PIC CRO', field: null },
                   { label: 'Status Pipeline', field: 'current_status' as const },
-                  { label: 'Next Action', field: null },
+                  { label: 'Langkah Berikutnya', field: null },
                   { label: 'Last Update', field: null },
                   { label: 'Payment', field: null },
-                  { label: 'Database Action', field: null }
+                  { label: 'Aksi Data', field: null }
                 ].map(col => (
                   <th
                     key={col.label}
@@ -603,9 +603,9 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
                           <Link
                             href={`/work-queue?lead=${lead.id}`}
                             className="rounded-lg border border-primary/20 bg-primary/10 px-2.5 py-1.5 text-[10px] font-bold text-primary transition-colors hover:bg-primary/15"
-                            title="Kerjakan di Work Queue"
+                            title="Kerjakan di Kerjaan Hari Ini"
                           >
-                            Work Queue
+                            Kerjakan
                           </Link>
                           <button
                             type="button"

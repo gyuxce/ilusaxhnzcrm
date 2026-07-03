@@ -657,29 +657,29 @@ export default function DashboardPage() {
 
             <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4 dark:border-amber-500/20 dark:bg-amber-500/[0.06]">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-extrabold uppercase text-amber-700 dark:text-amber-300">Objection Dominan</span>
+                <span className="text-[10px] font-extrabold uppercase text-amber-700 dark:text-amber-300">Kendala Dominan</span>
                 <Flame size={16} className="text-amber-500" />
               </div>
               <p className="mt-3 truncate text-lg font-black text-foreground">{intelligence.topObjection}</p>
-              <p className="mt-1 text-xs text-muted-foreground">{intelligence.topObjectionCount} handling tercatat</p>
+              <p className="mt-1 text-xs text-muted-foreground">{intelligence.topObjectionCount} catatan chat</p>
             </div>
 
             <Link href="/expert-queue" className="rounded-2xl border border-violet-200 bg-violet-50/70 p-4 transition-colors hover:bg-violet-100/70 dark:border-violet-500/20 dark:bg-violet-500/[0.06] dark:hover:bg-violet-500/10">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-extrabold uppercase text-violet-700 dark:text-violet-300">Expert Pending</span>
+                <span className="text-[10px] font-extrabold uppercase text-violet-700 dark:text-violet-300">Perlu Dibantu</span>
                 <Users size={16} className="text-violet-500" />
               </div>
               <p className="mt-3 text-lg font-black text-foreground">{intelligence.expertPending}</p>
-              <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">Buka Expert Queue <ArrowRight size={12} /></p>
+              <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">Buka Butuh Dibantu <ArrowRight size={12} /></p>
             </Link>
 
             <div className="rounded-2xl border border-blue-200 bg-blue-50/70 p-4 dark:border-blue-500/20 dark:bg-blue-500/[0.06]">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-extrabold uppercase text-blue-700 dark:text-blue-300">Potential Paid Pending</span>
+                <span className="text-[10px] font-extrabold uppercase text-blue-700 dark:text-blue-300">Bisa Berbayar</span>
                 <BriefcaseBusiness size={16} className="text-blue-500" />
               </div>
               <p className="mt-3 text-lg font-black text-foreground">{intelligence.potentialPaidPending}</p>
-              <p className="mt-1 text-xs text-muted-foreground">Peluang layanan belum memiliki hasil</p>
+              <p className="mt-1 text-xs text-muted-foreground">Peluang layanan yang belum punya hasil</p>
             </div>
           </div>
 

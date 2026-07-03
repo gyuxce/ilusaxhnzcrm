@@ -85,7 +85,7 @@ function getRecommendation(item: InterventionRow) {
   const needsExpert = item.expert_needed || item.expert_type
   const potentialPaid = (item.commercial_type || '').toLowerCase().includes('paid')
 
-  if (needsExpert) return `Arahkan ke ${item.expert_type || 'expert'} dan pastikan jadwal/hasil tercatat.`
+  if (needsExpert) return `Teruskan ke ${item.expert_type || 'tim terkait'} dan pastikan jadwal/hasil tercatat.`
   if (potentialPaid) return 'Validasi kebutuhan, siapkan opsi layanan berbayar, lalu follow up value-nya.'
   if (objection.includes('budget') || objection.includes('biaya') || objection.includes('uang')) {
     return 'Tekankan value program, opsi timeline pembayaran, dan bukti hasil/alumni.'
@@ -156,24 +156,24 @@ export default async function PlaybookPage() {
   return (
     <>
       <Header
-        title="Reason Penolakan"
-        subtitle="Insight objection, solusi, expert need, dan peluang monetisasi dari handling CRO."
+        title="Alasan Gagal"
+        subtitle="Ringkasan kendala lead, respon CRO, bantuan yang dibutuhkan, dan peluang tambahan dari chat harian."
       />
 
       <div className="w-full space-y-6 p-6 animate-fade-in">
         {error && (
           <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300">
-            Gagal memuat objection analytics: {error.message}
+            Gagal memuat analisis alasan gagal: {error.message}
           </div>
         )}
 
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
           {[
-            { label: 'Total Handling', value: total, icon: MessageSquareText, tone: 'hsl(250,84%,64%)' },
-            { label: 'Top Objection', value: topObjection?.name || '-', icon: AlertTriangle, tone: 'hsl(24,95%,53%)', small: true },
-            { label: 'Butuh Expert', value: expertRows.length, icon: Sparkles, tone: 'hsl(38,92%,50%)' },
-            { label: 'Potential Paid', value: potentialPaidRows.length, icon: BriefcaseBusiness, tone: 'hsl(210,100%,56%)' },
-            { label: 'Ada Next FU', value: withFollowUp.length, icon: CheckCircle2, tone: 'hsl(160,84%,39%)' },
+            { label: 'Total Catatan', value: total, icon: MessageSquareText, tone: 'hsl(250,84%,64%)' },
+            { label: 'Kendala Terbanyak', value: topObjection?.name || '-', icon: AlertTriangle, tone: 'hsl(24,95%,53%)', small: true },
+            { label: 'Perlu Dibantu', value: expertRows.length, icon: Sparkles, tone: 'hsl(38,92%,50%)' },
+            { label: 'Bisa Berbayar', value: potentialPaidRows.length, icon: BriefcaseBusiness, tone: 'hsl(210,100%,56%)' },
+            { label: 'Ada Follow-Up', value: withFollowUp.length, icon: CheckCircle2, tone: 'hsl(160,84%,39%)' },
           ].map(card => (
             <div key={card.label} className="rounded-2xl border border-border bg-card p-4 shadow-xs">
               <div className="flex items-center justify-between gap-3">
@@ -193,22 +193,22 @@ export default async function PlaybookPage() {
           <div className="xl:col-span-2 rounded-2xl border border-border bg-card p-5 shadow-xs">
             <div className="mb-5 flex items-center justify-between gap-3">
               <div>
-                <h2 className="text-sm font-extrabold uppercase tracking-wide text-foreground">Objection Terbanyak</h2>
-                <p className="mt-1 text-xs text-muted-foreground">Kategori yang paling sering muncul dari intervention log.</p>
+                <h2 className="text-sm font-extrabold uppercase tracking-wide text-foreground">Kendala yang Paling Sering Muncul</h2>
+                <p className="mt-1 text-xs text-muted-foreground">Kendala yang paling sering dicatat dari chat CRO.</p>
               </div>
               <BarChart3 size={18} className="text-primary" />
             </div>
 
             <div className="space-y-4">
               {objectionRows.length === 0 ? (
-                <p className="py-10 text-center text-sm text-muted-foreground">Belum ada objection log.</p>
+                <p className="py-10 text-center text-sm text-muted-foreground">Belum ada catatan kendala.</p>
               ) : objectionRows.map(row => (
                 <div key={row.name} className="rounded-xl border border-border bg-slate-50/70 p-4 dark:bg-white/[0.02]">
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <div className="min-w-0">
                       <p className="font-extrabold text-foreground">{row.name}</p>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        {row.count} handling, {row.percent}% dari semua objection.
+                        {row.count} catatan, {row.percent}% dari semua kendala.
                       </p>
                     </div>
                     <Link
@@ -230,19 +230,19 @@ export default async function PlaybookPage() {
           <div className="rounded-2xl border border-border bg-card p-5 shadow-xs">
             <div className="mb-5 flex items-center gap-2">
               <Lightbulb size={18} className="text-amber-500" />
-              <h2 className="text-sm font-extrabold uppercase tracking-wide text-foreground">Decision Notes</h2>
+              <h2 className="text-sm font-extrabold uppercase tracking-wide text-foreground">Catatan Buat Keputusan</h2>
             </div>
             <div className="space-y-3 text-xs leading-relaxed text-muted-foreground">
               <p>
-                Halaman ini membaca <span className="font-bold text-foreground">Objection & Intervention Log</span>, bukan sekadar status Not Interested.
-                Jadi yang terlihat di sini adalah alasan, solusi, dan peluang layanan dari aktivitas nyata CRO.
+                Halaman ini membaca <span className="font-bold text-foreground">Catatan Chat</span>, bukan sekadar status Not Interested.
+                Jadi yang terlihat di sini adalah kendala, respon CRO, dan peluang layanan dari aktivitas nyata CRO.
               </p>
               <p>
-                Gunakan <span className="font-bold text-foreground">Potential Paid</span> untuk melihat peluang add-on service, dan
-                <span className="font-bold text-foreground"> Butuh Expert</span> untuk menata jadwal sensei/expert.
+                Gunakan <span className="font-bold text-foreground">Bisa Berbayar</span> untuk melihat peluang layanan tambahan, dan
+                <span className="font-bold text-foreground"> Perlu Dibantu</span> untuk melihat lead yang perlu dibantu sensei/tim lain.
               </p>
               <p>
-                Kalau objection dominan berulang, buat script atau offer khusus agar handling tim makin seragam.
+                Kalau kendala dominan berulang, buat script atau offer khusus agar respon tim makin seragam.
               </p>
             </div>
           </div>
@@ -250,13 +250,13 @@ export default async function PlaybookPage() {
 
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
           <InsightTable
-            title="Solusi Paling Sering Dipakai"
+            title="Respon CRO yang Paling Sering Dipakai"
             subtitle="Membantu validasi apakah respon CRO sudah seragam."
             rows={solutionRows}
-            empty="Belum ada solusi yang tercatat."
+            empty="Belum ada respon CRO yang tercatat."
           />
           <InsightTable
-            title="Campaign Paling Banyak Objection"
+            title="Campaign Paling Banyak Kendala"
             subtitle="Membantu cek kualitas lead atau pesan campaign."
             rows={campaignRows}
             empty="Belum ada campaign yang tercatat."
@@ -265,26 +265,26 @@ export default async function PlaybookPage() {
 
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
           <InsightTable
-            title="Expert Need"
-            subtitle={`${expertRows.length} handling membutuhkan expert atau sensei.`}
+            title="Perlu Dibantu"
+            subtitle={`${expertRows.length} catatan membutuhkan bantuan sensei atau tim lain.`}
             rows={expertTypeRows}
             empty="Belum ada kebutuhan expert."
           />
           <InsightTable
-            title="Potential Paid per Campaign"
-            subtitle={`${potentialPaidRows.length} handling berpotensi menjadi layanan berbayar.`}
+            title="Bisa Berbayar per Campaign"
+            subtitle={`${potentialPaidRows.length} catatan berpotensi menjadi layanan berbayar.`}
             rows={paidByCampaignRows}
-            empty="Belum ada potential paid."
+            empty="Belum ada peluang berbayar."
           />
         </div>
 
         <div className="rounded-2xl border border-border bg-card p-5 shadow-xs">
           <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <h2 className="text-sm font-extrabold uppercase tracking-wide text-foreground">Kasus Prioritas Objection</h2>
-              <p className="mt-1 text-xs text-muted-foreground">Lead yang butuh expert, potential paid, ada follow-up, atau belum punya result.</p>
+              <h2 className="text-sm font-extrabold uppercase tracking-wide text-foreground">Kasus Prioritas</h2>
+              <p className="mt-1 text-xs text-muted-foreground">Lead yang perlu dibantu, bisa berbayar, ada follow-up, atau belum punya hasil chat.</p>
             </div>
-            <span className="text-xs text-muted-foreground">{priorityRows.length} dari {total} handling</span>
+            <span className="text-xs text-muted-foreground">{priorityRows.length} dari {total} catatan</span>
           </div>
 
           <div className="overflow-x-auto">
@@ -292,10 +292,10 @@ export default async function PlaybookPage() {
               <thead>
                 <tr className="border-b border-border text-left text-[10px] uppercase tracking-wide text-muted-foreground">
                   <th className="py-3 pr-4">Lead</th>
-                  <th className="py-3 px-4">Objection</th>
-                  <th className="py-3 px-4">Solusi</th>
-                  <th className="py-3 px-4">Opportunity</th>
-                  <th className="py-3 px-4">Next</th>
+                  <th className="py-3 px-4">Kendala</th>
+                  <th className="py-3 px-4">Respon CRO</th>
+                  <th className="py-3 px-4">Peluang</th>
+                  <th className="py-3 px-4">Langkah</th>
                   <th className="py-3 pl-4">Rekomendasi</th>
                 </tr>
               </thead>
@@ -321,7 +321,7 @@ export default async function PlaybookPage() {
                           {item.commercial_type || 'Free'}
                         </span>
                         {(item.expert_needed || item.expert_type) && (
-                          <p className="text-[10px] font-bold text-amber-600 dark:text-amber-300">Expert: {item.expert_type || 'Ya'}</p>
+                          <p className="text-[10px] font-bold text-amber-600 dark:text-amber-300">Perlu dibantu: {item.expert_type || 'Ya'}</p>
                         )}
                       </div>
                     </td>
@@ -340,21 +340,21 @@ export default async function PlaybookPage() {
         <div className="rounded-2xl border border-border bg-card p-5 shadow-xs">
           <div className="mb-4 flex items-center gap-2">
             <Target size={18} className="text-primary" />
-            <h2 className="text-sm font-extrabold uppercase tracking-wide text-foreground">Framework Pemakaian Tim</h2>
+            <h2 className="text-sm font-extrabold uppercase tracking-wide text-foreground">Cara Pakai Buat Tim</h2>
           </div>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
             {[
               {
                 title: '1. Catat Kondisi',
-                body: 'Saat CRO handling lead, isi kondisi lead dan objection utama di detail lead.',
+                body: 'Saat CRO mengerjakan lead, isi kondisi lead dan kendala utama di Kerjaan Hari Ini.',
               },
               {
                 title: '2. Pilih Solusi',
-                body: 'Isi solusi/intervensi yang diberikan, lalu tandai free, potential paid, dan kebutuhan expert.',
+                body: 'Isi respon yang diberikan, lalu tandai gratis/berbayar dan apakah perlu dibantu tim lain.',
               },
               {
                 title: '3. Follow Up & Evaluasi',
-                body: 'Set next action dan tanggal follow-up. Manager membaca pola objection dari halaman ini.',
+                body: 'Isi langkah berikutnya dan tanggal follow-up. Manager membaca pola kendala dari halaman ini.',
               },
             ].map(item => (
               <div key={item.title} className="rounded-xl border border-border bg-muted/30 p-4">
@@ -365,11 +365,11 @@ export default async function PlaybookPage() {
           </div>
           <div className="mt-4 flex flex-wrap gap-3">
             <Link href="/reports" className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-primary-foreground hover:opacity-90">
-              Buka Team Report
+              Buka Report Harian
               <ArrowRight size={13} />
             </Link>
             <Link href="/expert-queue" className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2 text-xs font-bold text-foreground hover:bg-muted">
-              Buka Expert Queue
+              Buka Butuh Dibantu
               <ArrowRight size={13} />
             </Link>
           </div>

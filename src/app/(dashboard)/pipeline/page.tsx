@@ -19,12 +19,12 @@ export default async function PipelinePage() {
 
   return (
     <>
-      <Header title="Pipeline Board" subtitle="Overview visual posisi lead per stage. Ini untuk monitoring, sedangkan input kerja utama tetap dari Work Queue." />
+      <Header title="Alur Leads" subtitle="Tampilan visual posisi lead. Ini untuk memantau alur, bukan tempat input kerja utama." />
       <div className="p-6 animate-fade-in">
         <div className="mb-4 rounded-2xl border border-primary/15 bg-primary/5 px-5 py-4">
-          <p className="text-sm font-extrabold text-foreground">Pipeline Board = visual overview</p>
+          <p className="text-sm font-extrabold text-foreground">Alur Leads = tampilan ringkas untuk memantau posisi lead</p>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-            Kolom di board diringkas agar mudah dipantau manager. Untuk status detail, handling, objection, follow-up, dan report harian, gunakan Work Queue.
+            Kolom di sini sengaja diringkas agar mudah dipantau. Untuk kerja harian, catatan chat, kendala, follow-up, dan report, gunakan Kerjaan Hari Ini.
           </p>
         </div>
         <PipelineBoard initialLeads={leads || []} />

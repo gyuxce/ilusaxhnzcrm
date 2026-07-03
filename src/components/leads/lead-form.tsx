@@ -136,7 +136,7 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
       setLoading(false)
     } else {
       setLoading(false)
-      setSuccess(leadId ? 'Perubahan lead berhasil disimpan. Mengalihkan ke database leads...' : 'Lead baru berhasil ditambahkan. Mengalihkan ke Work Queue untuk mulai handling...')
+      setSuccess(leadId ? 'Perubahan lead berhasil disimpan. Mengalihkan ke Data Leads...' : 'Lead baru berhasil ditambahkan. Mengalihkan ke Kerjaan Hari Ini untuk mulai dikerjakan...')
       setTimeout(() => {
         router.push(leadId ? '/leads' : '/work-queue?filter=new')
       }, 250)
@@ -154,7 +154,7 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
         <div className="rounded-2xl border border-primary/15 bg-primary/5 p-4">
           <h2 className="text-sm font-extrabold text-foreground">Quick Add Lead</h2>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-            Untuk input manual dari ads cukup isi nama, WhatsApp, dan campaign. Setelah simpan, lead langsung masuk ke Work Queue untuk dihubungi dan dicatat handling-nya.
+            Untuk input manual dari ads cukup isi nama, WhatsApp, dan campaign. Setelah simpan, lead langsung masuk ke Kerjaan Hari Ini untuk dihubungi dan dicatat hasil chat-nya.
           </p>
         </div>
       )}

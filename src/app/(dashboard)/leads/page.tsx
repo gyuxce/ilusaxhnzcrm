@@ -31,12 +31,12 @@ export default async function LeadsPage() {
 
   return (
     <>
-      <Header title="Database Leads" subtitle="Tempat mencari, import, edit, dan audit semua data lead. Kerja harian CRO dilakukan dari Work Queue." />
+      <Header title="Data Leads" subtitle="Tempat cek, import, edit, dan hapus data lead. Kerja harian tetap dari Kerjaan Hari Ini." />
       <div className="p-6 animate-fade-in w-full">
         <div className="mb-4 rounded-2xl border border-blue-500/15 bg-blue-500/5 px-5 py-4">
-          <p className="text-sm font-extrabold text-foreground">Leads = database, bukan meja kerja harian</p>
+          <p className="text-sm font-extrabold text-foreground">Data Leads = tempat cek data, bukan tempat kerja harian</p>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-            Pakai halaman ini untuk cek data, cari histori, import CSV, atau edit detail lead. Untuk menghubungi lead, catat objection, dan menentukan next action, buka Work Queue.
+            Pakai halaman ini untuk cek histori, import CSV, edit, atau hapus data. Untuk menghubungi lead, mencatat kendala, dan menentukan langkah berikutnya, buka Kerjaan Hari Ini.
           </p>
         </div>
         <LeadsTable

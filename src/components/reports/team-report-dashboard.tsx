@@ -95,6 +95,31 @@ const ACTIVITY_COLORS: Record<string, string> = {
   'Expert Consultation Created': 'hsl(199,89%,48%)',
 }
 
+const ACTIVITY_LABELS: Record<string, string> = {
+  'Lead created': 'Lead dibuat',
+  'Lead Updated': 'Data lead diubah',
+  'Status changed': 'Status diubah',
+  'Payment Added': 'Pembayaran dicatat',
+  'Pemetaan Updated': 'Pemetaan diubah',
+  'Pemetaan Created': 'Pemetaan dibuat',
+  'Expert Consultation Updated': 'Konsultasi diubah',
+  'Expert Consultation Created': 'Konsultasi dibuat',
+  'Intervention Logged': 'Catatan chat',
+  'Follow-Up Scheduled': 'Follow-up dijadwalkan',
+  'Follow-Up Completed': 'Follow-up selesai',
+}
+
+function activityLabel(type: string) {
+  return ACTIVITY_LABELS[type] || type
+}
+
+function commercialLabel(value?: string | null) {
+  if (value === 'Potential Paid') return 'Bisa Berbayar'
+  if (value === 'Paid') return 'Berbayar'
+  if (value === 'Free') return 'Gratis'
+  return value || 'Gratis'
+}
+
 export function TeamReportDashboard({
   activities,
   interventions,
@@ -452,7 +477,7 @@ export function TeamReportDashboard({
 
   const eodSummaryText = useMemo(() => {
     if (filteredInterventions.length === 0) {
-      return 'Belum ada handling/intervention log di tanggal ini.'
+      return 'Belum ada catatan chat di tanggal ini.'
     }
 
     const selectedUserLabel = selectedUser
@@ -463,7 +488,7 @@ export function TeamReportDashboard({
       ? eodInsights.topObjections.map(([name, count]) => `${name} (${count})`).join(', ')
       : '-'
     const croSummary = eodInsights.byCroStats.length
-      ? eodInsights.byCroStats.map(row => `${row.name}: ${row.total} handling, ${row.touchedLeads} lead, top ${row.topObjection}`).join('\n')
+      ? eodInsights.byCroStats.map(row => `${row.name}: ${row.total} catatan, ${row.touchedLeads} lead, kendala terbanyak ${row.topObjection}`).join('\n')
       : '-'
     const tomorrowText = eodInsights.tomorrowFollowUps.length
       ? eodInsights.tomorrowFollowUps.slice(0, 10).map((item, index) => {
@@ -481,10 +506,10 @@ export function TeamReportDashboard({
         const lead = item.leads?.full_name || 'Lead tidak ditemukan'
         const objection = item.objection_category || '-'
         const commercial = item.commercial_type || 'Free'
-        const expert = item.expert_needed || item.expert_type ? `Butuh Expert: ${item.expert_type || 'Ya'}` : null
+        const expert = item.expert_needed || item.expert_type ? `Perlu dibantu: ${item.expert_type || 'Ya'}` : null
         const nextFu = item.next_follow_up_date ? ` ${formatShortDate(item.next_follow_up_date)}` : ''
         const nextAction = item.next_action ? `${item.next_action}${nextFu}` : '-'
-        const tags = [nextAction, expert, commercial.toLowerCase().includes('paid') ? 'Potential Paid' : null]
+        const tags = [nextAction, expert, commercial.toLowerCase().includes('paid') ? 'Bisa berbayar' : null]
           .filter(Boolean)
           .join(' | ')
 
@@ -494,11 +519,11 @@ export function TeamReportDashboard({
 
     return [
       `EOD ${selectedUserLabel} - ${dateLabel}`,
-      `Total handling: ${eodInsights.totalHandling} leads`,
-      `Lead disentuh: ${report.touchedLeads}`,
-      `Objection terbanyak: ${objectionSummary}`,
-      `Butuh expert: ${eodInsights.expertNeeded}`,
-      `Potential paid: ${eodInsights.potentialPaid}`,
+      `Total catatan chat: ${eodInsights.totalHandling} leads`,
+      `Lead dikerjakan: ${report.touchedLeads}`,
+      `Kendala terbanyak: ${objectionSummary}`,
+      `Perlu dibantu: ${eodInsights.expertNeeded}`,
+      `Bisa berbayar: ${eodInsights.potentialPaid}`,
       `Follow-up dijadwalkan: ${eodInsights.scheduledFollowUps}`,
       `FU besok: ${eodInsights.tomorrowFollowUps.length}`,
       '',
@@ -510,7 +535,7 @@ export function TeamReportDashboard({
       '',
       'Prioritas FU besok:',
       tomorrowText,
-      eodInsights.totalHandling > priorityItems.length ? `\nDetail lengkap: export CSV (${eodInsights.totalHandling} handling).` : '',
+      eodInsights.totalHandling > priorityItems.length ? `\nDetail lengkap: export CSV (${eodInsights.totalHandling} catatan).` : '',
     ].join('\n')
   }, [filteredInterventions, eodInsights, selectedDate, selectedUser, users, report.touchedLeads])
 
@@ -611,7 +636,7 @@ export function TeamReportDashboard({
         <div className="flex flex-col sm:flex-row gap-3 w-full xl:w-auto">
           {loadingReport && (
             <div className="inline-flex items-center justify-center rounded-xl border border-border bg-card px-3 py-2.5 text-xs font-bold text-muted-foreground">
-              Sync report...
+              Sinkron report...
             </div>
           )}
           <div className="relative w-full xl:w-96">
@@ -637,10 +662,10 @@ export function TeamReportDashboard({
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Total Aktivitas', value: report.totalActivities, icon: Activity, tone: 'hsl(250,84%,64%)' },
-          { label: 'Lead Disentuh', value: report.touchedLeads, icon: Users, tone: 'hsl(160,84%,39%)' },
-          { label: 'User Aktif', value: report.activeUsers, icon: UserRoundCheck, tone: 'hsl(210,100%,56%)' },
-          { label: 'Status Berubah', value: report.statusChanges, icon: TrendingUp, tone: 'hsl(38,92%,50%)' },
+          { label: 'Total Catatan', value: report.totalActivities, icon: Activity, tone: 'hsl(250,84%,64%)' },
+          { label: 'Lead Dikerjakan', value: report.touchedLeads, icon: Users, tone: 'hsl(160,84%,39%)' },
+          { label: 'Tim Aktif', value: report.activeUsers, icon: UserRoundCheck, tone: 'hsl(210,100%,56%)' },
+          { label: 'Status Diubah', value: report.statusChanges, icon: TrendingUp, tone: 'hsl(38,92%,50%)' },
         ].map(card => (
           <div key={card.label} className="rounded-2xl border border-border bg-card p-4 shadow-xs">
             <div className="flex items-center justify-between gap-3">
@@ -668,12 +693,12 @@ export function TeamReportDashboard({
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-[10px] uppercase tracking-wide text-muted-foreground">
-                  <th className="py-3 pr-4">Team</th>
+                  <th className="py-3 pr-4">Tim</th>
                   <th className="py-3 px-4 text-right">Aktivitas</th>
                   <th className="py-3 px-4 text-right">Lead</th>
                   <th className="py-3 px-4 text-right">Status</th>
                   <th className="py-3 pl-4 text-right">Payment</th>
-                  <th className="py-3 pl-4 text-right">Handling</th>
+                  <th className="py-3 pl-4 text-right">Catatan Chat</th>
                 </tr>
               </thead>
               <tbody>
@@ -700,7 +725,7 @@ export function TeamReportDashboard({
         </div>
 
         <div className="rounded-2xl border border-border bg-card p-5 shadow-xs">
-          <h2 className="text-sm font-extrabold uppercase tracking-wide text-foreground mb-4">Tipe Aktivitas</h2>
+          <h2 className="text-sm font-extrabold uppercase tracking-wide text-foreground mb-4">Jenis Aktivitas</h2>
           <div className="space-y-3">
             {report.typeRows.length === 0 ? (
               <p className="py-8 text-center text-xs text-muted-foreground">Belum ada tipe aktivitas.</p>
@@ -709,7 +734,7 @@ export function TeamReportDashboard({
               return (
                 <div key={row.type} className="space-y-1.5">
                   <div className="flex items-center justify-between gap-3">
-                    <span className="text-xs font-semibold text-foreground truncate">{row.type}</span>
+                    <span className="text-xs font-semibold text-foreground truncate">{activityLabel(row.type)}</span>
                     <span className="text-xs font-extrabold text-muted-foreground">{row.count}</span>
                   </div>
                   <div className="h-2 rounded-full bg-muted overflow-hidden">
@@ -725,10 +750,10 @@ export function TeamReportDashboard({
       <div className="rounded-2xl border border-border bg-card p-5 shadow-xs">
         <div className="flex items-center justify-between gap-3 mb-4">
           <div>
-            <h2 className="text-sm font-extrabold uppercase tracking-wide text-foreground">EOD Handling Detail</h2>
-            <p className="text-xs text-muted-foreground mt-1">Format: lead, kondisi, objection, solusi, free/paid, next action.</p>
+            <h2 className="text-sm font-extrabold uppercase tracking-wide text-foreground">Detail Catatan Harian</h2>
+            <p className="text-xs text-muted-foreground mt-1">Format: lead, kondisi, kendala, respon CRO, gratis/berbayar, langkah berikutnya.</p>
           </div>
-          <span className="text-xs text-muted-foreground">{filteredInterventions.length} handling</span>
+          <span className="text-xs text-muted-foreground">{filteredInterventions.length} catatan</span>
         </div>
 
         <div className="overflow-x-auto">
@@ -737,17 +762,17 @@ export function TeamReportDashboard({
               <tr className="border-b border-border text-left text-[10px] uppercase tracking-wide text-muted-foreground">
                 <th className="py-3 pr-4">CRO & Lead</th>
                 <th className="py-3 px-4">Kondisi</th>
-                <th className="py-3 px-4">Objection</th>
-                <th className="py-3 px-4">Solusi</th>
-                <th className="py-3 px-4">Free/Paid</th>
-                <th className="py-3 px-4">Next Action</th>
-                <th className="py-3 pl-4">Result</th>
+                <th className="py-3 px-4">Kendala</th>
+                <th className="py-3 px-4">Respon CRO</th>
+                <th className="py-3 px-4">Gratis/Berbayar</th>
+                <th className="py-3 px-4">Langkah</th>
+                <th className="py-3 pl-4">Hasil</th>
               </tr>
             </thead>
             <tbody>
               {filteredInterventions.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-8 text-center text-xs text-muted-foreground">Belum ada handling log di tanggal ini.</td>
+                  <td colSpan={7} className="py-8 text-center text-xs text-muted-foreground">Belum ada catatan chat di tanggal ini.</td>
                 </tr>
               ) : filteredInterventions.map(item => (
                 <tr key={item.id} className="border-b border-border/70 last:border-b-0 align-top">
@@ -769,7 +794,7 @@ export function TeamReportDashboard({
                   <td className="py-3 px-4 text-muted-foreground">{item.solution_given || '-'}</td>
                   <td className="py-3 px-4">
                     <span className="rounded-full border border-border bg-muted px-2 py-0.5 text-[11px] font-bold text-foreground">
-                      {item.commercial_type || 'Free'}
+                      {commercialLabel(item.commercial_type)}
                     </span>
                     {item.service_opportunity && (
                       <p className="mt-1 text-[10px] text-muted-foreground">{item.service_opportunity}</p>
@@ -781,7 +806,7 @@ export function TeamReportDashboard({
                       <p className="mt-1 text-[10px]">FU: {new Date(item.next_follow_up_date).toLocaleDateString('id-ID')}</p>
                     )}
                     {item.expert_needed && (
-                      <p className="mt-1 text-[10px] font-bold text-amber-600 dark:text-amber-300">Expert: {item.expert_type || 'Ya'}</p>
+                      <p className="mt-1 text-[10px] font-bold text-amber-600 dark:text-amber-300">Perlu dibantu: {item.expert_type || 'Ya'}</p>
                     )}
                   </td>
                   <td className="py-3 pl-4 text-muted-foreground">{item.result || item.notes || '-'}</td>
@@ -797,7 +822,7 @@ export function TeamReportDashboard({
           <div className="flex items-center justify-between gap-3 mb-4">
             <div>
               <h2 className="text-sm font-extrabold uppercase tracking-wide text-foreground">Ringkasan Handling Per CRO</h2>
-              <p className="text-xs text-muted-foreground mt-1">Dipakai untuk membaca produktivitas dan pola objection per orang.</p>
+              <p className="text-xs text-muted-foreground mt-1">Dipakai untuk membaca produktivitas dan pola kendala per orang.</p>
             </div>
             <span className="text-xs text-muted-foreground">{eodInsights.byCroStats.length} CRO</span>
           </div>
@@ -807,18 +832,18 @@ export function TeamReportDashboard({
               <thead>
                 <tr className="border-b border-border text-left text-[10px] uppercase tracking-wide text-muted-foreground">
                   <th className="py-3 pr-4">CRO</th>
-                  <th className="py-3 px-4 text-right">Handling</th>
+                  <th className="py-3 px-4 text-right">Catatan</th>
                   <th className="py-3 px-4 text-right">Lead</th>
-                  <th className="py-3 px-4">Top Objection</th>
-                  <th className="py-3 px-4 text-right">Expert</th>
-                  <th className="py-3 px-4 text-right">Paid</th>
+                  <th className="py-3 px-4">Kendala Terbanyak</th>
+                  <th className="py-3 px-4 text-right">Dibantu</th>
+                  <th className="py-3 px-4 text-right">Berbayar</th>
                   <th className="py-3 pl-4 text-right">FU Besok</th>
                 </tr>
               </thead>
               <tbody>
                 {eodInsights.byCroStats.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="py-8 text-center text-xs text-muted-foreground">Belum ada handling log untuk diringkas.</td>
+                    <td colSpan={7} className="py-8 text-center text-xs text-muted-foreground">Belum ada catatan chat untuk diringkas.</td>
                   </tr>
                 ) : eodInsights.byCroStats.map(row => (
                   <tr key={row.name} className="border-b border-border/70 last:border-b-0">
@@ -886,12 +911,12 @@ export function TeamReportDashboard({
             className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-xs font-bold text-foreground transition-all hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:bg-white/5"
           >
             {copied ? <CheckCircle2 size={15} /> : <Copy size={15} />}
-            {copied ? 'Tersalin' : 'Copy Report'}
+            {copied ? 'Tersalin' : 'Salin Report'}
           </button>
         </div>
         {filteredInterventions.length === 0 ? (
           <div className="rounded-xl border border-dashed border-border px-4 py-8 text-center text-xs text-muted-foreground">
-            Belum ada handling/intervention log di tanggal ini.
+            Belum ada catatan chat di tanggal ini.
           </div>
         ) : (
           <pre className="max-h-[28rem] overflow-auto whitespace-pre-wrap rounded-xl border border-border bg-slate-50/80 p-4 text-sm leading-7 text-foreground shadow-inner dark:bg-white/[0.03]">

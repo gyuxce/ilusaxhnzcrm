@@ -170,14 +170,21 @@ export function LeadDetailClient({
     })
   }
 
+  const commercialLabel = (value?: string | null) => {
+    if (value === 'Potential Paid') return 'Bisa Berbayar'
+    if (value === 'Paid') return 'Berbayar'
+    if (value === 'Free') return 'Gratis'
+    return value || 'Gratis'
+  }
+
   const latestIntervention = interventions[0] || null
 
   const buildRecommendedAction = (item?: any) => {
     if (!item) {
       return {
-        title: 'Lead belum punya handling log',
-        body: 'Isi Objection & Intervention Log setelah CRO menghubungi lead agar aktivitas masuk Team Report dan Reason Penolakan.',
-        nextAction: 'Tambah Intervention Log',
+        title: 'Lead belum punya catatan chat',
+        body: 'Kerjakan lead dari Kerjaan Hari Ini, lalu isi hasil chat agar masuk ke Report Harian dan Alasan Gagal.',
+        nextAction: 'Tambah Catatan Chat',
         tone: 'amber',
       }
     }
@@ -189,25 +196,25 @@ export function LeadDetailClient({
 
     if (needsExpert) {
       return {
-        title: `Butuh ${item.expert_type || 'Expert'}`,
-        body: `Lead sudah ditandai butuh expert. Pastikan konteks objection (${item.objection_category || '-'}) dan solusi (${solution}) siap sebelum masuk Expert Queue.`,
-        nextAction: item.next_action || 'Jadwalkan Expert',
+        title: `Perlu dibantu ${item.expert_type || 'tim lain'}`,
+        body: `Lead ini perlu dibantu. Pastikan kendalanya (${item.objection_category || '-'}) dan respon CRO (${solution}) sudah jelas sebelum diteruskan.`,
+        nextAction: item.next_action || 'Jadwalkan Bantuan',
         tone: 'violet',
       }
     }
 
     if (potentialPaid) {
       return {
-        title: 'Potential Paid Service',
-        body: `Validasi kebutuhan lead, jelaskan value layanan, lalu follow up dengan offer yang spesifik. Opportunity: ${item.service_opportunity || 'belum diisi'}.`,
-        nextAction: item.next_action || 'Follow Up Offer',
+        title: 'Ada peluang layanan berbayar',
+        body: `Validasi kebutuhan lead, jelaskan value layanan, lalu follow up dengan penawaran yang spesifik. Catatan peluang: ${item.service_opportunity || 'belum diisi'}.`,
+        nextAction: item.next_action || 'Follow Up Penawaran',
         tone: 'blue',
       }
     }
 
     if (objection.includes('budget') || objection.includes('biaya') || objection.includes('uang')) {
       return {
-        title: 'Objection Budget / Biaya',
+        title: 'Kendala budget / biaya',
         body: 'Fokuskan follow-up pada value program, bukti hasil, risiko kalau menunda, dan opsi pembayaran/tahapan biaya bila memungkinkan.',
         nextAction: item.next_action || 'Follow Up Value',
         tone: 'emerald',
@@ -216,7 +223,7 @@ export function LeadDetailClient({
 
     if (objection.includes('waktu') || objection.includes('sibuk')) {
       return {
-        title: 'Objection Waktu',
+        title: 'Kendala waktu',
         body: 'Tawarkan slot follow-up yang spesifik dan ringkas. Gunakan pesan pendek yang langsung menjawab benefit utama untuk lead ini.',
         nextAction: item.next_action || 'Follow Up Jadwal',
         tone: 'orange',
@@ -225,7 +232,7 @@ export function LeadDetailClient({
 
     if (objection.includes('ragu') || objection.includes('trust') || objection.includes('percaya')) {
       return {
-        title: 'Objection Trust / Keraguan',
+        title: 'Kendala ragu / belum percaya',
         body: 'Kirim social proof, alur program, testimoni, dan ajak konsultasi singkat agar keraguannya bisa dipetakan lebih jelas.',
         nextAction: item.next_action || 'Kirim Social Proof',
         tone: 'violet',
@@ -233,8 +240,8 @@ export function LeadDetailClient({
     }
 
     return {
-      title: item.objection_category ? `Objection: ${item.objection_category}` : 'Handling Terakhir Tercatat',
-      body: `Solusi terakhir: ${solution}. Lanjutkan follow-up berdasarkan next action dan update result setelah ada respon.`,
+      title: item.objection_category ? `Kendala: ${item.objection_category}` : 'Catatan terakhir tersimpan',
+      body: `Respon terakhir: ${solution}. Lanjutkan follow-up sesuai langkah berikutnya dan update hasil setelah ada respon.`,
       nextAction: item.next_action || 'Follow Up',
       tone: 'slate',
     }
@@ -245,12 +252,12 @@ export function LeadDetailClient({
   const recommendationText = [
     `Lead: ${lead.full_name}`,
     `Status: ${lead.current_status}`,
-    latestIntervention ? `Kondisi: ${latestIntervention.lead_condition || '-'}` : 'Kondisi: belum ada handling log',
-    latestIntervention ? `Objection: ${latestIntervention.objection_category || '-'}` : 'Objection: -',
-    latestIntervention ? `Solusi: ${latestIntervention.solution_given || '-'}` : 'Solusi: -',
+    latestIntervention ? `Kondisi: ${latestIntervention.lead_condition || '-'}` : 'Kondisi: belum ada catatan chat',
+    latestIntervention ? `Kendala: ${latestIntervention.objection_category || '-'}` : 'Kendala: -',
+    latestIntervention ? `Respon CRO: ${latestIntervention.solution_given || '-'}` : 'Respon CRO: -',
     `Rekomendasi: ${recommendedAction.body}`,
-    `Next action: ${recommendedAction.nextAction}`,
-    latestIntervention?.next_follow_up_date ? `Next FU: ${formatShortDate(latestIntervention.next_follow_up_date)}` : null,
+    `Langkah berikutnya: ${recommendedAction.nextAction}`,
+    latestIntervention?.next_follow_up_date ? `FU berikutnya: ${formatShortDate(latestIntervention.next_follow_up_date)}` : null,
   ].filter(Boolean).join('\n')
 
   const copyRecommendation = async () => {
@@ -371,7 +378,7 @@ export function LeadDetailClient({
     setInterventionMessage({ text: '', type: '' })
 
     if (!interventionForm.lead_condition || !interventionForm.objection_category || !interventionForm.solution_given) {
-      setInterventionMessage({ text: 'Kondisi lead, objection, dan solusi wajib diisi.', type: 'error' })
+      setInterventionMessage({ text: 'Kondisi lead, kendala, dan respon CRO wajib diisi.', type: 'error' })
       return
     }
 
@@ -403,13 +410,13 @@ export function LeadDetailClient({
     setSavingIntervention(false)
 
     if (error) {
-      setInterventionMessage({ text: 'Gagal menyimpan intervention log: ' + error.message, type: 'error' })
+      setInterventionMessage({ text: 'Gagal menyimpan catatan chat: ' + error.message, type: 'error' })
       return
     }
 
     if (data?.[0]) {
       setInterventions(prev => [data[0], ...prev])
-      setInterventionMessage({ text: 'Intervention log berhasil disimpan.', type: 'success' })
+      setInterventionMessage({ text: 'Catatan chat berhasil disimpan.', type: 'success' })
       setTimeout(() => setInterventionMessage({ text: '', type: '' }), 4500)
       setShowInterventionForm(false)
 
@@ -427,7 +434,7 @@ export function LeadDetailClient({
 
       await logActivity(
         'Intervention Logged',
-        `${interventionForm.lead_condition} | Objection: ${interventionForm.objection_category} | Solusi: ${interventionForm.solution_given}`,
+        `${interventionForm.lead_condition} | Kendala: ${interventionForm.objection_category} | Respon CRO: ${interventionForm.solution_given}`,
         actorId
       )
 
@@ -674,7 +681,7 @@ export function LeadDetailClient({
             className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white bg-primary hover:opacity-90 transition-all cursor-pointer shadow-sm"
           >
             <ArrowRight size={14} />
-            Kerjakan di Work Queue
+            Kerjakan di Kerjaan Hari Ini
           </Link>
           <Link
             href={`/leads/${lead.id}/edit`}
@@ -710,7 +717,7 @@ export function LeadDetailClient({
                   { label: 'Lead Quality', value: lead.lead_quality || '-' },
                   { label: 'Lead Segment', value: lead.lead_segment || '-' },
                   { label: 'Entry Channel', value: lead.entry_channel || '-' },
-                  { label: 'Next Action', value: lead.next_action || '-' },
+                  { label: 'Langkah Berikutnya', value: lead.next_action || '-' },
                   { label: 'Next Follow-Up', value: lead.next_follow_up_date ? new Date(lead.next_follow_up_date).toLocaleDateString('id-ID') : '-' },
                   { label: 'Lost Reason', value: lead.lost_reason || '-' },
                   { label: 'Tanggal Masuk', value: new Date(lead.lead_entry_date).toLocaleString('id-ID') },
@@ -988,7 +995,7 @@ export function LeadDetailClient({
 
         {/* Right 1 Column: Activity Log */}
         <div className="space-y-6">
-          {/* Decision Helper */}
+          {/* Arahan berikutnya */}
           <div className={cn(
             "rounded-2xl border p-5 shadow-xs space-y-4",
             recommendedAction.tone === 'amber' && "border-amber-200 bg-amber-50/70 dark:border-amber-500/20 dark:bg-amber-500/[0.06]",
@@ -1002,9 +1009,9 @@ export function LeadDetailClient({
               <div>
                 <h3 className="text-foreground font-bold text-xs uppercase tracking-wider flex items-center gap-2">
                   <Sparkles size={14} className="text-primary" />
-                  Decision Helper
+                  Arahan Berikutnya
                 </h3>
-                <p className="mt-1 text-[10px] text-muted-foreground">Arahan otomatis dari handling/intervention terakhir.</p>
+                <p className="mt-1 text-[10px] text-muted-foreground">Saran otomatis dari catatan chat terakhir.</p>
               </div>
               <button
                 type="button"
@@ -1035,21 +1042,21 @@ export function LeadDetailClient({
                   <p className="mt-1 font-semibold text-foreground">{latestIntervention.lead_condition || '-'}</p>
                 </div>
                 <div className="rounded-xl border border-border/70 bg-card/70 p-2.5">
-                  <p className="font-black uppercase text-muted-foreground">Objection</p>
+                  <p className="font-black uppercase text-muted-foreground">Kendala</p>
                   <p className="mt-1 font-semibold text-foreground">{latestIntervention.objection_category || '-'}</p>
                 </div>
                 <div className="rounded-xl border border-border/70 bg-card/70 p-2.5">
-                  <p className="font-black uppercase text-muted-foreground">Next Action</p>
+                  <p className="font-black uppercase text-muted-foreground">Langkah</p>
                   <p className="mt-1 font-semibold text-foreground">{latestIntervention.next_action || '-'}</p>
                 </div>
                 <div className="rounded-xl border border-border/70 bg-card/70 p-2.5">
-                  <p className="font-black uppercase text-muted-foreground">Next FU</p>
+                  <p className="font-black uppercase text-muted-foreground">FU Berikutnya</p>
                   <p className="mt-1 font-semibold text-foreground">{formatShortDate(latestIntervention.next_follow_up_date)}</p>
                 </div>
               </div>
             ) : (
               <div className="rounded-xl border border-dashed border-amber-300/70 bg-card/60 p-3 text-xs leading-relaxed text-muted-foreground dark:border-amber-500/25">
-                Lead ini belum punya handling log. Kerjakan lead ini dari Work Queue agar data masuk ke Team Report dan Reason Penolakan.
+                Lead ini belum punya catatan chat. Kerjakan dari Kerjaan Hari Ini agar data masuk ke Report Harian dan Alasan Gagal.
               </div>
             )}
 
@@ -1058,22 +1065,22 @@ export function LeadDetailClient({
               className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-3 py-2.5 text-xs font-bold text-primary-foreground hover:opacity-90 transition-all"
             >
               <ArrowRight size={13} />
-              Buka di Work Queue
+              Buka Kerjaan Hari Ini
             </Link>
           </div>
 
-          {/* Objection & Intervention Log */}
+          {/* Catatan handling */}
           <div className="glass-card rounded-2xl p-5 border border-border space-y-4">
             <div className="flex items-center justify-between gap-3">
               <h3 className="text-foreground font-bold text-xs uppercase tracking-wider flex items-center gap-2">
                 <AlertCircle size={14} className="text-orange-500" />
-                Objection & Intervention ({interventions.length})
+                Catatan Chat ({interventions.length})
               </h3>
               <Link
                 href={`/work-queue?lead=${lead.id}`}
                 className="px-2.5 py-1.5 rounded-lg text-[10px] font-bold text-primary bg-primary/10 hover:bg-primary/15 transition-all"
               >
-                Work Queue
+                Kerjaan Hari Ini
               </Link>
             </div>
 
@@ -1103,32 +1110,32 @@ export function LeadDetailClient({
                 </div>
 
                 <div>
-                  <label className="block text-[9px] text-muted-foreground font-bold uppercase mb-1">Objection</label>
+                  <label className="block text-[9px] text-muted-foreground font-bold uppercase mb-1">Kendala Lead</label>
                   <select
                     value={interventionForm.objection_category}
                     onChange={e => updateIntervention('objection_category', e.target.value)}
                     className="w-full px-2.5 py-1.5 text-xs text-foreground bg-card border border-border rounded-lg outline-none"
                   >
-                    <option value="">Pilih objection</option>
+                    <option value="">Pilih kendala</option>
                     {OBJECTION_CATEGORY_OPTIONS.map(item => <option key={item} value={item}>{item}</option>)}
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-[9px] text-muted-foreground font-bold uppercase mb-1">Solusi / Intervensi</label>
+                  <label className="block text-[9px] text-muted-foreground font-bold uppercase mb-1">Respon CRO</label>
                   <select
                     value={interventionForm.solution_given}
                     onChange={e => updateIntervention('solution_given', e.target.value)}
                     className="w-full px-2.5 py-1.5 text-xs text-foreground bg-card border border-border rounded-lg outline-none"
                   >
-                    <option value="">Pilih solusi</option>
+                    <option value="">Pilih respon</option>
                     {SOLUTION_OPTIONS.map(item => <option key={item} value={item}>{item}</option>)}
                   </select>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="block text-[9px] text-muted-foreground font-bold uppercase mb-1">Free / Paid</label>
+                    <label className="block text-[9px] text-muted-foreground font-bold uppercase mb-1">Gratis / Berbayar</label>
                     <select
                       value={interventionForm.commercial_type}
                       onChange={e => updateIntervention('commercial_type', e.target.value)}
@@ -1138,7 +1145,7 @@ export function LeadDetailClient({
                     </select>
                   </div>
                   <div>
-                    <label className="block text-[9px] text-muted-foreground font-bold uppercase mb-1">Butuh Expert</label>
+                    <label className="block text-[9px] text-muted-foreground font-bold uppercase mb-1">Perlu Dibantu</label>
                     <select
                       value={interventionForm.expert_needed ? 'yes' : 'no'}
                       onChange={e => updateIntervention('expert_needed', e.target.value === 'yes')}
@@ -1152,42 +1159,42 @@ export function LeadDetailClient({
 
                 {interventionForm.expert_needed && (
                   <div>
-                    <label className="block text-[9px] text-muted-foreground font-bold uppercase mb-1">Tipe Expert</label>
+                    <label className="block text-[9px] text-muted-foreground font-bold uppercase mb-1">Dibantu Oleh</label>
                     <select
                       value={interventionForm.expert_type}
                       onChange={e => updateIntervention('expert_type', e.target.value)}
                       className="w-full px-2.5 py-1.5 text-xs text-foreground bg-card border border-border rounded-lg outline-none"
                     >
-                      <option value="">Pilih expert</option>
+                      <option value="">Pilih bantuan</option>
                       {EXPERT_TYPE_OPTIONS.map(item => <option key={item} value={item}>{item}</option>)}
                     </select>
                   </div>
                 )}
 
                 <div>
-                  <label className="block text-[9px] text-muted-foreground font-bold uppercase mb-1">Service Opportunity</label>
+                  <label className="block text-[9px] text-muted-foreground font-bold uppercase mb-1">Catatan Potensi Tambahan</label>
                   <input
                     value={interventionForm.service_opportunity}
                     onChange={e => updateIntervention('service_opportunity', e.target.value)}
-                    placeholder="Contoh: kelas bahasa, document support, career mapping..."
+                    placeholder="Contoh: kelas bahasa, bantuan dokumen, mapping karier..."
                     className="w-full px-2.5 py-1.5 text-xs text-foreground bg-card border border-border rounded-lg outline-none"
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="block text-[9px] text-muted-foreground font-bold uppercase mb-1">Next Action</label>
+                    <label className="block text-[9px] text-muted-foreground font-bold uppercase mb-1">Langkah Berikutnya</label>
                     <select
                       value={interventionForm.next_action}
                       onChange={e => updateIntervention('next_action', e.target.value)}
                       className="w-full px-2.5 py-1.5 text-xs text-foreground bg-card border border-border rounded-lg outline-none"
                     >
-                      <option value="">Pilih next action</option>
+                      <option value="">Pilih langkah</option>
                       {NEXT_ACTION_OPTIONS.map(item => <option key={item} value={item}>{item}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label className="block text-[9px] text-muted-foreground font-bold uppercase mb-1">Next FU</label>
+                    <label className="block text-[9px] text-muted-foreground font-bold uppercase mb-1">Tanggal Follow-Up</label>
                     <input
                       type="date"
                       value={interventionForm.next_follow_up_date}
@@ -1198,17 +1205,17 @@ export function LeadDetailClient({
                 </div>
 
                 <div>
-                  <label className="block text-[9px] text-muted-foreground font-bold uppercase mb-1">Result</label>
+                  <label className="block text-[9px] text-muted-foreground font-bold uppercase mb-1">Hasil Chat</label>
                   <input
                     value={interventionForm.result}
                     onChange={e => updateIntervention('result', e.target.value)}
-                    placeholder="Contoh: waiting response, expert needed, ready closing..."
+                    placeholder="Contoh: belum balas, perlu dibantu, siap closing..."
                     className="w-full px-2.5 py-1.5 text-xs text-foreground bg-card border border-border rounded-lg outline-none"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[9px] text-muted-foreground font-bold uppercase mb-1">Notes</label>
+                  <label className="block text-[9px] text-muted-foreground font-bold uppercase mb-1">Catatan Tambahan</label>
                   <textarea
                     value={interventionForm.notes}
                     onChange={e => updateIntervention('notes', e.target.value)}
@@ -1223,14 +1230,14 @@ export function LeadDetailClient({
                   disabled={savingIntervention}
                   className="w-full py-1.5 rounded-lg text-xs font-bold text-white bg-orange-500 hover:opacity-90 transition-all cursor-pointer disabled:opacity-60"
                 >
-                  {savingIntervention ? 'Menyimpan...' : 'Simpan Intervention Log'}
+                  {savingIntervention ? 'Menyimpan...' : 'Simpan Catatan Chat'}
                 </button>
               </div>
             )}
 
             <div className="space-y-2 max-h-[40vh] overflow-y-auto pr-1">
               {interventions.length === 0 ? (
-                <p className="text-muted-foreground/50 text-[10px] py-4 text-center">Belum ada intervention log.</p>
+                <p className="text-muted-foreground/50 text-[10px] py-4 text-center">Belum ada catatan chat.</p>
               ) : interventions.map(item => (
                 <div key={item.id} className="rounded-xl border border-border bg-card p-3 text-xs space-y-2">
                   <div className="flex items-start justify-between gap-2">
@@ -1246,16 +1253,16 @@ export function LeadDetailClient({
                       item.commercial_type === 'Potential Paid' ? 'bg-amber-500/10 text-amber-600 dark:text-amber-300' :
                       'bg-slate-500/10 text-muted-foreground'
                     )}>
-                      {item.commercial_type || 'Free'}
+                      {commercialLabel(item.commercial_type)}
                     </span>
                   </div>
                   <div className="grid grid-cols-1 gap-1 text-[10px] text-muted-foreground">
-                    <p><strong className="text-foreground">Objection:</strong> {item.objection_category || '-'}</p>
-                    <p><strong className="text-foreground">Solusi:</strong> {item.solution_given || '-'}</p>
-                    <p><strong className="text-foreground">Next:</strong> {item.next_action || '-'}{item.next_follow_up_date ? ` (${new Date(item.next_follow_up_date).toLocaleDateString('id-ID')})` : ''}</p>
-                    {item.expert_needed && <p><strong className="text-foreground">Expert:</strong> {item.expert_type || 'Ya'}</p>}
-                    {item.service_opportunity && <p><strong className="text-foreground">Opportunity:</strong> {item.service_opportunity}</p>}
-                    {item.result && <p><strong className="text-foreground">Result:</strong> {item.result}</p>}
+                    <p><strong className="text-foreground">Kendala:</strong> {item.objection_category || '-'}</p>
+                    <p><strong className="text-foreground">Respon CRO:</strong> {item.solution_given || '-'}</p>
+                    <p><strong className="text-foreground">Langkah:</strong> {item.next_action || '-'}{item.next_follow_up_date ? ` (${new Date(item.next_follow_up_date).toLocaleDateString('id-ID')})` : ''}</p>
+                    {item.expert_needed && <p><strong className="text-foreground">Perlu dibantu:</strong> {item.expert_type || 'Ya'}</p>}
+                    {item.service_opportunity && <p><strong className="text-foreground">Potensi tambahan:</strong> {item.service_opportunity}</p>}
+                    {item.result && <p><strong className="text-foreground">Hasil:</strong> {item.result}</p>}
                   </div>
                 </div>
               ))}
@@ -1273,7 +1280,7 @@ export function LeadDetailClient({
                 href={`/work-queue?lead=${lead.id}`}
                 className="px-2.5 py-1.5 rounded-lg text-[10px] font-bold text-primary bg-primary/10 hover:bg-primary/15 transition-all"
               >
-                Work Queue
+                Kerjaan Hari Ini
               </Link>
             </div>
 
@@ -1581,7 +1588,7 @@ export function LeadDetailClient({
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs text-muted-foreground mb-1">Next Action</label>
+                <label className="block text-xs text-muted-foreground mb-1">Langkah Berikutnya</label>
                 <select
                   value={editNextAction}
                   onChange={e => setEditNextAction(e.target.value)}
@@ -1617,7 +1624,7 @@ export function LeadDetailClient({
                   ))}
                 </select>
                 <p className="mt-1 text-[10px] text-muted-foreground">
-                  Reason ini masuk ke dashboard Reason Penolakan untuk evaluasi strategi.
+                  Alasan ini masuk ke halaman Alasan Gagal untuk evaluasi strategi.
                 </p>
               </div>
             )}
@@ -1635,7 +1642,7 @@ export function LeadDetailClient({
             <div>
               <label className="block text-xs text-muted-foreground mb-1">Funnel Notes</label>
               <textarea
-                placeholder="Objection, arahan playbook, hasil handling, atau keputusan next step..."
+                placeholder="Kendala, arahan follow-up, hasil chat, atau keputusan langkah berikutnya..."
                 value={editFunnelNotes}
                 onChange={e => setEditFunnelNotes(e.target.value)}
                 className="w-full px-3 py-2 text-sm text-foreground bg-card border border-border outline-none rounded-xl h-20 focus:ring-1 focus:ring-primary focus:border-primary"

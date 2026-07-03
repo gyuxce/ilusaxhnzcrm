@@ -88,7 +88,7 @@ const EMPTY_FORM: WorkForm = {
   result: '',
 }
 
-const STEP_LABELS = ['Hubungi', 'Catat Handling', 'Next Action', 'Review']
+const STEP_LABELS = ['Hubungi', 'Catat Chat', 'Langkah Berikutnya', 'Cek Ulang']
 const QUEUE_FILTERS = [
   { key: 'all', label: 'Semua' },
   { key: 'fu', label: 'FU Hari Ini' },
@@ -389,7 +389,7 @@ export default function WorkQueuePage() {
       return
     }
 
-    setMessage({ type: 'success', text: 'Workflow tersimpan. Data masuk ke Team Report, Reason Penolakan, Follow-Up, dan Expert Queue bila relevan.' })
+    setMessage({ type: 'success', text: 'Catatan tersimpan. Data masuk ke Report Harian, Alasan Gagal, follow-up, dan Butuh Dibantu bila relevan.' })
     setStep(0)
     setForm(EMPTY_FORM)
     await fetchData()
@@ -397,12 +397,12 @@ export default function WorkQueuePage() {
 
   return (
     <>
-      <Header title="Work Queue" subtitle="Meja kerja utama CRO: hubungi lead, catat handling, tentukan next action, lalu simpan agar report otomatis terisi." />
+      <Header title="Kerjaan Hari Ini" subtitle="Tempat utama CRO bekerja: hubungi lead, catat hasil chat, pilih langkah berikutnya, lalu simpan." />
       <div className="w-full p-6 animate-fade-in">
         <div className="mb-4 rounded-2xl border border-emerald-500/15 bg-emerald-500/5 px-5 py-4">
-          <p className="text-sm font-extrabold text-foreground">Work Queue = tempat kerja harian CRO</p>
+          <p className="text-sm font-extrabold text-foreground">Kerjaan Hari Ini = tempat utama CRO bekerja</p>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-            Ikuti step dari kiri ke kanan: buka WhatsApp, catat kondisi dan objection, pilih next action, lalu simpan. Data yang disimpan otomatis masuk ke Team Report, Reason Penolakan, Follow-Up, dan Expert Queue bila relevan.
+            Ikuti step dari kiri ke kanan: buka WhatsApp, catat kondisi dan kendala lead, pilih langkah berikutnya, lalu simpan. Data yang disimpan otomatis masuk ke Report Harian, Alasan Gagal, follow-up, dan Butuh Dibantu bila relevan.
           </p>
         </div>
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-[24rem_minmax(0,1fr)]">
@@ -578,8 +578,8 @@ export default function WorkQueuePage() {
                   {step === 1 && (
                     <section className="mx-auto max-w-3xl space-y-5">
                       <div>
-                        <h2 className="text-xl font-black text-foreground">Step 2: Catat handling</h2>
-                        <p className="mt-2 text-sm text-muted-foreground">Isi kondisi, objection, dan solusi. Ini yang menjadi sumber Team Report dan Reason Penolakan.</p>
+                      <h2 className="text-xl font-black text-foreground">Step 2: Catat hasil chat</h2>
+                        <p className="mt-2 text-sm text-muted-foreground">Isi kondisi lead, kendala yang muncul, dan respon CRO. Ini yang menjadi sumber Report Harian dan Alasan Gagal.</p>
                       </div>
                       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                         <Field label="Kondisi Lead">
@@ -588,19 +588,19 @@ export default function WorkQueuePage() {
                             {LEAD_CONDITION_OPTIONS.map(item => <option key={item} value={item}>{item}</option>)}
                           </select>
                         </Field>
-                        <Field label="Objection">
+                        <Field label="Kendala Lead">
                           <select value={form.objection_category} onChange={e => updateForm('objection_category', e.target.value)} className="input-work">
                             <option value="">Pilih objection</option>
                             {OBJECTION_CATEGORY_OPTIONS.map(item => <option key={item} value={item}>{item}</option>)}
                           </select>
                         </Field>
-                        <Field label="Solusi / Intervensi">
+                        <Field label="Respon CRO">
                           <select value={form.solution_given} onChange={e => updateForm('solution_given', e.target.value)} className="input-work">
                             <option value="">Pilih solusi</option>
                             {SOLUTION_OPTIONS.map(item => <option key={item} value={item}>{item}</option>)}
                           </select>
                         </Field>
-                        <Field label="Result Singkat">
+                        <Field label="Hasil Chat Singkat">
                           <input value={form.result} onChange={e => updateForm('result', e.target.value)} placeholder="Contoh: masih dipertimbangkan..." className="input-work" />
                         </Field>
                         <div className="md:col-span-2">
@@ -615,39 +615,39 @@ export default function WorkQueuePage() {
                   {step === 2 && (
                     <section className="mx-auto max-w-3xl space-y-5">
                       <div>
-                        <h2 className="text-xl font-black text-foreground">Step 3: Tentukan next action</h2>
-                        <p className="mt-2 text-sm text-muted-foreground">Next action akan otomatis menyarankan status setelah simpan. Kalau ada tanggal FU, sistem membuat jadwal follow-up.</p>
+                        <h2 className="text-xl font-black text-foreground">Step 3: Tentukan langkah berikutnya</h2>
+                        <p className="mt-2 text-sm text-muted-foreground">Pilihan ini akan menyarankan status setelah disimpan. Kalau ada tanggal follow-up, sistem otomatis membuat jadwal follow-up.</p>
                       </div>
                       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                        <Field label="Next Action">
+                        <Field label="Langkah Berikutnya">
                           <select value={form.next_action} onChange={e => updateForm('next_action', e.target.value)} className="input-work">
                             <option value="">Pilih next action</option>
                             {NEXT_ACTION_OPTIONS.map(item => <option key={item} value={item}>{item}</option>)}
                           </select>
                         </Field>
-                        <Field label="Next Follow-Up Date">
+                        <Field label="Tanggal Follow-Up">
                           <input type="date" value={form.next_follow_up_date} onChange={e => updateForm('next_follow_up_date', e.target.value)} className="input-work" />
                         </Field>
-                        <Field label="Free / Paid">
+                        <Field label="Gratis / Berbayar">
                           <select value={form.commercial_type} onChange={e => updateForm('commercial_type', e.target.value)} className="input-work">
                             {COMMERCIAL_TYPE_OPTIONS.map(item => <option key={item} value={item}>{item}</option>)}
                           </select>
                         </Field>
-                        <Field label="Butuh Expert">
+                        <Field label="Perlu Dibantu">
                           <select value={form.expert_needed ? 'yes' : 'no'} onChange={e => updateForm('expert_needed', e.target.value === 'yes')} className="input-work">
                             <option value="no">Tidak</option>
                             <option value="yes">Ya</option>
                           </select>
                         </Field>
                         {form.expert_needed && (
-                          <Field label="Tipe Expert">
+                          <Field label="Dibantu Oleh">
                             <select value={form.expert_type} onChange={e => updateForm('expert_type', e.target.value)} className="input-work">
                               <option value="">Pilih expert</option>
                               {EXPERT_TYPE_OPTIONS.map(item => <option key={item} value={item}>{item}</option>)}
                             </select>
                           </Field>
                         )}
-                        <Field label="Service Opportunity">
+                        <Field label="Catatan Potensi Tambahan">
                           <input value={form.service_opportunity} onChange={e => updateForm('service_opportunity', e.target.value)} placeholder="Contoh: kelas bahasa / dokumen..." className="input-work" />
                         </Field>
                       </div>
@@ -661,7 +661,7 @@ export default function WorkQueuePage() {
                   {step === 3 && (
                     <section className="mx-auto max-w-3xl space-y-5">
                       <div>
-                        <h2 className="text-xl font-black text-foreground">Step 4: Review & simpan</h2>
+                        <h2 className="text-xl font-black text-foreground">Step 4: Cek ulang & simpan</h2>
                         <p className="mt-2 text-sm text-muted-foreground">Pastikan ringkasan sudah benar. Setelah simpan, data otomatis masuk ke output report dan analytics.</p>
                       </div>
                       <div className="rounded-2xl border border-border bg-background p-5">
@@ -676,13 +676,13 @@ export default function WorkQueuePage() {
                         </div>
                         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                           <Info label="Kondisi" value={form.lead_condition || '-'} />
-                          <Info label="Objection" value={form.objection_category || '-'} />
-                          <Info label="Solusi" value={form.solution_given || '-'} />
-                          <Info label="Next Action" value={form.next_action || '-'} />
+                          <Info label="Kendala" value={form.objection_category || '-'} />
+                          <Info label="Respon CRO" value={form.solution_given || '-'} />
+                          <Info label="Langkah Berikutnya" value={form.next_action || '-'} />
                           <Info label="Next FU" value={form.next_follow_up_date ? formatDate(form.next_follow_up_date) : '-'} />
-                          <Info label="Commercial" value={form.commercial_type || 'Free'} />
-                          <Info label="Expert" value={form.expert_needed ? form.expert_type || 'Ya' : 'Tidak'} />
-                          <Info label="Result" value={form.result || '-'} />
+                          <Info label="Gratis / Berbayar" value={form.commercial_type || 'Free'} />
+                          <Info label="Perlu Dibantu" value={form.expert_needed ? form.expert_type || 'Ya' : 'Tidak'} />
+                          <Info label="Hasil Chat" value={form.result || '-'} />
                         </div>
                       </div>
                     </section>
@@ -717,7 +717,7 @@ export default function WorkQueuePage() {
                       className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2 text-sm font-bold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {saving ? <Loader2 className="animate-spin" size={15} /> : <CheckCircle2 size={15} />}
-                      Simpan Handling
+                      Simpan Catatan
                     </button>
                   )}
                 </div>

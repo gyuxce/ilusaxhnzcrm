@@ -45,8 +45,8 @@ export default async function ExpertQueuePage() {
   return (
     <>
       <Header
-        title="Expert Queue"
-        subtitle="Daftar lead yang perlu bantuan expert, sensei, atau konsultasi lanjutan."
+        title="Butuh Dibantu"
+        subtitle="Daftar lead yang perlu dibantu orang lain, seperti sensei, program, dokumen, atau arahan lanjutan."
       />
       <div className="p-6 animate-fade-in w-full">
         <ExpertQueueDashboard initialItems={expertItems as any[]} />

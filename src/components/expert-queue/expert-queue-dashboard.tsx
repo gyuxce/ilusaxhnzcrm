@@ -54,6 +54,13 @@ function isOverdue(dateValue: string | null, done: boolean) {
   return date.getTime() < today.getTime()
 }
 
+function commercialLabel(value?: string | null) {
+  if (value === 'Potential Paid') return 'Bisa Berbayar'
+  if (value === 'Paid') return 'Berbayar'
+  if (value === 'Free') return 'Gratis'
+  return value || 'Gratis'
+}
+
 export function ExpertQueueDashboard({ initialItems }: ExpertQueueDashboardProps) {
   const [items, setItems] = useState(initialItems)
   const [query, setQuery] = useState('')
@@ -110,7 +117,7 @@ export function ExpertQueueDashboard({ initialItems }: ExpertQueueDashboardProps
   }, [items])
 
   const markDone = async (item: ExpertQueueItem) => {
-    const result = window.prompt('Isi hasil expert / catatan singkat:', item.result || '')
+    const result = window.prompt('Isi hasil bantuan / catatan singkat:', item.result || '')
     if (result === null) return
     const cleanResult = result.trim()
     if (!cleanResult) return
@@ -128,7 +135,7 @@ export function ExpertQueueDashboard({ initialItems }: ExpertQueueDashboardProps
     setUpdatingId(null)
 
     if (error) {
-      alert('Gagal update hasil expert: ' + error.message)
+      alert('Gagal menyimpan hasil bantuan: ' + error.message)
       return
     }
 
@@ -139,11 +146,11 @@ export function ExpertQueueDashboard({ initialItems }: ExpertQueueDashboardProps
     <div className="space-y-6">
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         {[
-          { label: 'Total Queue', value: stats.total, icon: UserRoundCheck, tone: 'hsl(250,84%,64%)' },
-          { label: 'Pending', value: stats.pending, icon: Clock, tone: 'hsl(38,92%,50%)' },
-          { label: 'Done', value: stats.done, icon: CheckCircle2, tone: 'hsl(160,84%,39%)' },
-          { label: 'Potential Paid', value: stats.potentialPaid, icon: WalletCards, tone: 'hsl(210,100%,56%)' },
-          { label: 'Overdue', value: stats.overdue, icon: CalendarDays, tone: 'hsl(0,72%,51%)' },
+          { label: 'Total Butuh Dibantu', value: stats.total, icon: UserRoundCheck, tone: 'hsl(250,84%,64%)' },
+          { label: 'Belum Selesai', value: stats.pending, icon: Clock, tone: 'hsl(38,92%,50%)' },
+          { label: 'Sudah Selesai', value: stats.done, icon: CheckCircle2, tone: 'hsl(160,84%,39%)' },
+          { label: 'Bisa Berbayar', value: stats.potentialPaid, icon: WalletCards, tone: 'hsl(210,100%,56%)' },
+          { label: 'Lewat Jadwal', value: stats.overdue, icon: CalendarDays, tone: 'hsl(0,72%,51%)' },
         ].map(card => (
           <div key={card.label} className="rounded-2xl border border-border bg-card p-4 shadow-xs">
             <div className="flex items-center justify-between gap-3">
@@ -164,25 +171,25 @@ export function ExpertQueueDashboard({ initialItems }: ExpertQueueDashboardProps
             <input
               value={query}
               onChange={event => setQuery(event.target.value)}
-              placeholder="Cari lead, objection, service opportunity..."
+              placeholder="Cari lead, kendala, catatan bantuan..."
               className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-card border border-border text-sm text-foreground outline-none focus:ring-1 focus:ring-primary focus:border-primary"
             />
           </div>
 
           <select value={expertType} onChange={event => setExpertType(event.target.value)} className="px-3 py-2.5 rounded-xl bg-card border border-border text-sm text-foreground outline-none">
-            <option value="all">Semua expert</option>
+            <option value="all">Semua jenis bantuan</option>
             {expertTypes.map(type => <option key={type} value={type}>{type}</option>)}
           </select>
 
           <select value={commercialType} onChange={event => setCommercialType(event.target.value)} className="px-3 py-2.5 rounded-xl bg-card border border-border text-sm text-foreground outline-none">
-            <option value="all">Semua commercial</option>
-            {commercialTypes.map(type => <option key={type} value={type}>{type}</option>)}
+            <option value="all">Semua potensi bayar</option>
+            {commercialTypes.map(type => <option key={type} value={type}>{commercialLabel(type)}</option>)}
           </select>
 
           <select value={status} onChange={event => setStatus(event.target.value as any)} className="px-3 py-2.5 rounded-xl bg-card border border-border text-sm text-foreground outline-none">
             <option value="all">Semua status</option>
-            <option value="pending">Pending</option>
-            <option value="done">Done</option>
+            <option value="pending">Belum selesai</option>
+            <option value="done">Selesai</option>
           </select>
         </div>
       </div>
@@ -193,11 +200,11 @@ export function ExpertQueueDashboard({ initialItems }: ExpertQueueDashboardProps
             <thead>
               <tr className="border-b border-border bg-slate-50/60 text-left text-[10px] uppercase tracking-wide text-muted-foreground dark:bg-white/[0.02]">
                 <th className="px-4 py-3">Lead</th>
-                <th className="px-4 py-3">Expert Need</th>
-                <th className="px-4 py-3">Objection & Solusi</th>
-                <th className="px-4 py-3">Commercial</th>
-                <th className="px-4 py-3">Schedule</th>
-                <th className="px-4 py-3">Result</th>
+                <th className="px-4 py-3">Bantuan</th>
+                <th className="px-4 py-3">Kendala & Respon</th>
+                <th className="px-4 py-3">Potensi Bayar</th>
+                <th className="px-4 py-3">Jadwal</th>
+                <th className="px-4 py-3">Hasil</th>
                 <th className="px-4 py-3">Aksi</th>
               </tr>
             </thead>
@@ -205,7 +212,7 @@ export function ExpertQueueDashboard({ initialItems }: ExpertQueueDashboardProps
               {filteredItems.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-4 py-12 text-center text-sm text-muted-foreground">
-                    Tidak ada expert queue yang cocok.
+                    Tidak ada data bantuan yang cocok.
                   </td>
                 </tr>
               ) : filteredItems.map(item => {
@@ -227,15 +234,15 @@ export function ExpertQueueDashboard({ initialItems }: ExpertQueueDashboardProps
 
                     <td className="px-4 py-4 min-w-44">
                       <span className="rounded-full bg-amber-500/10 px-2.5 py-1 text-xs font-bold text-amber-700 dark:text-amber-300">
-                        {item.expert_type || 'Expert Needed'}
+                        {item.expert_type || 'Perlu dibantu'}
                       </span>
                       <p className="mt-2 text-xs text-muted-foreground">{item.lead_condition || '-'}</p>
                     </td>
 
                     <td className="px-4 py-4 min-w-72">
                       <p className="font-bold text-foreground">{item.objection_category || '-'}</p>
-                      <p className="mt-1 text-xs text-muted-foreground">Solusi: {item.solution_given || '-'}</p>
-                      {item.notes && <p className="mt-1 text-[11px] text-muted-foreground">Notes: {item.notes}</p>}
+                      <p className="mt-1 text-xs text-muted-foreground">Respon CRO: {item.solution_given || '-'}</p>
+                      {item.notes && <p className="mt-1 text-[11px] text-muted-foreground">Catatan: {item.notes}</p>}
                     </td>
 
                     <td className="px-4 py-4 min-w-48">
@@ -245,7 +252,7 @@ export function ExpertQueueDashboard({ initialItems }: ExpertQueueDashboardProps
                         item.commercial_type === 'Potential Paid' ? 'bg-blue-500/10 text-blue-700 dark:text-blue-300' :
                         'bg-muted text-muted-foreground'
                       )}>
-                        {item.commercial_type || 'Free'}
+                        {commercialLabel(item.commercial_type)}
                       </span>
                       {item.service_opportunity && (
                         <p className="mt-2 text-xs text-muted-foreground">{item.service_opportunity}</p>
@@ -266,7 +273,7 @@ export function ExpertQueueDashboard({ initialItems }: ExpertQueueDashboardProps
                         </p>
                       ) : (
                         <p className="rounded-xl border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs font-semibold text-amber-700 dark:text-amber-300">
-                          Menunggu hasil expert
+                          Menunggu hasil bantuan
                         </p>
                       )}
                     </td>
@@ -276,7 +283,7 @@ export function ExpertQueueDashboard({ initialItems }: ExpertQueueDashboardProps
                         <Link
                           href={`/leads/${item.lead_id}`}
                           className="rounded-lg border border-border p-2 text-primary hover:bg-primary/10"
-                          title="Buka lead"
+                          title="Buka data lead"
                         >
                           <ExternalLink size={14} />
                         </Link>
@@ -287,7 +294,7 @@ export function ExpertQueueDashboard({ initialItems }: ExpertQueueDashboardProps
                             disabled={updatingId === item.id}
                             className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-700 disabled:opacity-50"
                           >
-                            {updatingId === item.id ? '...' : 'Done'}
+                            {updatingId === item.id ? '...' : 'Selesai'}
                           </button>
                         )}
                       </div>

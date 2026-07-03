@@ -23,16 +23,16 @@ import { useEffect } from 'react'
 
 const mainNav: { href: string; label: string; icon: React.ComponentType<{ size?: number; className?: string }> }[] = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/work-queue', label: 'Work Queue', icon: ClipboardCheck },
-  { href: '/leads', label: 'Leads', icon: Users },
-  { href: '/pipeline', label: 'Pipeline Board', icon: KanbanSquare },
+  { href: '/work-queue', label: 'Kerjaan Hari Ini', icon: ClipboardCheck },
+  { href: '/leads', label: 'Data Leads', icon: Users },
+  { href: '/pipeline', label: 'Alur Leads', icon: KanbanSquare },
 ]
 
 const toolsNav: { href: string; label: string; icon: React.ComponentType<{ size?: number; className?: string }> }[] = [
-  { href: '/expert-queue', label: 'Expert Queue', icon: UserRoundCheck },
-  { href: '/reports', label: 'Team Report', icon: ClipboardList },
-  { href: '/analytics', label: 'Analytics', icon: BarChart3 },
-  { href: '/playbook', label: 'Reason Penolakan', icon: Tags },
+  { href: '/expert-queue', label: 'Butuh Dibantu', icon: UserRoundCheck },
+  { href: '/reports', label: 'Report Harian', icon: ClipboardList },
+  { href: '/analytics', label: 'Performa', icon: BarChart3 },
+  { href: '/playbook', label: 'Alasan Gagal', icon: Tags },
 ]
 
 export function Sidebar() {
