@@ -72,7 +72,6 @@ type CroEodRow = {
   touchedLeads: number
   expertNeeded: number
   potentialPaid: number
-  tomorrowFollowUps: number
   topObjection: string
 }
 
@@ -118,6 +117,10 @@ function commercialLabel(value?: string | null) {
   if (value === 'Paid') return 'Berbayar'
   if (value === 'Free') return 'Gratis'
   return value || 'Gratis'
+}
+
+function isOperationalActivity(activity: ActivityRow) {
+  return activity.activity_type !== 'Lead created'
 }
 
 export function TeamReportDashboard({
@@ -224,8 +227,9 @@ export function TeamReportDashboard({
     const byUser: Record<string, { name: string; activities: number; leads: Set<string>; payments: number; statuses: number; interventions: number }> = {}
     const byType: Record<string, number> = {}
     const byCampaign: Record<string, { activities: number; leads: Set<string> }> = {}
+    const operationalActivities = clientActivities.filter(isOperationalActivity)
 
-    clientActivities.forEach(activity => {
+    operationalActivities.forEach(activity => {
       const userId = activity.created_by || 'unassigned'
       const userName = activity.users?.name || 'Unknown / sistem lama'
       const campaign = activity.leads?.source_campaign || 'Tanpa campaign'
@@ -269,7 +273,7 @@ export function TeamReportDashboard({
     })
 
     const uniqueLeads = new Set([
-      ...clientActivities.map(activity => activity.lead_id).filter(Boolean),
+      ...operationalActivities.map(activity => activity.lead_id).filter(Boolean),
       ...clientInterventions.map(item => item.lead_id).filter(Boolean),
     ])
     const teamRows = Object.entries(byUser)
@@ -298,10 +302,10 @@ export function TeamReportDashboard({
       .slice(0, 8)
 
     return {
-      totalActivities: clientActivities.length + clientInterventions.length,
+      totalActivities: operationalActivities.length + clientInterventions.length,
       touchedLeads: uniqueLeads.size,
       activeUsers: teamRows.filter(row => row.id !== 'unassigned').length,
-      statusChanges: clientActivities.filter(activity => activity.activity_type.toLowerCase().includes('status')).length,
+      statusChanges: operationalActivities.filter(activity => activity.activity_type.toLowerCase().includes('status')).length,
       teamRows,
       typeRows,
       campaignRows,
@@ -309,6 +313,7 @@ export function TeamReportDashboard({
   }, [clientActivities, clientInterventions])
 
   const filteredActivities = clientActivities.filter(activity => {
+    if (!isOperationalActivity(activity)) return false
     const keyword = query.trim().toLowerCase()
     if (!keyword) return true
 
@@ -370,17 +375,8 @@ export function TeamReportDashboard({
     })
   }
 
-  const nextDateValue = (value: string) => {
-    const date = new Date(`${value}T00:00:00+07:00`)
-    date.setDate(date.getDate() + 1)
-    const year = date.getFullYear()
-    const month = String(date.getMonth() + 1).padStart(2, '0')
-    const day = String(date.getDate()).padStart(2, '0')
-    return `${year}-${month}-${day}`
-  }
-
   const eodInsights = useMemo(() => {
-    const tomorrowDate = nextDateValue(selectedDate)
+    const touchedLeads = new Set(filteredInterventions.map(item => item.lead_id).filter(Boolean)).size
     const objectionCounts = filteredInterventions.reduce<Record<string, number>>((counts, item) => {
       const objection = item.objection_category || 'Belum dikategorikan'
       counts[objection] = (counts[objection] || 0) + 1
@@ -393,10 +389,6 @@ export function TeamReportDashboard({
 
     const isPotentialPaid = (item: InterventionRow) =>
       (item.commercial_type || '').toLowerCase().includes('paid')
-
-    const tomorrowFollowUps = filteredInterventions
-      .filter(item => item.next_follow_up_date === tomorrowDate)
-      .sort((a, b) => (a.users?.name || '').localeCompare(b.users?.name || ''))
 
     const priorityItems = [...filteredInterventions]
       .map(item => ({
@@ -424,7 +416,6 @@ export function TeamReportDashboard({
         leads: Set<string>
         expertNeeded: number
         potentialPaid: number
-        tomorrowFollowUps: number
         objections: Record<string, number>
       }>>((acc, item) => {
         const key = item.created_by || 'unassigned'
@@ -436,7 +427,6 @@ export function TeamReportDashboard({
             leads: new Set(),
             expertNeeded: 0,
             potentialPaid: 0,
-            tomorrowFollowUps: 0,
             objections: {},
           }
         }
@@ -444,7 +434,6 @@ export function TeamReportDashboard({
         if (item.lead_id) acc[key].leads.add(item.lead_id)
         if (item.expert_needed || item.expert_type) acc[key].expertNeeded += 1
         if (isPotentialPaid(item)) acc[key].potentialPaid += 1
-        if (item.next_follow_up_date === tomorrowDate) acc[key].tomorrowFollowUps += 1
         const objection = item.objection_category || 'Belum dikategorikan'
         acc[key].objections[objection] = (acc[key].objections[objection] || 0) + 1
         return acc
@@ -457,23 +446,22 @@ export function TeamReportDashboard({
         touchedLeads: row.leads.size,
         expertNeeded: row.expertNeeded,
         potentialPaid: row.potentialPaid,
-        tomorrowFollowUps: row.tomorrowFollowUps,
         topObjection: top ? `${top[0]} (${top[1]})` : '-',
       } satisfies CroEodRow
     }).sort((a, b) => b.total - a.total)
 
     return {
       totalHandling: filteredInterventions.length,
+      touchedLeads,
       expertNeeded: filteredInterventions.filter(item => item.expert_needed || item.expert_type).length,
       potentialPaid: filteredInterventions.filter(isPotentialPaid).length,
       scheduledFollowUps: filteredInterventions.filter(item => item.next_follow_up_date).length,
-      tomorrowFollowUps,
       topObjections,
       priorityItems,
       byCro: Object.entries(byCro).sort((a, b) => b[1] - a[1]),
       byCroStats,
     }
-  }, [filteredInterventions, selectedDate])
+  }, [filteredInterventions])
 
   const eodSummaryText = useMemo(() => {
     if (filteredInterventions.length === 0) {
@@ -488,16 +476,8 @@ export function TeamReportDashboard({
       ? eodInsights.topObjections.map(([name, count]) => `${name} (${count})`).join(', ')
       : '-'
     const croSummary = eodInsights.byCroStats.length
-      ? eodInsights.byCroStats.map(row => `${row.name}: ${row.total} catatan, ${row.touchedLeads} lead, kendala terbanyak ${row.topObjection}`).join('\n')
+      ? eodInsights.byCroStats.map(row => `- ${row.name}: ${row.total} catatan, ${row.touchedLeads} lead, kendala terbanyak ${row.topObjection}`).join('\n')
       : '-'
-    const tomorrowText = eodInsights.tomorrowFollowUps.length
-      ? eodInsights.tomorrowFollowUps.slice(0, 10).map((item, index) => {
-        const lead = item.leads?.full_name || 'Lead tidak ditemukan'
-        const cro = item.users?.name || 'Unknown'
-        const objection = item.objection_category || '-'
-        return `${index + 1}. ${lead} - ${cro} - ${objection} - ${item.next_action || 'Follow Up'}`
-      }).join('\n')
-      : 'Tidak ada FU besok dari log hari ini.'
     const priorityItems = eodInsights.priorityItems.slice(0, 10)
     const priorityText = priorityItems.length === 0
       ? 'Tidak ada kasus prioritas.'
@@ -505,39 +485,39 @@ export function TeamReportDashboard({
       .map((item, index) => {
         const lead = item.leads?.full_name || 'Lead tidak ditemukan'
         const objection = item.objection_category || '-'
-        const commercial = item.commercial_type || 'Free'
-        const expert = item.expert_needed || item.expert_type ? `Perlu dibantu: ${item.expert_type || 'Ya'}` : null
+        const expert = item.expert_needed || item.expert_type ? item.expert_type || 'Ya' : '-'
         const nextFu = item.next_follow_up_date ? ` ${formatShortDate(item.next_follow_up_date)}` : ''
         const nextAction = item.next_action ? `${item.next_action}${nextFu}` : '-'
-        const tags = [nextAction, expert, commercial.toLowerCase().includes('paid') ? 'Bisa berbayar' : null]
-          .filter(Boolean)
-          .join(' | ')
 
-        return `${index + 1}. ${lead} - ${objection} - ${tags || '-'}`
+        return [
+          `${index + 1}. ${lead}`,
+          `   Kendala: ${objection}`,
+          `   Next: ${nextAction}`,
+          `   Bantuan: ${expert}`,
+        ].join('\n')
       })
-      .join('\n')
+      .join('\n\n')
 
     return [
       `EOD ${selectedUserLabel} - ${dateLabel}`,
-      `Total catatan chat: ${eodInsights.totalHandling} leads`,
-      `Lead dikerjakan: ${report.touchedLeads}`,
-      `Kendala terbanyak: ${objectionSummary}`,
-      `Perlu dibantu: ${eodInsights.expertNeeded}`,
-      `Bisa berbayar: ${eodInsights.potentialPaid}`,
-      `Follow-up dijadwalkan: ${eodInsights.scheduledFollowUps}`,
-      `FU besok: ${eodInsights.tomorrowFollowUps.length}`,
+      '',
+      'Ringkasan:',
+      `- Total catatan chat: ${eodInsights.totalHandling}`,
+      `- Lead disentuh: ${eodInsights.touchedLeads}`,
+      `- Total aktivitas CRM: ${report.totalActivities}`,
+      `- Kendala terbanyak: ${objectionSummary}`,
+      `- Perlu dibantu: ${eodInsights.expertNeeded}`,
+      `- Potensi berbayar: ${eodInsights.potentialPaid}`,
+      `- Follow-up dijadwalkan: ${eodInsights.scheduledFollowUps}`,
       '',
       'Ringkasan per CRO:',
       croSummary,
       '',
       'Detail prioritas:',
       priorityText,
-      '',
-      'Prioritas FU besok:',
-      tomorrowText,
       eodInsights.totalHandling > priorityItems.length ? `\nDetail lengkap: export CSV (${eodInsights.totalHandling} catatan).` : '',
     ].join('\n')
-  }, [filteredInterventions, eodInsights, selectedDate, selectedUser, users, report.touchedLeads])
+  }, [filteredInterventions, eodInsights, selectedDate, selectedUser, users, report.totalActivities])
 
   const copyEodSummary = async () => {
     await navigator.clipboard.writeText(eodSummaryText)
@@ -836,14 +816,13 @@ export function TeamReportDashboard({
                   <th className="py-3 px-4 text-right">Lead</th>
                   <th className="py-3 px-4">Kendala Terbanyak</th>
                   <th className="py-3 px-4 text-right">Dibantu</th>
-                  <th className="py-3 px-4 text-right">Berbayar</th>
-                  <th className="py-3 pl-4 text-right">FU Besok</th>
+                  <th className="py-3 pl-4 text-right">Berbayar</th>
                 </tr>
               </thead>
               <tbody>
                 {eodInsights.byCroStats.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="py-8 text-center text-xs text-muted-foreground">Belum ada catatan chat untuk diringkas.</td>
+                    <td colSpan={6} className="py-8 text-center text-xs text-muted-foreground">Belum ada catatan chat untuk diringkas.</td>
                   </tr>
                 ) : eodInsights.byCroStats.map(row => (
                   <tr key={row.name} className="border-b border-border/70 last:border-b-0">
@@ -852,48 +831,11 @@ export function TeamReportDashboard({
                     <td className="py-3 px-4 text-right text-muted-foreground">{row.touchedLeads}</td>
                     <td className="py-3 px-4 text-muted-foreground">{row.topObjection}</td>
                     <td className="py-3 px-4 text-right font-bold text-amber-600 dark:text-amber-300">{row.expertNeeded}</td>
-                    <td className="py-3 px-4 text-right font-bold text-blue-600 dark:text-blue-300">{row.potentialPaid}</td>
-                    <td className="py-3 pl-4 text-right font-bold text-emerald-600 dark:text-emerald-300">{row.tomorrowFollowUps}</td>
+                    <td className="py-3 pl-4 text-right font-bold text-blue-600 dark:text-blue-300">{row.potentialPaid}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-border bg-card p-5 shadow-xs">
-          <div className="mb-4 flex items-center justify-between gap-3">
-            <div>
-              <h2 className="text-sm font-extrabold uppercase tracking-wide text-foreground">Prioritas FU Besok</h2>
-              <p className="text-xs text-muted-foreground mt-1">{formatDisplayDate(nextDateValue(selectedDate))}</p>
-            </div>
-            <span className="rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-black text-emerald-600 dark:text-emerald-300">
-              {eodInsights.tomorrowFollowUps.length}
-            </span>
-          </div>
-          <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
-            {eodInsights.tomorrowFollowUps.length === 0 ? (
-              <p className="py-8 text-center text-xs text-muted-foreground">Belum ada FU besok dari handling hari ini.</p>
-            ) : eodInsights.tomorrowFollowUps.slice(0, 12).map(item => (
-              <div key={item.id} className="rounded-xl border border-border bg-slate-50/70 p-3 dark:bg-white/[0.02]">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    {item.leads ? (
-                      <Link href={`/leads/${item.leads.id}`} className="truncate text-xs font-extrabold text-foreground hover:text-primary hover:underline">
-                        {item.leads.full_name}
-                      </Link>
-                    ) : (
-                      <p className="truncate text-xs font-extrabold text-foreground">Lead tidak ditemukan</p>
-                    )}
-                    <p className="mt-1 text-[10px] text-muted-foreground">CRO: {item.users?.name || 'Unknown'}</p>
-                    <p className="mt-1 text-[10px] text-muted-foreground">{item.objection_category || '-'} / {item.solution_given || '-'}</p>
-                  </div>
-                  <span className="shrink-0 rounded-full border border-border bg-card px-2 py-0.5 text-[10px] font-bold text-foreground">
-                    {item.next_action || 'FU'}
-                  </span>
-                </div>
-              </div>
-            ))}
           </div>
         </div>
       </div>
