@@ -1,15 +1,17 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import {
   Search, Filter,
   ChevronUp, ChevronDown,
   ChevronLeft, ChevronRight,
-  FileUp
+  FileUp, Trash2
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { createClient } from '@/lib/supabase/client'
 import type { Lead } from '@/lib/supabase/types'
 import { CsvUploadModal } from './csv-upload-modal'
 import { NEEDS_ACTION_STATUSES } from '@/lib/funnel-framework'
@@ -24,7 +26,7 @@ type LeadWithRelations = Lead & {
 
 interface LeadsTableProps {
   initialLeads: LeadWithRelations[]
-  pics: { id: string; name: string }[]
+  pics: { id: string; name: string; email?: string }[]
 }
 
 const paymentBadgeClass = (status: string) => {
@@ -81,6 +83,7 @@ function lastTouchLabel(lead: LeadWithRelations) {
 
 
 export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
+  const router = useRouter()
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState('all')
   const [filterPic, setFilterPic] = useState('all')
@@ -95,8 +98,17 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
   const [showFilters, setShowFilters] = useState(false)
   const [csvModalOpen, setCsvModalOpen] = useState(false)
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false)
+  const [leadToDelete, setLeadToDelete] = useState<{ id: string; name: string } | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [deleteError, setDeleteError] = useState('')
+  const [mounted, setMounted] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const pageSize = 25
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   // Get unique campaigns for filter dropdown
   const campaignsList = useMemo(() => {
@@ -228,6 +240,36 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
   const setQuick = (value: QuickFilter) => {
     setQuickFilter(value)
     setCurrentPage(1)
+  }
+
+  const promptDelete = (id: string, name: string) => {
+    setDeleteError('')
+    setLeadToDelete({ id, name })
+    setDeleteModalOpen(true)
+  }
+
+  const confirmDelete = async () => {
+    if (!leadToDelete) return
+
+    setDeletingId(leadToDelete.id)
+    setDeleteError('')
+
+    const supabase = createClient()
+    const { error } = await supabase
+      .from('leads')
+      .delete()
+      .eq('id', leadToDelete.id)
+
+    if (error) {
+      setDeleteError(error.message)
+      setDeletingId(null)
+      return
+    }
+
+    setDeleteModalOpen(false)
+    setLeadToDelete(null)
+    setDeletingId(null)
+    router.refresh()
   }
 
   // Format Helper
@@ -565,6 +607,15 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
                           >
                             Work Queue
                           </Link>
+                          <button
+                            type="button"
+                            onClick={() => promptDelete(lead.id, lead.full_name)}
+                            disabled={deletingId === lead.id}
+                            className="rounded-lg border border-red-500/20 bg-red-500/5 px-2.5 py-1.5 text-[10px] font-bold text-red-600 transition-colors hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-50 dark:text-red-300"
+                            title="Hapus lead dari database"
+                          >
+                            Hapus
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -610,6 +661,54 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
           onClose={() => setCsvModalOpen(false)}
           pics={pics}
         />,
+        document.body
+      )}
+
+      {mounted && deleteModalOpen && leadToDelete && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl">
+            <div className="flex items-start gap-3">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-red-500/20 bg-red-500/10 text-red-600 dark:text-red-300">
+                <Trash2 size={20} />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-foreground">Hapus lead dari database?</h3>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                  Lead <span className="font-bold text-foreground">{leadToDelete.name}</span> akan dihapus permanen. Gunakan ini hanya untuk data salah input, spam, atau duplikat.
+                </p>
+              </div>
+            </div>
+
+            {deleteError && (
+              <div className="mt-4 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-xs font-semibold text-red-700 dark:text-red-300">
+                Gagal menghapus: {deleteError}
+              </div>
+            )}
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setDeleteModalOpen(false)
+                  setLeadToDelete(null)
+                  setDeleteError('')
+                }}
+                disabled={deletingId !== null}
+                className="rounded-xl border border-border bg-card px-4 py-2 text-xs font-bold text-foreground transition-colors hover:bg-slate-50 disabled:opacity-50 dark:hover:bg-white/5"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={confirmDelete}
+                disabled={deletingId !== null}
+                className="rounded-xl bg-red-600 px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {deletingId !== null ? 'Menghapus...' : 'Ya, Hapus'}
+              </button>
+            </div>
+          </div>
+        </div>,
         document.body
       )}
     </div>

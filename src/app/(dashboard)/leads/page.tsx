@@ -23,7 +23,7 @@ export default async function LeadsPage() {
       .limit(300),
     supabase
       .from('users')
-      .select('id, name')
+      .select('id, name, email')
   ])
 
   const leads = leadsRes.data || []

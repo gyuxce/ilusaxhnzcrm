@@ -49,9 +49,15 @@ export function CsvUploadModal({ isOpen, onClose, pics }: CsvUploadModalProps) {
 
   const getField = (row: any, aliases: string[]) => {
     const entries = Object.entries(row || {})
+    const normalizeHeader = (value: string) =>
+      String(value)
+        .replace(/^\uFEFF/, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '')
+
     for (const alias of aliases) {
-      const normalizedAlias = alias.toLowerCase().replace(/\s|_|-/g, '')
-      const found = entries.find(([key]) => key.toLowerCase().replace(/\s|_|-/g, '') === normalizedAlias)
+      const normalizedAlias = normalizeHeader(alias)
+      const found = entries.find(([key]) => normalizeHeader(key) === normalizedAlias)
       if (found && found[1] !== undefined && found[1] !== null && String(found[1]).trim() !== '') {
         return String(found[1]).trim()
       }
@@ -114,8 +120,13 @@ export function CsvUploadModal({ isOpen, onClose, pics }: CsvUploadModalProps) {
       
       const whatsapp = normalizePhone(getField(row, [
         'Nomor HP',
+        'No. HP',
         'No HP',
         'No Hp',
+        'HP',
+        'Handphone',
+        'No Telepon',
+        'Telepon',
         'No Handphone',
         'Nomor WhatsApp',
         'WhatsApp',
@@ -132,7 +143,7 @@ export function CsvUploadModal({ isOpen, onClose, pics }: CsvUploadModalProps) {
         continue
       }
 
-      const fullName = getField(row, ['Nama', 'Name', 'Full Name', 'Nama Lengkap']) || `Lead ${whatsapp}`
+      const fullName = getField(row, ['Nama', 'Name', 'Full Name', 'Nama Lengkap', 'Nama Lead']) || `Lead ${whatsapp}`
       const sourceCampaign = getField(row, ['Source Campaign', 'Campaign', 'Campaign Name', 'Nama Campaign', 'Source']) || defaultCampaign.trim() || 'Ads Import'
       const assignedId = findCroId(getField(row, ['PIC CRO', 'PIC', 'CRO', 'Assigned CRO']))
       const entryDate = parseDateString(getField(row, ['Tanggal Lead Masuk', 'Tanggal Masuk', 'Lead Entry Date', 'Date']))
@@ -249,7 +260,7 @@ export function CsvUploadModal({ isOpen, onClose, pics }: CsvUploadModalProps) {
                   <div className="text-center">
                     <p className="text-sm font-bold text-foreground">Klik untuk memilih file CSV</p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Format fleksibel: Nomor HP / No Hp / WhatsApp / Phone. Nama dan campaign boleh kosong jika diisi default di bawah.
+                      Format fleksibel: minimal kolom Nomor HP. Kolom aman: Nama, Nomor HP, Source Campaign, Status Pipeline, PIC CRO, Tanggal Lead Masuk.
                     </p>
                   </div>
                   <input
@@ -346,10 +357,10 @@ export function CsvUploadModal({ isOpen, onClose, pics }: CsvUploadModalProps) {
                               {parsedData.slice(0, 5).map((row, idx) => (
                                 <tr key={idx} className="bg-card hover:bg-slate-50/50 dark:hover:bg-white/[0.01]">
                                   <td className="px-4 py-2 text-foreground font-medium">
-                                    {getField(row, ['Nama', 'Name', 'Full Name', 'Nama Lengkap']) || 'Auto dari nomor'}
+                                    {getField(row, ['Nama', 'Name', 'Full Name', 'Nama Lengkap', 'Nama Lead']) || 'Auto dari nomor'}
                                   </td>
                                   <td className="px-4 py-2 text-foreground">
-                                    {getField(row, ['Nomor HP', 'No HP', 'No Hp', 'Nomor WhatsApp', 'WhatsApp', 'Whatsapp', 'WA', 'Phone', 'Nomor']) || '-'}
+                                    {getField(row, ['Nomor HP', 'No. HP', 'No HP', 'No Hp', 'HP', 'Handphone', 'No Telepon', 'Telepon', 'No Handphone', 'Nomor WhatsApp', 'WhatsApp', 'Whatsapp', 'WA', 'Phone', 'Nomor']) || '-'}
                                   </td>
                                   <td className="px-4 py-2 text-foreground">{getField(row, ['Status Pipeline', 'Status', 'Current Status']) || 'New Lead'}</td>
                                   <td className="px-4 py-2 text-foreground">{getField(row, ['Source Campaign', 'Campaign', 'Campaign Name', 'Nama Campaign', 'Source']) || defaultCampaign || 'Ads Import'}</td>
