@@ -19,17 +19,16 @@ import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { useLayoutStore } from '@/lib/store'
-import { useState, useEffect } from 'react'
-import { NEEDS_ACTION_STATUSES } from '@/lib/funnel-framework'
+import { useEffect } from 'react'
 
-const mainNav: { href: string; label: string; icon: React.ComponentType<{ size?: number; className?: string }>; badgeKey?: 'workQueue' | 'needsAction' | 'followUps' }[] = [
+const mainNav: { href: string; label: string; icon: React.ComponentType<{ size?: number; className?: string }> }[] = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/work-queue', label: 'Work Queue', icon: ClipboardCheck, badgeKey: 'workQueue' },
+  { href: '/work-queue', label: 'Work Queue', icon: ClipboardCheck },
   { href: '/leads', label: 'Leads', icon: Users },
   { href: '/pipeline', label: 'Pipeline Board', icon: KanbanSquare },
 ]
 
-const toolsNav: { href: string; label: string; icon: React.ComponentType<{ size?: number; className?: string }>; badgeKey?: 'workQueue' | 'needsAction' | 'followUps' }[] = [
+const toolsNav: { href: string; label: string; icon: React.ComponentType<{ size?: number; className?: string }> }[] = [
   { href: '/expert-queue', label: 'Expert Queue', icon: UserRoundCheck },
   { href: '/reports', label: 'Team Report', icon: ClipboardList },
   { href: '/analytics', label: 'Analytics', icon: BarChart3 },
@@ -40,42 +39,12 @@ export function Sidebar() {
   const pathname = usePathname()
   const router = useRouter()
   const { sidebarOpen, closeSidebar } = useLayoutStore()
-  const [badges, setBadges] = useState<{ workQueue: number; needsAction: number; followUps: number }>({
-    workQueue: 0,
-    needsAction: 0,
-    followUps: 0,
-  })
   const supabase = createClient()
 
   // Automatically close sidebar on mobile when pathname changes
   useEffect(() => {
     closeSidebar()
   }, [pathname, closeSidebar])
-
-  useEffect(() => {
-    async function fetchBadges() {
-      // Count leads in Needs Action statuses
-      const { count: naCount } = await supabase
-        .from('leads')
-        .select('*', { count: 'exact', head: true })
-        .in('current_status', NEEDS_ACTION_STATUSES)
-
-      // Count overdue / today follow-ups
-      const today = new Date().toISOString().split('T')[0]
-      const { count: fuCount } = await supabase
-        .from('follow_ups')
-        .select('*', { count: 'exact', head: true })
-        .eq('is_done', false)
-        .lte('scheduled_date', today)
-
-      setBadges({
-        workQueue: (naCount || 0) + (fuCount || 0),
-        needsAction: naCount || 0,
-        followUps: fuCount || 0,
-      })
-    }
-    fetchBadges()
-  }, [])
 
   async function handleSignOut() {
     await supabase.auth.signOut()
@@ -87,15 +56,12 @@ export function Sidebar() {
     href,
     label,
     icon: Icon,
-    badgeKey,
   }: {
     href: string
     label: string
     icon: React.ComponentType<{ size?: number; className?: string }>
-    badgeKey?: 'workQueue' | 'needsAction' | 'followUps'
   }) {
     const isActive = pathname === href || pathname.startsWith(href + '/')
-    const count = badgeKey ? badges[badgeKey] : 0
 
     return (
       <Link
@@ -117,21 +83,6 @@ export function Sidebar() {
           )}
         />
         <span className="truncate text-[13px] mr-1">{label}</span>
-        {count > 0 && (
-          <span
-            className="flex-shrink-0 min-w-[18px] h-[18px] flex items-center justify-center rounded-full text-[10px] font-extrabold px-1"
-            style={{
-              background: badgeKey === 'followUps'
-                ? 'hsl(25,95%,53%)'
-                : badgeKey === 'workQueue'
-                  ? 'hsl(250,84%,60%)'
-                  : 'hsl(0,72%,51%)',
-              color: 'white',
-            }}
-          >
-            {count > 99 ? '99+' : count}
-          </span>
-        )}
         {/* spacer pushes active indicator to right edge */}
         <span className="flex-1" />
         {isActive && (
