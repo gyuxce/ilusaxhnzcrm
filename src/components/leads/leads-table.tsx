@@ -53,7 +53,7 @@ const renderPaymentSummary = (lead: LeadWithRelations) => {
   )
 }
 
-type QuickFilter = 'all' | 'new' | 'unassigned' | 'needs_action' | 'stale' | 'seat_lock_paid'
+type QuickFilter = 'all' | 'new' | 'unassigned' | 'needs_action' | 'stale' | 'seat_lock_paid' | 'duplicate'
 
 const quickFilterLabels: Record<QuickFilter, string> = {
   all: 'Semua',
@@ -62,6 +62,7 @@ const quickFilterLabels: Record<QuickFilter, string> = {
   needs_action: 'Needs Action',
   stale: 'Belum Disentuh 3+ Hari',
   seat_lock_paid: 'Seat Lock Paid',
+  duplicate: 'Duplikat',
 }
 
 function daysSinceLastTouch(lead: LeadWithRelations) {
@@ -136,6 +137,41 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
     return Array.from(set)
   }, [initialLeads])
 
+  const duplicateGroups = useMemo(() => {
+    const groups = new Map<string, LeadWithRelations[]>()
+
+    initialLeads.forEach(lead => {
+      const phone = lead.whatsapp_normalized || normalizePhone(lead.whatsapp_number)
+      if (!phone) return
+      const current = groups.get(phone) || []
+      current.push(lead)
+      groups.set(phone, current)
+    })
+
+    return Array.from(groups.entries())
+      .filter(([, leads]) => leads.length > 1)
+      .map(([phone, leads]) => {
+        const sorted = [...leads].sort((a, b) => {
+          const aTime = new Date(a.created_at || a.lead_entry_date || 0).getTime()
+          const bTime = new Date(b.created_at || b.lead_entry_date || 0).getTime()
+          return aTime - bTime
+        })
+        return {
+          phone,
+          keep: sorted[0],
+          duplicates: sorted.slice(1),
+        }
+      })
+  }, [initialLeads])
+
+  const duplicateDeleteIds = useMemo(() => {
+    return duplicateGroups.flatMap(group => group.duplicates.map(lead => lead.id))
+  }, [duplicateGroups])
+
+  const duplicateLeadIds = useMemo(() => {
+    return new Set(duplicateGroups.flatMap(group => [group.keep.id, ...group.duplicates.map(lead => lead.id)]))
+  }, [duplicateGroups])
+
   const filtered = useMemo(() => {
     let data = [...initialLeads]
 
@@ -149,6 +185,8 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
       data = data.filter(l => daysSinceLastTouch(l) >= 3)
     } else if (quickFilter === 'seat_lock_paid') {
       data = data.filter(l => l.current_status === 'Seat Lock Paid' || l.current_status === 'Onboarding')
+    } else if (quickFilter === 'duplicate') {
+      data = data.filter(l => duplicateLeadIds.has(l.id))
     }
 
     if (search) {
@@ -211,7 +249,7 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
     })
 
     return data
-  }, [initialLeads, quickFilter, search, filterStatus, filterPic, filterCampaign, filterPayment, filterSeatLock, startDate, endDate, sortField, sortDir])
+  }, [initialLeads, quickFilter, duplicateLeadIds, search, filterStatus, filterPic, filterCampaign, filterPayment, filterSeatLock, startDate, endDate, sortField, sortDir])
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
   const safeCurrentPage = Math.min(currentPage, totalPages)
@@ -242,39 +280,9 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
       needs_action: initialLeads.filter(l => NEEDS_ACTION_STATUSES.includes(l.current_status)).length,
       stale: initialLeads.filter(l => daysSinceLastTouch(l) >= 3).length,
       seat_lock_paid: initialLeads.filter(l => l.current_status === 'Seat Lock Paid' || l.current_status === 'Onboarding').length,
+      duplicate: duplicateLeadIds.size,
     }
-  }, [initialLeads])
-
-  const duplicateGroups = useMemo(() => {
-    const groups = new Map<string, LeadWithRelations[]>()
-
-    initialLeads.forEach(lead => {
-      const phone = lead.whatsapp_normalized || normalizePhone(lead.whatsapp_number)
-      if (!phone) return
-      const current = groups.get(phone) || []
-      current.push(lead)
-      groups.set(phone, current)
-    })
-
-    return Array.from(groups.entries())
-      .filter(([, leads]) => leads.length > 1)
-      .map(([phone, leads]) => {
-        const sorted = [...leads].sort((a, b) => {
-          const aTime = new Date(a.created_at || a.lead_entry_date || 0).getTime()
-          const bTime = new Date(b.created_at || b.lead_entry_date || 0).getTime()
-          return aTime - bTime
-        })
-        return {
-          phone,
-          keep: sorted[0],
-          duplicates: sorted.slice(1),
-        }
-      })
-  }, [initialLeads])
-
-  const duplicateDeleteIds = useMemo(() => {
-    return duplicateGroups.flatMap(group => group.duplicates.map(lead => lead.id))
-  }, [duplicateGroups])
+  }, [initialLeads, duplicateLeadIds])
 
   const showToast = (type: 'success' | 'error', text: string) => {
     setToast({ type, text })
