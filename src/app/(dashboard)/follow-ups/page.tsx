@@ -1,12 +1,13 @@
 import { Header } from '@/components/layout/header'
 import { FollowUpTracker } from '@/components/follow-ups/follow-up-tracker'
 import { createClient } from '@/lib/supabase/server'
+import { getTodayInWIB } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
 
 export default async function FollowUpsPage() {
   const supabase = await createClient()
-  const today = new Date().toISOString().split('T')[0]
+  const today = getTodayInWIB()
 
   const [dueRes, upcomingRes] = await Promise.all([
     supabase

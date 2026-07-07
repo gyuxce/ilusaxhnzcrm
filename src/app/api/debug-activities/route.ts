@@ -5,16 +5,27 @@ export async function GET() {
   try {
     const supabase = await createClient()
 
-    // Get current auth user
     const { data: { user: authUser } } = await supabase.auth.getUser()
-    
-    // Get all users
-    const { data: users } = await supabase
+
+    if (!authUser) {
+      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const { data: profile } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', authUser.id)
+      .maybeSingle()
+
+    if (profile?.role !== 'admin' && process.env.NODE_ENV === 'production') {
+      return NextResponse.json({ ok: false, error: 'Forbidden' }, { status: 403 })
+    }
+
+    const { data: users, error: usersError } = await supabase
       .from('users')
       .select('*')
-      
-    // Get latest 50 activities
-    const { data: activities } = await supabase
+
+    const { data: activities, error: activitiesError } = await supabase
       .from('lead_activities')
       .select(`
         *,
@@ -24,21 +35,29 @@ export async function GET() {
       .order('created_at', { ascending: false })
       .limit(50)
 
-    // Get latest 10 leads
-    const { data: leads } = await supabase
+    const { data: leads, error: leadsError } = await supabase
       .from('leads')
       .select('id, full_name, created_by, assigned_cro_id, created_at, lead_entry_date')
       .order('created_at', { ascending: false })
       .limit(10)
+
+    const errors = [usersError, activitiesError, leadsError].filter(Boolean)
+    if (errors.length > 0) {
+      return NextResponse.json({
+        ok: false,
+        error: errors[0]?.message || 'Query failed',
+      }, { status: 500 })
+    }
 
     return NextResponse.json({
       ok: true,
       currentUser: authUser,
       users,
       activities,
-      leads
+      leads,
     })
-  } catch (err: any) {
-    return NextResponse.json({ ok: false, error: err.message })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error'
+    return NextResponse.json({ ok: false, error: message }, { status: 500 })
   }
 }

@@ -39,6 +39,12 @@ interface ExpertQueueDashboardProps {
   initialItems: ExpertQueueItem[]
 }
 
+const EXPERT_RESOLVED_MARKER = '[expert-resolved]'
+
+function isExpertResolved(item: { notes?: string | null }) {
+  return Boolean(item.notes?.includes(EXPERT_RESOLVED_MARKER))
+}
+
 const statusOptions = ['all', 'pending', 'done'] as const
 
 function formatDate(dateValue: string | null) {
@@ -88,7 +94,7 @@ export function ExpertQueueDashboard({ initialItems }: ExpertQueueDashboardProps
   const filteredItems = useMemo(() => {
     const keyword = query.trim().toLowerCase()
     return items.filter(item => {
-      const done = Boolean(item.result)
+      const done = isExpertResolved(item)
       if (status === 'pending' && done) return false
       if (status === 'done' && !done) return false
       if (expertType !== 'all' && item.expert_type !== expertType) return false
@@ -117,10 +123,10 @@ export function ExpertQueueDashboard({ initialItems }: ExpertQueueDashboardProps
   }, [items, query, expertType, commercialType, status])
 
   const stats = useMemo(() => {
-    const pending = items.filter(item => !item.result).length
-    const done = items.filter(item => item.result).length
+    const pending = items.filter(item => !isExpertResolved(item)).length
+    const done = items.filter(item => isExpertResolved(item)).length
     const potentialPaid = items.filter(item => item.commercial_type === 'Potential Paid' || item.commercial_type === 'Paid').length
-    const overdue = items.filter(item => isOverdue(item.next_follow_up_date, Boolean(item.result))).length
+    const overdue = items.filter(item => isOverdue(item.next_follow_up_date, isExpertResolved(item))).length
     return { total: items.length, pending, done, potentialPaid, overdue }
   }, [items])
 
@@ -136,6 +142,9 @@ export function ExpertQueueDashboard({ initialItems }: ExpertQueueDashboardProps
       .from('lead_interventions')
       .update({
         result: cleanResult,
+        notes: item.notes?.includes(EXPERT_RESOLVED_MARKER)
+          ? item.notes
+          : [item.notes, EXPERT_RESOLVED_MARKER].filter(Boolean).join('\n'),
         updated_at: new Date().toISOString(),
       })
       .eq('id', item.id)
@@ -147,7 +156,13 @@ export function ExpertQueueDashboard({ initialItems }: ExpertQueueDashboardProps
       return
     }
 
-    setItems(prev => prev.map(row => row.id === item.id ? { ...row, result: cleanResult } : row))
+    setItems(prev => prev.map(row => row.id === item.id ? {
+      ...row,
+      result: cleanResult,
+      notes: row.notes?.includes(EXPERT_RESOLVED_MARKER)
+        ? row.notes
+        : [row.notes, EXPERT_RESOLVED_MARKER].filter(Boolean).join('\n'),
+    } : row))
   }
 
   const deleteItem = async (item: ExpertQueueItem) => {

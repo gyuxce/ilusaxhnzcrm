@@ -8,7 +8,7 @@ import {
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { WhatsAppModal } from '../leads/WhatsAppModal'
-import { cn } from '@/lib/utils'
+import { cn, getTodayInWIB } from '@/lib/utils'
 
 interface FUWithRelations {
   id: string
@@ -52,14 +52,14 @@ interface FollowUpTrackerProps {
 
 export function FollowUpTracker({ dueFUs: initialDueFUs, upcomingFUs: initialUpcoming }: FollowUpTrackerProps) {
   const [dueFUs, setDueFUs] = useState<FUWithRelations[]>(initialDueFUs)
-  const [upcomingFUs] = useState<FUWithRelations[]>(initialUpcoming)
+  const [upcomingFUs, setUpcomingFUs] = useState<FUWithRelations[]>(initialUpcoming)
   const [completingId, setCompletingId] = useState<string | null>(null)
   const [resultInput, setResultInput] = useState('')
   const [waOpen, setWaOpen] = useState(false)
   const [waLead, setWaLead] = useState<{ id?: string; name: string; phone: string } | null>(null)
   const [showAddModal, setShowAddModal] = useState(false)
   const [newLeadId, setNewLeadId] = useState('')
-  const [newDate, setNewDate] = useState(new Date().toISOString().split('T')[0])
+  const [newDate, setNewDate] = useState(getTodayInWIB())
   const [newFuType, setNewFuType] = useState<'chat' | 'call' | 'whatsapp' | 'meeting'>('whatsapp')
   const [newNotes, setNewNotes] = useState('')
   const [refreshing, setRefreshing] = useState(false)
@@ -72,22 +72,29 @@ export function FollowUpTracker({ dueFUs: initialDueFUs, upcomingFUs: initialUpc
       const { data: authData } = await supabase.auth.getUser()
       const actorId = authData.user?.id || null
 
-      await supabase.from('follow_ups').update({
+      const { error: updateError } = await supabase.from('follow_ups').update({
         is_done: true,
         done_at: new Date().toISOString(),
         result: result,
         updated_at: new Date().toISOString(),
       }).eq('id', fu.id)
 
-      // Log to lead_activities
-      await supabase.from('lead_activities').insert({
+      if (updateError) {
+        alert(`Gagal menandai follow-up selesai: ${updateError.message}`)
+        return
+      }
+
+      const { error: activityError } = await supabase.from('lead_activities').insert({
         lead_id: fu.lead_id,
         activity_type: 'Follow-Up Completed',
         description: `Follow-up (${fu.fu_type || 'whatsapp'}) selesai: ${result}`,
         created_by: actorId
       })
 
-      // Update lead's updated_at and updated_by
+      if (activityError) {
+        console.error('Failed to log follow-up activity:', activityError)
+      }
+
       await supabase.from('leads').update({
         updated_at: new Date().toISOString(),
         updated_by: actorId
@@ -339,15 +346,19 @@ export function FollowUpTracker({ dueFUs: initialDueFUs, upcomingFUs: initialUpc
                   const { data: authData } = await supabase.auth.getUser()
                   const actorId = authData.user?.id || null
 
-                  await supabase.from('follow_ups').insert({
+                  const { data: inserted, error: insertError } = await supabase.from('follow_ups').insert({
                     lead_id: newLeadId,
                     scheduled_date: newDate,
                     fu_type: newFuType,
                     notes: newNotes || null,
                     pic_id: actorId,
-                  })
+                  }).select('*, leads(id, full_name, whatsapp_number, current_status, source_campaign), users:pic_id(name)').single()
 
-                  // Log to lead_activities
+                  if (insertError) {
+                    alert(`Gagal menyimpan follow-up: ${insertError.message}`)
+                    return
+                  }
+
                   await supabase.from('lead_activities').insert({
                     lead_id: newLeadId,
                     activity_type: 'Follow-Up Scheduled',
@@ -355,11 +366,19 @@ export function FollowUpTracker({ dueFUs: initialDueFUs, upcomingFUs: initialUpc
                     created_by: actorId
                   })
 
-                  // Update lead's updated_at and updated_by
                   await supabase.from('leads').update({
                     updated_at: new Date().toISOString(),
                     updated_by: actorId
                   }).eq('id', newLeadId)
+
+                  const today = getTodayInWIB()
+                  if (inserted) {
+                    if (newDate <= today) {
+                      setDueFUs(prev => [...prev, inserted as FUWithRelations])
+                    } else {
+                      setUpcomingFUs(prev => [...prev, inserted as FUWithRelations])
+                    }
+                  }
 
                   setShowAddModal(false)
                   setNewLeadId('')

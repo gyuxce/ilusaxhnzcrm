@@ -27,6 +27,7 @@ import {
   OBJECTION_CATEGORY_OPTIONS,
   SOLUTION_OPTIONS,
 } from '@/lib/funnel-framework'
+import { getTodayInWIB } from '@/lib/utils'
 
 type LeadRow = {
   id: string
@@ -102,7 +103,7 @@ const QUEUE_FILTERS = [
 type QueueFilter = typeof QUEUE_FILTERS[number]['key']
 
 function todayInput() {
-  return new Date().toISOString().split('T')[0]
+  return getTodayInWIB()
 }
 
 function dateTime(value?: string | null) {
@@ -216,7 +217,7 @@ export default function WorkQueuePage() {
   useEffect(() => {
     fetchData()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [searchParams])
 
   useEffect(() => {
     if (searchParams.get('filter') === 'new') {

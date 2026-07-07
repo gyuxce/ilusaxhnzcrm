@@ -134,13 +134,27 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
     if (!data?.ok) {
       setError(rpcErrorMessage(data))
       setLoading(false)
-    } else {
-      setLoading(false)
-      setSuccess(leadId ? 'Perubahan lead berhasil disimpan. Mengalihkan ke Data Leads...' : 'Lead baru berhasil ditambahkan. Mengalihkan ke Kerjaan Hari Ini untuk mulai dikerjakan...')
-      setTimeout(() => {
-        router.push(leadId ? '/leads' : '/work-queue?filter=new')
-      }, 250)
+      return
     }
+
+    if (leadId && form.lead_entry_date) {
+      const { error: dateError } = await supabase
+        .from('leads')
+        .update({ lead_entry_date: new Date(form.lead_entry_date).toISOString() })
+        .eq('id', leadId)
+
+      if (dateError) {
+        setError(`Data lead tersimpan, tapi tanggal masuk gagal diperbarui: ${dateError.message}`)
+        setLoading(false)
+        return
+      }
+    }
+
+    setLoading(false)
+    setSuccess(leadId ? 'Perubahan lead berhasil disimpan. Mengalihkan ke Data Leads...' : 'Lead baru berhasil ditambahkan. Mengalihkan ke Kerjaan Hari Ini untuk mulai dikerjakan...')
+    setTimeout(() => {
+      router.push(leadId ? '/leads' : '/work-queue?filter=new')
+    }, 250)
   }
 
   const inputClass = "w-full px-4 py-2.5 rounded-xl text-sm text-foreground placeholder-muted-foreground/60 outline-none transition-all bg-card border border-border focus:ring-1 focus:ring-primary focus:border-primary"

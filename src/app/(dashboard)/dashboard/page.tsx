@@ -23,6 +23,7 @@ import {
   BriefcaseBusiness,
   ArrowRight,
 } from 'lucide-react'
+import { getTodayInWIB } from '@/lib/utils'
 import { Header } from '@/components/layout/header'
 
 interface DashboardStats {
@@ -111,9 +112,10 @@ export default function DashboardPage() {
     interestedLeads: 0,
     notInterested: 0,
     notEligible: 0,
-    pemetaanScheduled: 0,
-    waitingResult: 0,
-    expertScheduled: 0,
+      pemetaanScheduled: 0,
+      waitingResult: 0,
+      sentResultPemetaan: 0,
+      expertScheduled: 0,
     seatLockOffered: 0,
     seatLockPaid: 0,
     onboarding: 0,
@@ -187,7 +189,7 @@ export default function DashboardPage() {
     setRecentLeads(recent || [])
 
     // 6. Count today's follow-ups
-    const today = new Date().toISOString().split('T')[0]
+    const today = getTodayInWIB()
     const { count: fuCount } = await supabase
       .from('follow_ups')
       .select('*', { count: 'exact', head: true })
@@ -338,27 +340,37 @@ export default function DashboardPage() {
 
     const now = Date.now()
     const terminalStatuses = ['Not Interested', 'Not Eligible', 'Seat Lock Paid', 'Onboarding', 'Class Started']
-    const staleRows = (leads || [])
-      .filter((lead: any) => !terminalStatuses.includes(lead.current_status))
-      .map((lead: any) => {
+    type StaleRow = { id: string; name: string; status: string; days: number }
+    const staleRows: StaleRow[] = (leads || [])
+      .filter((lead: { current_status: string }) => !terminalStatuses.includes(lead.current_status))
+      .map((lead: { id: string; full_name: string; current_status: string; updated_at?: string; lead_entry_date?: string }) => {
         const lastUpdate = lead.updated_at || lead.lead_entry_date
         const days = lastUpdate ? Math.floor((now - new Date(lastUpdate).getTime()) / 86400000) : 0
         return { id: lead.id, name: lead.full_name, status: lead.current_status, days }
       })
-      .filter(row => row.days >= 3)
-      .sort((a, b) => b.days - a.days)
+      .filter((row: StaleRow) => row.days >= 3)
+      .sort((a: StaleRow, b: StaleRow) => b.days - a.days)
 
     const latestInterventionByLead = new Map<string, any>()
     ;(interventions || []).forEach((item: any) => {
       if (!latestInterventionByLead.has(item.lead_id)) latestInterventionByLead.set(item.lead_id, item)
     })
     const latestInterventions = Array.from(latestInterventionByLead.values())
-    const objectionCounts = (interventions || []).reduce((counts: Record<string, number>, item: any) => {
-      if (item.objection_category) counts[item.objection_category] = (counts[item.objection_category] || 0) + 1
-      return counts
-    }, {})
-    const [topObjection = '-', topObjectionCount = 0] = Object.entries(objectionCounts)
-      .sort((a, b) => b[1] - a[1])[0] || []
+    const objectionCounts: Record<string, number> = {}
+    ;(interventions || []).forEach((item: { objection_category?: string | null }) => {
+      if (item.objection_category) {
+        objectionCounts[item.objection_category] = (objectionCounts[item.objection_category] || 0) + 1
+      }
+    })
+
+    let topObjection = '-'
+    let topObjectionCount = 0
+    for (const [category, count] of Object.entries(objectionCounts)) {
+      if (count > topObjectionCount) {
+        topObjection = category
+        topObjectionCount = count
+      }
+    }
 
     setIntelligence({
       funnel,

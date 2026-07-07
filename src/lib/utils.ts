@@ -102,6 +102,11 @@ export function formatDate(date: string | null | undefined): string {
   })
 }
 
+/** Returns YYYY-MM-DD in Asia/Jakarta (WIB) timezone. */
+export function getTodayInWIB(): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(new Date())
+}
+
 export function formatRelativeDate(date: string | null | undefined): string {
   if (!date) return '-'
   const d = new Date(date)

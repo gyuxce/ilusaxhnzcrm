@@ -523,7 +523,6 @@ export function LeadDetailClient({
       current_status: editStatus,
       assigned_cro_id: editPic || null,
       notes: editNotes || null,
-      lost_reason: LOST_STATUSES.includes(editStatus) ? editLostReason : null,
       ...funnelPayload,
       updated_at: updatedAt
     }
@@ -675,7 +674,15 @@ export function LeadDetailClient({
             </div>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setIsWaOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/20 transition-all cursor-pointer"
+          >
+            <MessageCircle size={14} />
+            WhatsApp
+          </button>
           <Link
             href={`/work-queue?lead=${lead.id}`}
             className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white bg-primary hover:opacity-90 transition-all cursor-pointer shadow-sm"
@@ -683,6 +690,14 @@ export function LeadDetailClient({
             <ArrowRight size={14} />
             Kerjakan di Kerjaan Hari Ini
           </Link>
+          <button
+            type="button"
+            onClick={() => setIsEditingCore(true)}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-slate-700 dark:text-white/70 bg-slate-100 dark:bg-white/5 border border-border hover:bg-slate-200/50 dark:hover:bg-white/10 transition-all cursor-pointer"
+          >
+            <Edit size={14} />
+            Edit Lengkap
+          </button>
           <Link
             href={`/leads/${lead.id}/edit`}
             className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-slate-700 dark:text-white/70 bg-slate-100 dark:bg-white/5 border border-border hover:bg-slate-200/50 dark:hover:bg-white/10 transition-all cursor-pointer"
@@ -693,6 +708,31 @@ export function LeadDetailClient({
         </div>
       </div>
 
+      {/* Tab Navigation */}
+      <div className="flex flex-wrap gap-2">
+        {([
+          { id: 'overview' as const, label: 'Overview', icon: FileText },
+          { id: 'payments' as const, label: 'Pembayaran', icon: DollarSign },
+          { id: 'pemetaan' as const, label: 'Pemetaan', icon: FileText },
+          { id: 'expert' as const, label: 'Expert', icon: UserCheck },
+        ]).map(tab => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => setActiveTab(tab.id)}
+            className={cn(
+              'inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-xs font-bold transition-all cursor-pointer',
+              activeTab === tab.id
+                ? 'border-primary/30 bg-primary/10 text-primary'
+                : 'border-border bg-card text-muted-foreground hover:text-foreground hover:bg-slate-50 dark:hover:bg-white/5'
+            )}
+          >
+            <tab.icon size={14} />
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
       {/* Tab Contents */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
@@ -700,7 +740,7 @@ export function LeadDetailClient({
         <div className="lg:col-span-2 space-y-6">
           
           {/* Tab 1: Overview */}
-          {true && (
+          {activeTab === 'overview' && (
             <div className="glass-card rounded-2xl p-6 border border-border space-y-6">
               <h3 className="text-foreground font-bold text-sm uppercase tracking-wider flex items-center gap-2">
                 <FileText size={16} className="text-purple-650 dark:text-purple-400" />
@@ -1076,12 +1116,21 @@ export function LeadDetailClient({
                 <AlertCircle size={14} className="text-orange-500" />
                 Catatan Chat ({interventions.length})
               </h3>
-              <Link
-                href={`/work-queue?lead=${lead.id}`}
-                className="px-2.5 py-1.5 rounded-lg text-[10px] font-bold text-primary bg-primary/10 hover:bg-primary/15 transition-all"
-              >
-                Kerjaan Hari Ini
-              </Link>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowInterventionForm(prev => !prev)}
+                  className="px-2.5 py-1.5 rounded-lg text-[10px] font-bold text-orange-700 dark:text-orange-300 bg-orange-500/10 hover:bg-orange-500/15 transition-all cursor-pointer"
+                >
+                  {showInterventionForm ? 'Tutup Form' : '+ Catat Chat'}
+                </button>
+                <Link
+                  href={`/work-queue?lead=${lead.id}`}
+                  className="px-2.5 py-1.5 rounded-lg text-[10px] font-bold text-primary bg-primary/10 hover:bg-primary/15 transition-all"
+                >
+                  Kerjaan Hari Ini
+                </Link>
+              </div>
             </div>
 
             {interventionMessage.text && (
@@ -1276,12 +1325,21 @@ export function LeadDetailClient({
                 <Calendar size={14} className="text-purple-650 dark:text-purple-400" />
                 Jadwal Follow-Up ({followUps.filter(f => !f.is_done).length})
               </h3>
-              <Link
-                href={`/work-queue?lead=${lead.id}`}
-                className="px-2.5 py-1.5 rounded-lg text-[10px] font-bold text-primary bg-primary/10 hover:bg-primary/15 transition-all"
-              >
-                Kerjaan Hari Ini
-              </Link>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAddFu(prev => !prev)}
+                  className="px-2.5 py-1.5 rounded-lg text-[10px] font-bold text-purple-700 dark:text-purple-300 bg-purple-500/10 hover:bg-purple-500/15 transition-all cursor-pointer"
+                >
+                  {showAddFu ? 'Tutup Form' : '+ Jadwalkan FU'}
+                </button>
+                <Link
+                  href={`/work-queue?lead=${lead.id}`}
+                  className="px-2.5 py-1.5 rounded-lg text-[10px] font-bold text-primary bg-primary/10 hover:bg-primary/15 transition-all"
+                >
+                  Kerjaan Hari Ini
+                </Link>
+              </div>
             </div>
 
             {fuMessage.text && (

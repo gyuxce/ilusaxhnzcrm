@@ -276,7 +276,12 @@ export default function NeedsActionPage() {
     }
 
     // Run all database calls in parallel
-    await Promise.all(promises)
+    const results = await Promise.all(promises)
+    const failed = results.find(result => result?.error)
+    if (failed?.error) {
+      alert(`Gagal memperbarui lead: ${failed.error.message}`)
+      return
+    }
     fetchLeads()
 
     // Reset action state

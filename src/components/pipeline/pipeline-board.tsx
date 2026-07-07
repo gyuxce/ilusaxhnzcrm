@@ -3,18 +3,9 @@
 import { useState, useCallback } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { PIPELINE_STAGES } from '@/lib/funnel-framework'
 import { MessageCircle, ExternalLink, GripVertical, Users } from 'lucide-react'
 import { cn } from '@/lib/utils'
-
-const STAGES = [
-  { key: 'New Lead', label: 'New Lead', color: '#64748b', bg: 'rgba(100,116,139,0.08)', border: 'rgba(100,116,139,0.18)' },
-  { key: 'Interested', label: 'Interested', color: '#3b82f6', bg: 'rgba(59,130,246,0.08)', border: 'rgba(59,130,246,0.18)' },
-  { key: 'Pemetaan Scheduled', label: '📅 Pemetaan Scheduled', color: '#8b5cf6', bg: 'rgba(139,92,246,0.08)', border: 'rgba(139,92,246,0.18)' },
-  { key: 'Sent Result Pemetaan', label: '📤 Sent Result Pemetaan', color: '#f59e0b', bg: 'rgba(245,158,11,0.08)', border: 'rgba(245,158,11,0.18)' },
-  { key: 'Expert Consultation Done', label: '🧠 Expert Done', color: '#10b981', bg: 'rgba(16,185,129,0.08)', border: 'rgba(16,185,129,0.18)' },
-  { key: 'Seat Lock Paid', label: '🔒 Seat Lock', color: '#22c55e', bg: 'rgba(34,197,94,0.08)', border: 'rgba(34,197,94,0.18)' },
-  { key: 'Not Interested', label: '❌ Not Interested', color: '#ef4444', bg: 'rgba(239,68,68,0.08)', border: 'rgba(239,68,68,0.18)' },
-]
 
 const INITIAL_VISIBLE_PER_COLUMN = 12
 const LOAD_MORE_STEP = 12
@@ -42,6 +33,7 @@ export function PipelineBoard({ initialLeads }: PipelineBoardProps) {
   const [dragOverStage, setDragOverStage] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [visibleCounts, setVisibleCounts] = useState<Record<string, number>>({})
+  const [moveError, setMoveError] = useState('')
 
   const supabase = createClient()
 
@@ -52,41 +44,65 @@ export function PipelineBoard({ initialLeads }: PipelineBoardProps) {
       )
     : leads
 
-  function getLeadsByStage(stage: string) {
-    return filtered.filter(l => l.current_status === stage)
+  function getLeadsByStage(stageKey: string) {
+    const stage = PIPELINE_STAGES.find(s => s.key === stageKey)
+    if (!stage) return []
+    return filtered.filter(l => stage.statuses.includes(l.current_status))
   }
 
-  function getVisibleCount(stage: string) {
-    return visibleCounts[stage] || INITIAL_VISIBLE_PER_COLUMN
+  function getVisibleCount(stageKey: string) {
+    return visibleCounts[stageKey] || INITIAL_VISIBLE_PER_COLUMN
   }
 
-  function loadMore(stage: string) {
+  function loadMore(stageKey: string) {
     setVisibleCounts(prev => ({
       ...prev,
-      [stage]: (prev[stage] || INITIAL_VISIBLE_PER_COLUMN) + LOAD_MORE_STEP,
+      [stageKey]: (prev[stageKey] || INITIAL_VISIBLE_PER_COLUMN) + LOAD_MORE_STEP,
     }))
   }
 
-  async function moveLeadToStage(leadId: string, newStage: string) {
-    setLeads(prev => prev.map(l => l.id === leadId ? { ...l, current_status: newStage } : l))
+  async function moveLeadToStage(leadId: string, stageKey: string) {
+    const stage = PIPELINE_STAGES.find(s => s.key === stageKey)
+    if (!stage) return
+
+    const lead = leads.find(l => l.id === leadId)
+    if (!lead) return
+
+    const newStatus = stage.statuses.includes(lead.current_status)
+      ? lead.current_status
+      : stage.defaultStatus
+
+    if (lead.current_status === newStatus) return
+
+    const previousLeads = leads
+    setMoveError('')
+    setLeads(prev => prev.map(l => l.id === leadId ? { ...l, current_status: newStatus } : l))
+
     try {
       const { data: authData } = await supabase.auth.getUser()
       const actorId = authData.user?.id || null
 
-      await Promise.all([
-        supabase.from('leads').update({ 
-          current_status: newStage, 
+      const [updateRes, activityRes] = await Promise.all([
+        supabase.from('leads').update({
+          current_status: newStatus,
           updated_at: new Date().toISOString(),
-          updated_by: actorId
+          updated_by: actorId,
         }).eq('id', leadId),
         supabase.from('lead_activities').insert({
           lead_id: leadId,
           activity_type: 'Status changed',
-          description: `Status changed to ${newStage} via Pipeline Board drag-and-drop`,
-          created_by: actorId
-        })
+          description: `Status changed to ${newStatus} via Pipeline Board drag-and-drop`,
+          created_by: actorId,
+        }),
       ])
+
+      if (updateRes.error || activityRes.error) {
+        throw updateRes.error || activityRes.error
+      }
     } catch (err) {
+      setLeads(previousLeads)
+      const message = err instanceof Error ? err.message : 'Gagal memindahkan lead'
+      setMoveError(message)
       console.error('Failed to update stage or log activity:', err)
     }
   }
@@ -96,15 +112,15 @@ export function PipelineBoard({ initialLeads }: PipelineBoardProps) {
     e.dataTransfer.effectAllowed = 'move'
   }
 
-  function onDragOver(e: React.DragEvent, stage: string) {
+  function onDragOver(e: React.DragEvent, stageKey: string) {
     e.preventDefault()
     e.dataTransfer.dropEffect = 'move'
-    setDragOverStage(stage)
+    setDragOverStage(stageKey)
   }
 
-  function onDrop(e: React.DragEvent, stage: string) {
+  function onDrop(e: React.DragEvent, stageKey: string) {
     e.preventDefault()
-    if (dragging) moveLeadToStage(dragging, stage)
+    if (dragging) moveLeadToStage(dragging, stageKey)
     setDragging(null)
     setDragOverStage(null)
   }
@@ -140,9 +156,15 @@ export function PipelineBoard({ initialLeads }: PipelineBoardProps) {
         <p className="text-[10px] text-muted-foreground/50 hidden md:block">Drag & drop kartu untuk pindah stage</p>
       </div>
 
+      {moveError && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-xs font-semibold text-red-700 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400">
+          {moveError}
+        </div>
+      )}
+
       {/* Board */}
       <div className="flex gap-4 overflow-x-auto pb-4 h-[calc(100vh-170px)]">
-        {STAGES.map(stage => {
+        {PIPELINE_STAGES.map(stage => {
           const stageLeads = getLeadsByStage(stage.key)
           const visibleCount = getVisibleCount(stage.key)
           const visibleLeads = stageLeads.slice(0, visibleCount)
@@ -205,6 +227,7 @@ export function PipelineBoard({ initialLeads }: PipelineBoardProps) {
                           <div className="min-w-0 flex-1">
                             <p className="text-xs font-bold text-foreground leading-tight line-clamp-2">{lead.full_name}</p>
                             <p className="text-[9px] text-muted-foreground mt-0.5 truncate">{lead.source_campaign}</p>
+                            <p className="text-[8px] text-muted-foreground/70 mt-0.5 truncate">{lead.current_status}</p>
                           </div>
                         </div>
 
