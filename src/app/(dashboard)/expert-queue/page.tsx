@@ -1,4 +1,4 @@
-import { ExpertQueueDashboard } from '@/components/expert-queue/expert-queue-dashboard'
+import { ExpertQueueDashboard, type ExpertQueueItem } from '@/components/expert-queue/expert-queue-dashboard'
 import { Header } from '@/components/layout/header'
 import { createClient } from '@/lib/supabase/server'
 
@@ -38,7 +38,7 @@ export default async function ExpertQueuePage() {
     `)
     .order('created_at', { ascending: false })
 
-  const expertItems = (data || []).filter((item: any) => {
+  const expertItems = ((data || []) as ExpertQueueItem[]).filter(item => {
     return item.expert_needed === true || Boolean(item.expert_type)
   })
 
@@ -49,7 +49,7 @@ export default async function ExpertQueuePage() {
         subtitle="Daftar lead yang perlu dibantu orang lain, seperti sensei, program, dokumen, atau arahan lanjutan."
       />
       <div className="p-6 animate-fade-in w-full">
-        <ExpertQueueDashboard initialItems={expertItems as any[]} />
+        <ExpertQueueDashboard initialItems={expertItems} />
       </div>
     </>
   )

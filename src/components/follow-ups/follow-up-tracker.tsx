@@ -9,6 +9,7 @@ import {
 import { createClient } from '@/lib/supabase/client'
 import { WhatsAppModal } from '../leads/WhatsAppModal'
 import { cn, getTodayInWIB } from '@/lib/utils'
+import type { FuType } from '@/lib/supabase/types'
 
 interface FUWithRelations {
   id: string
@@ -313,7 +314,7 @@ export function FollowUpTracker({ dueFUs: initialDueFUs, upcomingFUs: initialUpc
                 <label className="block text-[10px] text-muted-foreground font-bold uppercase mb-1">Tipe FU</label>
                 <select
                   value={newFuType}
-                  onChange={e => setNewFuType(e.target.value as any)}
+                  onChange={e => setNewFuType(e.target.value as FuType)}
                   className="w-full px-3 py-2 text-xs bg-background text-foreground border border-border rounded-xl outline-none focus:ring-1 focus:ring-primary focus:border-primary cursor-pointer"
                 >
                   <option value="whatsapp" className="bg-card text-foreground">🟢 WhatsApp</option>

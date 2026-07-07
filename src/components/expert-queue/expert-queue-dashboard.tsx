@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 import { CalendarDays, CheckCircle2, Clock, ExternalLink, Loader2, PencilLine, Search, Trash2, UserRoundCheck, WalletCards } from 'lucide-react'
 
-type ExpertQueueItem = {
+export type ExpertQueueItem = {
   id: string
   lead_id: string
   created_by: string | null
@@ -240,7 +240,7 @@ export function ExpertQueueDashboard({ initialItems }: ExpertQueueDashboardProps
             {commercialTypes.map(type => <option key={type} value={type}>{commercialLabel(type)}</option>)}
           </select>
 
-          <select value={status} onChange={event => setStatus(event.target.value as any)} className="px-3 py-2.5 rounded-xl bg-card border border-border text-sm text-foreground outline-none">
+          <select value={status} onChange={event => setStatus(event.target.value as (typeof statusOptions)[number])} className="px-3 py-2.5 rounded-xl bg-card border border-border text-sm text-foreground outline-none">
             <option value="all">Semua status</option>
             <option value="pending">Belum selesai</option>
             <option value="done">Selesai</option>

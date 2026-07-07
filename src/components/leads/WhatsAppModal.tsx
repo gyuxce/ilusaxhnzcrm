@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom'
 import { createClient } from '@/lib/supabase/client'
 import { X, MessageCircle, Loader2, Copy, Check } from 'lucide-react'
 import { generateWALink } from '@/lib/utils'
+import type { PlaybookItemRow } from '@/lib/supabase/types'
 
 interface WhatsAppModalProps {
   isOpen: boolean
@@ -16,7 +17,7 @@ interface WhatsAppModalProps {
 }
 
 export function WhatsAppModal({ isOpen, onClose, leadName, leadPhone, leadId, picName = 'Tim CRO' }: WhatsAppModalProps) {
-  const [templates, setTemplates] = useState<any[]>([])
+  const [templates, setTemplates] = useState<PlaybookItemRow[]>([])
   const [loading, setLoading] = useState(false)
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('')
   const [messageText, setMessageText] = useState('')

@@ -5,10 +5,28 @@ import Link from 'next/link'
 import { CheckSquare, DollarSign, Calendar, MessageCircle } from 'lucide-react'
 import { generateWALink } from '@/lib/utils'
 
+type ConversionLead = {
+  id: string
+  name: string
+  phone_number: string
+  source?: string
+  stage?: string
+}
+
+type ConversionRow = {
+  id: string
+  conversion_type: string
+  conversion_date: string
+  amount: number | null
+  attended_event: boolean | null
+  interview_date: string | null
+  leads: ConversionLead | null
+}
+
 export default async function ConversionsPage() {
   const supabase = await createClient()
 
-  const { data: conversions } = (await supabase
+  const { data } = await supabase
     .from('conversions')
     .select(`
       *,
@@ -16,7 +34,9 @@ export default async function ConversionsPage() {
       users!conversions_created_by_fkey(full_name)
     `)
     .order('created_at', { ascending: false })
-    .limit(100)) as any
+    .limit(100)
+
+  const conversions = (data || []) as ConversionRow[]
 
   const CONV_TYPE: Record<string, { label: string; color: string; bg: string }> = {
     pemetaan: { label: 'Pemetaan', color: '#8b5cf6', bg: 'rgba(139,92,246,0.12)' },
@@ -25,7 +45,7 @@ export default async function ConversionsPage() {
     webinar_attend: { label: 'Webinar Hadir', color: '#06b6d4', bg: 'rgba(6,182,212,0.12)' },
   }
 
-  const totalAmount = (conversions || []).reduce((sum: number, c: any) => sum + (c.amount || 0), 0)
+  const totalAmount = conversions.reduce((sum, c) => sum + (c.amount || 0), 0)
 
   return (
     <>
@@ -35,10 +55,10 @@ export default async function ConversionsPage() {
         {/* Summary */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {[
-            { label: 'Total Konversi', value: (conversions?.length || 0).toString(), color: '#22c55e', icon: CheckSquare },
+            { label: 'Total Konversi', value: conversions.length.toString(), color: '#22c55e', icon: CheckSquare },
             { label: 'Total Revenue', value: `Rp ${(totalAmount / 1_000_000).toFixed(1)}jt`, color: '#8b5cf6', icon: DollarSign },
-            { label: 'Pemetaan', value: (conversions?.filter((c: any) => c.conversion_type === 'pemetaan').length || 0).toString(), color: '#3b82f6', icon: CheckSquare },
-            { label: 'Full Payment', value: (conversions?.filter((c: any) => c.conversion_type === 'full_payment').length || 0).toString(), color: '#f97316', icon: DollarSign },
+            { label: 'Pemetaan', value: conversions.filter(c => c.conversion_type === 'pemetaan').length.toString(), color: '#3b82f6', icon: CheckSquare },
+            { label: 'Full Payment', value: conversions.filter(c => c.conversion_type === 'full_payment').length.toString(), color: '#f97316', icon: DollarSign },
           ].map(s => (
             <div key={s.label} className="glass-card rounded-2xl p-4">
               <p className="text-xl font-bold" style={{ color: s.color }}>{s.value}</p>
@@ -59,22 +79,22 @@ export default async function ConversionsPage() {
                 </tr>
               </thead>
               <tbody>
-                {(conversions || []).length === 0 ? (
+                {conversions.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="px-4 py-12 text-center text-white/30 text-sm">
                       Belum ada konversi. Data akan muncul setelah Supabase terhubung.
                     </td>
                   </tr>
                 ) : (
-                  conversions!.map((conv: any, i: number) => {
+                  conversions.map((conv, i) => {
                     const typeConf = CONV_TYPE[conv.conversion_type] || { label: conv.conversion_type, color: '#64748b', bg: 'rgba(100,116,139,0.1)' }
-                    const lead = (conv as any).leads
+                    const lead = conv.leads
 
                     return (
                       <tr
                         key={conv.id}
                         className="hover:bg-white/[0.02] transition-colors group"
-                        style={{ borderBottom: i < conversions!.length - 1 ? '1px solid hsl(222,47%,11%)' : 'none' }}
+                        style={{ borderBottom: i < conversions.length - 1 ? '1px solid hsl(222,47%,11%)' : 'none' }}
                       >
                         <td className="px-4 py-3">
                           <Link href={`/leads/${lead?.id}`} className="font-medium text-white hover:text-purple-300 transition-colors">
