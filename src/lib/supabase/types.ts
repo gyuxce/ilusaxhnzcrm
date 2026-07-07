@@ -422,6 +422,15 @@ export type Database = {
         }
         Returns: Json
       }
+      apply_needs_action_fast: {
+        Args: {
+          p_lead_id: string
+          p_action_type: string
+          p_input_val?: string | null
+          p_input_val2?: string | null
+        }
+        Returns: Json
+      }
     }
     Enums: Record<string, never>
     CompositeTypes: Record<string, never>

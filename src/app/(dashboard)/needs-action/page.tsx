@@ -22,24 +22,10 @@ import {
 import { WhatsAppModal } from '@/components/leads/WhatsAppModal'
 import { Header } from '@/components/layout/header'
 import { NEEDS_ACTION_STATUSES } from '@/lib/funnel-framework'
+import { parseRpcResult } from '@/lib/rpc'
+import type { NeedsActionLead, NeedsActionType } from '@/types/crm'
 
-interface LeadWithDetails {
-  id: string
-  full_name: string
-  whatsapp_number: string
-  email: string | null
-  source_campaign: string
-  current_status: string
-  lead_entry_date: string
-  last_contacted_date: string | null
-  follow_up_result: string | null
-  notes: string | null
-  lost_reason: string | null
-  assigned_cro_id: string | null
-  users?: {
-    name: string
-  } | null
-}
+interface LeadWithDetails extends NeedsActionLead {}
 
 const QUEUES = [
   { key: 'all', label: 'Semua', status: null, icon: AlertCircle, tone: 'text-slate-600 dark:text-slate-300' },
@@ -82,7 +68,7 @@ export default function NeedsActionPage() {
       .order('lead_entry_date', { ascending: false })
 
     if (!error && data) {
-      setLeads(data as any[])
+      setLeads(data as NeedsActionLead[])
     }
     setLoading(false)
   }, [supabase])
@@ -157,134 +143,26 @@ export default function NeedsActionPage() {
   const handleUpdateStatus = async () => {
     if (!actioningLead || !actionType) return
 
-    const { data: authData } = await supabase.auth.getUser()
-    const currentUserId = authData.user?.id || null
-    let nextStatus = ''
-    let updateFields: Record<string, any> = {}
-    let activityDesc = ''
-    const promises: Promise<any>[] = []
+    const { data, error } = await supabase.rpc('apply_needs_action_fast', {
+      p_lead_id: actioningLead.id,
+      p_action_type: actionType as NeedsActionType,
+      p_input_val: inputVal || null,
+      p_input_val2: inputVal2 || null,
+    })
 
-    if (actionType === 'set_waiting_result') {
-      nextStatus = 'Waiting Result'
-      activityDesc = 'Lead moved to Waiting Result via Needs Action dashboard'
-      promises.push(
-        supabase
-          .from('pemetaan')
-          .update({
-            result_status: 'waiting',
-            updated_at: new Date().toISOString()
-          })
-          .eq('lead_id', actioningLead.id)
-      )
-    } 
-    else if (actionType === 'send_result') {
-      nextStatus = 'Sent Result Pemetaan'
-      activityDesc = `Hasil Pemetaan dikirim: ${inputVal || 'Sukses'}`
-      promises.push(
-        supabase
-          .from('pemetaan')
-          .update({
-            result_status: 'ready',
-            result_ready_at: new Date().toISOString(),
-            completed_at: new Date().toISOString(),
-            result_notes: inputVal || null,
-            updated_at: new Date().toISOString()
-          })
-          .eq('lead_id', actioningLead.id)
-      )
-    }
-    else if (actionType === 'schedule_expert') {
-      nextStatus = 'Expert Consultation Scheduled'
-      activityDesc = `Expert consultation scheduled for ${inputVal} with expert: ${inputVal2}`
-      
-      const { data: ec } = await supabase
-        .from('expert_consultations')
-        .select('id')
-        .eq('lead_id', actioningLead.id)
-        .maybeSingle()
-
-      if (ec) {
-        promises.push(
-          supabase
-            .from('expert_consultations')
-            .update({
-              scheduled_at: new Date(inputVal).toISOString(),
-              expert_name: inputVal2,
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', ec.id)
-        )
-      } else {
-        promises.push(
-          supabase
-            .from('expert_consultations')
-            .insert({
-              lead_id: actioningLead.id,
-              scheduled_at: new Date(inputVal).toISOString(),
-              expert_name: inputVal2
-            })
-        )
-      }
-    } 
-    else if (actionType === 'offer_seat_lock') {
-      nextStatus = 'Seat Lock Offered'
-      activityDesc = 'Seat Lock Offered'
-    } 
-    else if (actionType === 'pay_seat_lock') {
-      nextStatus = 'Seat Lock Paid'
-      activityDesc = `Seat lock paid: Rp ${Number(inputVal).toLocaleString('id-ID')} (${inputVal2})`
-      
-      promises.push(
-        supabase
-          .from('payments')
-          .insert({
-            lead_id: actioningLead.id,
-            payment_type: 'seat_lock',
-            amount: Number(inputVal),
-            payment_method: 'Transfer',
-            payment_date: new Date().toISOString().split('T')[0],
-            verification_status: 'verified',
-            verified_at: new Date().toISOString(),
-            verified_by: currentUserId,
-            notes: `Verified on Seat Lock Paid Action: ${inputVal2}`
-          })
-      )
-    }
-
-    if (nextStatus) {
-      updateFields.current_status = nextStatus
-      updateFields.updated_by = currentUserId
-      updateFields.updated_at = new Date().toISOString()
-
-      promises.push(
-        supabase
-          .from('leads')
-          .update(updateFields)
-          .eq('id', actioningLead.id)
-      )
-
-      promises.push(
-        supabase
-          .from('lead_activities')
-          .insert({
-            lead_id: actioningLead.id,
-            activity_type: 'Status changed',
-            description: activityDesc,
-            created_by: currentUserId
-          })
-      )
-    }
-
-    // Run all database calls in parallel
-    const results = await Promise.all(promises)
-    const failed = results.find(result => result?.error)
-    if (failed?.error) {
-      alert(`Gagal memperbarui lead: ${failed.error.message}`)
+    if (error) {
+      alert(`Gagal memperbarui lead: ${error.message}`)
       return
     }
+
+    const result = parseRpcResult(data)
+    if (!result?.ok) {
+      alert(result?.message || 'Gagal memperbarui lead.')
+      return
+    }
+
     fetchLeads()
 
-    // Reset action state
     setActioningLead(null)
     setActionType(null)
     setInputVal('')
