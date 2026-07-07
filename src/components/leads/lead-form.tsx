@@ -118,6 +118,7 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
           p_lead_id: leadId,
           ...params,
           p_lost_reason: LOST_STATUSES.includes(form.current_status) ? form.lost_reason : null,
+          p_lead_entry_date: form.lead_entry_date ? new Date(form.lead_entry_date).toISOString() : null,
         })
       : await supabase.rpc('create_lead_fast', {
           ...params,
@@ -135,19 +136,6 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
       setError(rpcErrorMessage(data))
       setLoading(false)
       return
-    }
-
-    if (leadId && form.lead_entry_date) {
-      const { error: dateError } = await supabase
-        .from('leads')
-        .update({ lead_entry_date: new Date(form.lead_entry_date).toISOString() })
-        .eq('id', leadId)
-
-      if (dateError) {
-        setError(`Data lead tersimpan, tapi tanggal masuk gagal diperbarui: ${dateError.message}`)
-        setLoading(false)
-        return
-      }
     }
 
     setLoading(false)

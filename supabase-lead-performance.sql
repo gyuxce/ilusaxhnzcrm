@@ -121,7 +121,8 @@ create or replace function public.update_lead_core_fast(
   p_current_status text default 'New Lead',
   p_assigned_cro_id uuid default null,
   p_notes text default null,
-  p_lost_reason text default null
+  p_lost_reason text default null,
+  p_lead_entry_date timestamptz default null
 )
 returns jsonb
 language plpgsql
@@ -180,6 +181,7 @@ begin
     assigned_cro_id = p_assigned_cro_id,
     notes = nullif(p_notes, ''),
     lost_reason = nullif(p_lost_reason, ''),
+    lead_entry_date = coalesce(p_lead_entry_date, lead_entry_date),
     updated_by = actor_id,
     updated_at = now()
   where id = p_lead_id;
@@ -201,4 +203,4 @@ $$;
 
 grant execute on function public.normalize_whatsapp(text) to authenticated;
 grant execute on function public.create_lead_fast(text, text, text, text, text, text, uuid, text, timestamptz) to authenticated;
-grant execute on function public.update_lead_core_fast(uuid, text, text, text, text, text, uuid, text, text) to authenticated;
+grant execute on function public.update_lead_core_fast(uuid, text, text, text, text, text, uuid, text, text, timestamptz) to authenticated;
