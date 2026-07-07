@@ -4,10 +4,10 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import {
-  MessageCircle, Clock, Calendar, CheckCircle2,
-  XCircle, Edit, DollarSign, Activity, FileText,
-  UserCheck, AlertCircle, Trash2, ArrowRight, Plus,
-  Copy, Sparkles, Target
+  MessageCircle, Clock, Calendar,
+  Edit, DollarSign, FileText,
+  UserCheck, AlertCircle, Trash2, ArrowRight,
+  Copy, Sparkles, Target, CheckCircle2,
 } from 'lucide-react'
 import { WhatsAppModal } from './WhatsAppModal'
 import { cn } from '@/lib/utils'
@@ -100,7 +100,7 @@ export function LeadDetailClient({
   // Form States
   const [paymentType, setPaymentType] = useState('pemetaan')
   const [paymentAmount, setPaymentAmount] = useState('150000')
-  const [paymentMethod, setPaymentMethod] = useState('Transfer')
+  const [paymentMethod] = useState('Transfer')
   const [paymentNotes, setPaymentNotes] = useState('')
   
   // Pemetaan form states

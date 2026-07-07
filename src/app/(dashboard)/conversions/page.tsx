@@ -2,7 +2,7 @@ import { Header } from '@/components/layout/header'
 import { createClient } from '@/lib/supabase/server'
 import { formatDate } from '@/lib/utils'
 import Link from 'next/link'
-import { CheckSquare, DollarSign, Calendar, MessageCircle } from 'lucide-react'
+import { CheckSquare, DollarSign, MessageCircle } from 'lucide-react'
 import { generateWALink } from '@/lib/utils'
 
 type ConversionLead = {

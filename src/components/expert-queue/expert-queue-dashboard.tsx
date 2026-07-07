@@ -45,7 +45,13 @@ function isExpertResolved(item: { notes?: string | null }) {
   return Boolean(item.notes?.includes(EXPERT_RESOLVED_MARKER))
 }
 
-const statusOptions = ['all', 'pending', 'done'] as const
+type ExpertStatusFilter = 'all' | 'pending' | 'done'
+const STATUS_FILTER_OPTIONS: ExpertStatusFilter[] = ['all', 'pending', 'done']
+const STATUS_FILTER_LABELS: Record<ExpertStatusFilter, string> = {
+  all: 'Semua status',
+  pending: 'Belum selesai',
+  done: 'Selesai',
+}
 
 function formatDate(dateValue: string | null) {
   if (!dateValue) return '-'
@@ -73,7 +79,7 @@ export function ExpertQueueDashboard({ initialItems }: ExpertQueueDashboardProps
   const [query, setQuery] = useState('')
   const [expertType, setExpertType] = useState('all')
   const [commercialType, setCommercialType] = useState('all')
-  const [status, setStatus] = useState<(typeof statusOptions)[number]>('all')
+  const [status, setStatus] = useState<ExpertStatusFilter>('all')
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const [pendingDelete, setPendingDelete] = useState<ExpertQueueItem | null>(null)
   const [toast, setToast] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
@@ -240,10 +246,10 @@ export function ExpertQueueDashboard({ initialItems }: ExpertQueueDashboardProps
             {commercialTypes.map(type => <option key={type} value={type}>{commercialLabel(type)}</option>)}
           </select>
 
-          <select value={status} onChange={event => setStatus(event.target.value as (typeof statusOptions)[number])} className="px-3 py-2.5 rounded-xl bg-card border border-border text-sm text-foreground outline-none">
-            <option value="all">Semua status</option>
-            <option value="pending">Belum selesai</option>
-            <option value="done">Selesai</option>
+          <select value={status} onChange={event => setStatus(event.target.value as ExpertStatusFilter)} className="px-3 py-2.5 rounded-xl bg-card border border-border text-sm text-foreground outline-none">
+            {STATUS_FILTER_OPTIONS.map(option => (
+              <option key={option} value={option}>{STATUS_FILTER_LABELS[option]}</option>
+            ))}
           </select>
         </div>
       </div>

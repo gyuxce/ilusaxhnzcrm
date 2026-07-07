@@ -4,7 +4,7 @@ import { useState, useCallback } from 'react'
 import Link from 'next/link'
 import {
   MessageCircle, CheckCircle2, Clock, AlertCircle,
-  ChevronRight, Plus, Calendar, RefreshCw, Phone, Zap
+  Plus, Calendar,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { WhatsAppModal } from '../leads/WhatsAppModal'
@@ -63,8 +63,6 @@ export function FollowUpTracker({ dueFUs: initialDueFUs, upcomingFUs: initialUpc
   const [newDate, setNewDate] = useState(getTodayInWIB())
   const [newFuType, setNewFuType] = useState<'chat' | 'call' | 'whatsapp' | 'meeting'>('whatsapp')
   const [newNotes, setNewNotes] = useState('')
-  const [refreshing, setRefreshing] = useState(false)
-
   const supabase = createClient()
 
   async function markDone(fu: FUWithRelations) {

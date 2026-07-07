@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { createClient } from '@/lib/supabase/client'
 import { X, MessageCircle, Loader2, Copy, Check } from 'lucide-react'
@@ -28,6 +28,25 @@ export function WhatsAppModal({ isOpen, onClose, leadName, leadPhone, leadId, pi
     setMounted(true)
   }, [])
 
+  function getGreeting() {
+    const hours = new Date().getHours()
+    if (hours < 11) return 'pagi'
+    if (hours < 15) return 'siang'
+    if (hours < 19) return 'sore'
+    return 'malam'
+  }
+
+  const generatePreview = useCallback((content: string) => {
+    const greeting = getGreeting()
+    const preview = content
+      .replace(/\[Nama\]/g, leadName)
+      .replace(/\[Nama Lead\]/g, leadName)
+      .replace(/\[Nama PIC\]/g, picName)
+      .replace(/\[pagi\/siang\/sore\]/g, greeting)
+      .replace(/\[pagi\/siang\/sore\/malam\]/g, greeting)
+    setMessageText(preview)
+  }, [leadName, picName])
+
   // Fetch scripts from playbook
   useEffect(() => {
     if (!isOpen) return
@@ -35,7 +54,7 @@ export function WhatsAppModal({ isOpen, onClose, leadName, leadPhone, leadId, pi
     async function fetchTemplates() {
       setLoading(true)
       const supabase = createClient()
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('playbook_items')
         .select('*')
         .eq('category', 'script')
@@ -55,26 +74,7 @@ export function WhatsAppModal({ isOpen, onClose, leadName, leadPhone, leadId, pi
     }
 
     fetchTemplates()
-  }, [isOpen, leadName, picName])
-
-  function getGreeting() {
-    const hours = new Date().getHours()
-    if (hours < 11) return 'pagi'
-    if (hours < 15) return 'siang'
-    if (hours < 19) return 'sore'
-    return 'malam'
-  }
-
-  function generatePreview(content: string) {
-    const greeting = getGreeting()
-    let preview = content
-      .replace(/\[Nama\]/g, leadName)
-      .replace(/\[Nama Lead\]/g, leadName)
-      .replace(/\[Nama PIC\]/g, picName)
-      .replace(/\[pagi\/siang\/sore\]/g, greeting)
-      .replace(/\[pagi\/siang\/sore\/malam\]/g, greeting)
-    setMessageText(preview)
-  }
+  }, [isOpen, leadName, picName, generatePreview])
 
   function handleTemplateChange(templateId: string) {
     setSelectedTemplateId(templateId)

@@ -1,10 +1,12 @@
 'use client'
 
-import { Bell, Search, Plus, Menu, X, AlertCircle, Calendar, ChevronRight, Sun, Moon, RefreshCw, ArrowLeft } from 'lucide-react'
+import { Bell, Search, Plus, Menu, X, AlertCircle, Calendar, Sun, Moon, RefreshCw, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { useLayoutStore } from '@/lib/store'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
+
+import type { LeadRow } from '@/lib/supabase/types'
 
 interface HeaderProps {
   title: string
@@ -26,7 +28,7 @@ export function Header({ title, subtitle, backUrl }: HeaderProps) {
   const [notifs, setNotifs] = useState<NotifItem[]>([])
   const [notifCount, setNotifCount] = useState(0)
   const notifRef = useRef<HTMLDivElement>(null)
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
 
   useEffect(() => {
     async function fetchNotifs() {
@@ -59,12 +61,14 @@ export function Header({ title, subtitle, backUrl }: HeaderProps) {
       if (typeof window !== 'undefined') {
         try {
           dismissed = JSON.parse(localStorage.getItem('dismissed_notifications') || '[]')
-        } catch (e) {}
+        } catch {
+    // Ignore malformed localStorage payloads.
+  }
       }
 
       const items: NotifItem[] = []
 
-      ;(naLeads || []).forEach((l: any) => {
+      ;(naLeads || []).forEach((l: Pick<LeadRow, 'id' | 'current_status' | 'full_name'>) => {
         const key = `needs_action-${l.id}`
         if (!dismissed.includes(key)) {
           items.push({
@@ -77,7 +81,7 @@ export function Header({ title, subtitle, backUrl }: HeaderProps) {
         }
       })
 
-      ;(fuLeads || []).forEach((f: any) => {
+      ;(fuLeads || []).forEach((f: { id: string; scheduled_date: string; leads: Pick<LeadRow, 'id' | 'full_name'> | null }) => {
         if (f.leads) {
           const key = `follow_up-${f.id}`
           if (!dismissed.includes(key)) {
@@ -96,7 +100,7 @@ export function Header({ title, subtitle, backUrl }: HeaderProps) {
       setNotifCount(items.length)
     }
     fetchNotifs()
-  }, [])
+  }, [supabase])
 
   const dismissNotif = (type: string, id: string, e: React.MouseEvent) => {
     e.preventDefault()
@@ -106,7 +110,9 @@ export function Header({ title, subtitle, backUrl }: HeaderProps) {
     let dismissed: string[] = []
     try {
       dismissed = JSON.parse(localStorage.getItem('dismissed_notifications') || '[]')
-    } catch (err) {}
+    } catch {
+      // Ignore malformed localStorage payloads.
+    }
     
     const newDismissed = [...dismissed, key]
     localStorage.setItem('dismissed_notifications', JSON.stringify(newDismissed))
@@ -122,7 +128,9 @@ export function Header({ title, subtitle, backUrl }: HeaderProps) {
     let dismissed: string[] = []
     try {
       dismissed = JSON.parse(localStorage.getItem('dismissed_notifications') || '[]')
-    } catch (err) {}
+    } catch {
+      // Ignore malformed localStorage payloads.
+    }
     
     const keysToDismiss = notifs.map(n => `${n.type}-${n.id}`)
     const newDismissed = Array.from(new Set([...dismissed, ...keysToDismiss]))
@@ -158,7 +166,7 @@ export function Header({ title, subtitle, backUrl }: HeaderProps) {
   // Global Spotlight Search State
   const [searchOpen, setSearchOpen] = useState(false)
   const [globalQuery, setGlobalQuery] = useState('')
-  const [globalResults, setGlobalResults] = useState<any[]>([])
+  const [globalResults, setGlobalResults] = useState<Pick<LeadRow, 'id' | 'full_name' | 'whatsapp_number' | 'source_campaign' | 'current_status'>[]>([])
   const [globalLoading, setGlobalLoading] = useState(false)
   const searchModalRef = useRef<HTMLDivElement>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
@@ -241,7 +249,7 @@ export function Header({ title, subtitle, backUrl }: HeaderProps) {
     }, 300)
 
     return () => clearTimeout(delayDebounce)
-  }, [globalQuery])
+  }, [globalQuery, supabase])
 
   // Close on outside click
   useEffect(() => {
@@ -474,7 +482,7 @@ export function Header({ title, subtitle, backUrl }: HeaderProps) {
                 </div>
               ) : (
                 <div className="space-y-1">
-                  {globalResults.map((lead: any) => (
+                  {globalResults.map((lead) => (
                     <Link
                       key={lead.id}
                       href={`/leads/${lead.id}`}

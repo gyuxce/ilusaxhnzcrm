@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
-import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { Header } from '@/components/layout/header'
 import { createClient } from '@/lib/supabase/client'
@@ -10,7 +9,6 @@ import { WhatsAppModal } from '@/components/leads/WhatsAppModal'
 import {
   ArrowLeft,
   ArrowRight,
-  CalendarDays,
   CheckCircle2,
   ClipboardCheck,
   Loader2,

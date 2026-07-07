@@ -243,8 +243,8 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
 
     // Sorting
     data.sort((a, b) => {
-      let av = sortField === 'lead_entry_date' ? a.lead_entry_date : sortField === 'full_name' ? a.full_name : a.current_status
-      let bv = sortField === 'lead_entry_date' ? b.lead_entry_date : sortField === 'full_name' ? b.full_name : b.current_status
+      const av = sortField === 'lead_entry_date' ? a.lead_entry_date : sortField === 'full_name' ? a.full_name : a.current_status
+      const bv = sortField === 'lead_entry_date' ? b.lead_entry_date : sortField === 'full_name' ? b.full_name : b.current_status
       return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av)
     })
 

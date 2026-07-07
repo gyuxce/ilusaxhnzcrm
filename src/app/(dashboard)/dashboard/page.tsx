@@ -6,17 +6,9 @@ import { createClient } from '@/lib/supabase/client'
 import {
   Users,
   Flame,
-  CheckCircle,
   TrendingUp,
   DollarSign,
   Award,
-  Calendar,
-  Zap,
-  RefreshCw,
-  Percent,
-  CheckCircle2,
-  BookOpen,
-  Plus,
   AlertTriangle,
   Clock3,
   Target,
@@ -126,10 +118,10 @@ export default function DashboardPage() {
   
   const [batchTarget, setBatchTarget] = useState<BatchTargetRow | null>(null)
   const [campaignProgress, setCampaignProgress] = useState<CampaignProgress[]>([])
-  const [loading, setLoading] = useState(true)
-  const [userRole, setUserRole] = useState<string>('cro')
-  const [recentLeads, setRecentLeads] = useState<RecentLeadSummary[]>([])
-  const [fuTodayCount, setFuTodayCount] = useState(0)
+  const [_loading, setLoading] = useState(true)
+  const [_userRole, setUserRole] = useState<string>('cro')
+  const [_recentLeads, setRecentLeads] = useState<RecentLeadSummary[]>([])
+  const [_fuTodayCount, setFuTodayCount] = useState(0)
   const [intelligence, setIntelligence] = useState<IntelligenceStats>(EMPTY_INTELLIGENCE)
   
   // Edit Batch Target Modal
