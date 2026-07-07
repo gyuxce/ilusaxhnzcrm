@@ -44,7 +44,7 @@ export async function proxy(request: NextRequest) {
       return NextResponse.redirect(url)
     }
 
-  } catch (error) {
+  } catch {
     // If Supabase fails, redirect to login
     const pathname = request.nextUrl.pathname
     if (!pathname.startsWith('/login')) {

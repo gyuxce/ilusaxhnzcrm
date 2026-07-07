@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 import { CalendarDays, CheckCircle2, Clock, ExternalLink, Loader2, PencilLine, Search, Trash2, UserRoundCheck, WalletCards } from 'lucide-react'
 
-type ExpertQueueItem = {
+export type ExpertQueueItem = {
   id: string
   lead_id: string
   created_by: string | null
@@ -39,7 +39,19 @@ interface ExpertQueueDashboardProps {
   initialItems: ExpertQueueItem[]
 }
 
-const statusOptions = ['all', 'pending', 'done'] as const
+const EXPERT_RESOLVED_MARKER = '[expert-resolved]'
+
+function isExpertResolved(item: { notes?: string | null }) {
+  return Boolean(item.notes?.includes(EXPERT_RESOLVED_MARKER))
+}
+
+type ExpertStatusFilter = 'all' | 'pending' | 'done'
+const STATUS_FILTER_OPTIONS: ExpertStatusFilter[] = ['all', 'pending', 'done']
+const STATUS_FILTER_LABELS: Record<ExpertStatusFilter, string> = {
+  all: 'Semua status',
+  pending: 'Belum selesai',
+  done: 'Selesai',
+}
 
 function formatDate(dateValue: string | null) {
   if (!dateValue) return '-'
@@ -67,7 +79,7 @@ export function ExpertQueueDashboard({ initialItems }: ExpertQueueDashboardProps
   const [query, setQuery] = useState('')
   const [expertType, setExpertType] = useState('all')
   const [commercialType, setCommercialType] = useState('all')
-  const [status, setStatus] = useState<(typeof statusOptions)[number]>('all')
+  const [status, setStatus] = useState<ExpertStatusFilter>('all')
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const [pendingDelete, setPendingDelete] = useState<ExpertQueueItem | null>(null)
   const [toast, setToast] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
@@ -88,7 +100,7 @@ export function ExpertQueueDashboard({ initialItems }: ExpertQueueDashboardProps
   const filteredItems = useMemo(() => {
     const keyword = query.trim().toLowerCase()
     return items.filter(item => {
-      const done = Boolean(item.result)
+      const done = isExpertResolved(item)
       if (status === 'pending' && done) return false
       if (status === 'done' && !done) return false
       if (expertType !== 'all' && item.expert_type !== expertType) return false
@@ -117,10 +129,10 @@ export function ExpertQueueDashboard({ initialItems }: ExpertQueueDashboardProps
   }, [items, query, expertType, commercialType, status])
 
   const stats = useMemo(() => {
-    const pending = items.filter(item => !item.result).length
-    const done = items.filter(item => item.result).length
+    const pending = items.filter(item => !isExpertResolved(item)).length
+    const done = items.filter(item => isExpertResolved(item)).length
     const potentialPaid = items.filter(item => item.commercial_type === 'Potential Paid' || item.commercial_type === 'Paid').length
-    const overdue = items.filter(item => isOverdue(item.next_follow_up_date, Boolean(item.result))).length
+    const overdue = items.filter(item => isOverdue(item.next_follow_up_date, isExpertResolved(item))).length
     return { total: items.length, pending, done, potentialPaid, overdue }
   }, [items])
 
@@ -136,6 +148,9 @@ export function ExpertQueueDashboard({ initialItems }: ExpertQueueDashboardProps
       .from('lead_interventions')
       .update({
         result: cleanResult,
+        notes: item.notes?.includes(EXPERT_RESOLVED_MARKER)
+          ? item.notes
+          : [item.notes, EXPERT_RESOLVED_MARKER].filter(Boolean).join('\n'),
         updated_at: new Date().toISOString(),
       })
       .eq('id', item.id)
@@ -147,7 +162,13 @@ export function ExpertQueueDashboard({ initialItems }: ExpertQueueDashboardProps
       return
     }
 
-    setItems(prev => prev.map(row => row.id === item.id ? { ...row, result: cleanResult } : row))
+    setItems(prev => prev.map(row => row.id === item.id ? {
+      ...row,
+      result: cleanResult,
+      notes: row.notes?.includes(EXPERT_RESOLVED_MARKER)
+        ? row.notes
+        : [row.notes, EXPERT_RESOLVED_MARKER].filter(Boolean).join('\n'),
+    } : row))
   }
 
   const deleteItem = async (item: ExpertQueueItem) => {
@@ -225,10 +246,10 @@ export function ExpertQueueDashboard({ initialItems }: ExpertQueueDashboardProps
             {commercialTypes.map(type => <option key={type} value={type}>{commercialLabel(type)}</option>)}
           </select>
 
-          <select value={status} onChange={event => setStatus(event.target.value as any)} className="px-3 py-2.5 rounded-xl bg-card border border-border text-sm text-foreground outline-none">
-            <option value="all">Semua status</option>
-            <option value="pending">Belum selesai</option>
-            <option value="done">Selesai</option>
+          <select value={status} onChange={event => setStatus(event.target.value as ExpertStatusFilter)} className="px-3 py-2.5 rounded-xl bg-card border border-border text-sm text-foreground outline-none">
+            {STATUS_FILTER_OPTIONS.map(option => (
+              <option key={option} value={option}>{STATUS_FILTER_LABELS[option]}</option>
+            ))}
           </select>
         </div>
       </div>

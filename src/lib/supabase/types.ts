@@ -276,6 +276,45 @@ export type PlaybookItemInsert = {
 }
 export type PlaybookItemUpdate = Partial<PlaybookItemInsert>
 
+// Lead Intervention Types
+export type LeadInterventionRow = {
+  id: string
+  lead_id: string
+  created_by: string | null
+  lead_condition: string | null
+  objection_category: string | null
+  solution_given: string | null
+  expert_needed: boolean
+  expert_type: string | null
+  commercial_type: string | null
+  service_opportunity: string | null
+  next_action: string | null
+  next_follow_up_date: string | null
+  result: string | null
+  notes: string | null
+  created_at: string
+  updated_at: string
+}
+export type LeadInterventionInsert = {
+  id?: string
+  lead_id: string
+  created_by?: string | null
+  lead_condition?: string | null
+  objection_category?: string | null
+  solution_given?: string | null
+  expert_needed?: boolean
+  expert_type?: string | null
+  commercial_type?: string | null
+  service_opportunity?: string | null
+  next_action?: string | null
+  next_follow_up_date?: string | null
+  result?: string | null
+  notes?: string | null
+  created_at?: string
+  updated_at?: string
+}
+export type LeadInterventionUpdate = Partial<LeadInterventionInsert>
+
 export type Database = {
   public: {
     Tables: {
@@ -324,7 +363,77 @@ export type Database = {
         Insert: PlaybookItemInsert
         Update: PlaybookItemUpdate
       }
+      lead_interventions: {
+        Row: LeadInterventionRow
+        Insert: LeadInterventionInsert
+        Update: LeadInterventionUpdate
+      }
     }
+    Views: Record<string, never>
+    Functions: {
+      save_work_queue_fast: {
+        Args: {
+          p_lead_id: string
+          p_current_status: string
+          p_next_status: string
+          p_lead_condition: string
+          p_objection_category: string
+          p_solution_given: string
+          p_expert_needed?: boolean
+          p_expert_type?: string | null
+          p_commercial_type?: string | null
+          p_service_opportunity?: string | null
+          p_next_action?: string | null
+          p_next_follow_up_date?: string | null
+          p_result?: string | null
+          p_notes?: string | null
+          p_funnel_notes?: string | null
+          p_follow_up_id?: string | null
+          p_complete_follow_up?: boolean
+        }
+        Returns: Json
+      }
+      create_lead_fast: {
+        Args: {
+          p_full_name: string
+          p_whatsapp_number: string
+          p_email?: string | null
+          p_source_campaign?: string | null
+          p_lead_type?: string | null
+          p_current_status?: string | null
+          p_assigned_cro_id?: string | null
+          p_notes?: string | null
+          p_lead_entry_date?: string | null
+        }
+        Returns: Json
+      }
+      update_lead_core_fast: {
+        Args: {
+          p_lead_id: string
+          p_full_name: string
+          p_whatsapp_number: string
+          p_email?: string | null
+          p_source_campaign?: string | null
+          p_current_status?: string | null
+          p_assigned_cro_id?: string | null
+          p_notes?: string | null
+          p_lost_reason?: string | null
+          p_lead_entry_date?: string | null
+        }
+        Returns: Json
+      }
+      apply_needs_action_fast: {
+        Args: {
+          p_lead_id: string
+          p_action_type: string
+          p_input_val?: string | null
+          p_input_val2?: string | null
+        }
+        Returns: Json
+      }
+    }
+    Enums: Record<string, never>
+    CompositeTypes: Record<string, never>
   }
 }
 
@@ -337,3 +446,4 @@ export type LeadActivity = LeadActivityRow
 export type BatchTarget = BatchTargetRow
 export type FollowUp = FollowUpRow
 export type PlaybookItem = PlaybookItemRow
+export type LeadIntervention = LeadInterventionRow

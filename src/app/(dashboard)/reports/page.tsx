@@ -1,6 +1,7 @@
 import { Header } from '@/components/layout/header'
-import { TeamReportDashboard } from '@/components/reports/team-report-dashboard'
+import { TeamReportDashboard, type ActivityRow, type InterventionRow } from '@/components/reports/team-report-dashboard'
 import { createClient } from '@/lib/supabase/server'
+import type { UserSummary } from '@/types/crm'
 
 export const dynamic = 'force-dynamic'
 
@@ -22,6 +23,19 @@ function nextDateInput(dateValue: string) {
   const date = new Date(`${dateValue}T00:00:00+07:00`)
   date.setDate(date.getDate() + 1)
   return formatDateInput(date)
+}
+
+type CreatedLeadRow = {
+  id: string
+  full_name: string
+  whatsapp_number: string
+  source_campaign: string
+  current_status: string
+  created_by: string | null
+  assigned_cro_id: string | null
+  created_at: string
+  users?: UserSummary | null
+  cro_user?: UserSummary | null
 }
 
 export default async function ReportsPage({ searchParams }: ReportsPageProps) {
@@ -111,16 +125,16 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
       .order('name', { ascending: true }),
   ])
 
-  const activities = activitiesRes.data || []
+  const activities = (activitiesRes.data || []) as ActivityRow[]
   const loggedLeadCreates = new Set(
     activities
-      .filter((activity: any) => activity.activity_type === 'Lead created')
-      .map((activity: any) => activity.lead_id)
+      .filter(activity => activity.activity_type === 'Lead created')
+      .map(activity => activity.lead_id)
   )
 
-  const leadCreateFallbacks = (createdLeadsRes.data || [])
-    .filter((lead: any) => !loggedLeadCreates.has(lead.id))
-    .map((lead: any) => {
+  const leadCreateFallbacks = ((createdLeadsRes.data || []) as CreatedLeadRow[])
+    .filter(lead => !loggedLeadCreates.has(lead.id))
+    .map((lead): ActivityRow => {
       const actorId = lead.created_by || lead.assigned_cro_id || null
       const actorUser = lead.users || lead.cro_user || null
       return {
@@ -142,16 +156,16 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
     })
 
   const mergedActivities = [...activities, ...leadCreateFallbacks]
-    .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
 
   return (
     <>
       <Header title="Report Harian" subtitle="Ringkasan kerja harian otomatis dari aktivitas tim di CRM." />
       <div className="w-full p-6 animate-fade-in">
         <TeamReportDashboard
-          activities={mergedActivities as any[]}
-          interventions={(interventionsRes.data || []) as any[]}
-          users={(usersRes.data || []) as any[]}
+          activities={mergedActivities}
+          interventions={(interventionsRes.data || []) as InterventionRow[]}
+          users={(usersRes.data || []) as UserSummary[]}
           selectedDate={selectedDate}
           selectedUser={selectedUser}
         />

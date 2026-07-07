@@ -12,16 +12,16 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
-import type { Lead } from '@/lib/supabase/types'
+import type { Lead, PaymentRow, PemetaanRow, ExpertConsultationRow } from '@/lib/supabase/types'
 import { CsvUploadModal } from './csv-upload-modal'
 import { NEEDS_ACTION_STATUSES } from '@/lib/funnel-framework'
 
 type LeadWithRelations = Lead & {
   users?: { id: string; name: string } | null
   updated_by_user?: { id: string; name: string } | null
-  payments?: any[]
-  pemetaan?: any[]
-  expert_consultations?: any[]
+  payments?: PaymentRow[]
+  pemetaan?: PemetaanRow[]
+  expert_consultations?: ExpertConsultationRow[]
 }
 
 interface LeadsTableProps {
@@ -243,8 +243,8 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
 
     // Sorting
     data.sort((a, b) => {
-      let av = sortField === 'lead_entry_date' ? a.lead_entry_date : sortField === 'full_name' ? a.full_name : a.current_status
-      let bv = sortField === 'lead_entry_date' ? b.lead_entry_date : sortField === 'full_name' ? b.full_name : b.current_status
+      const av = sortField === 'lead_entry_date' ? a.lead_entry_date : sortField === 'full_name' ? a.full_name : a.current_status
+      const bv = sortField === 'lead_entry_date' ? b.lead_entry_date : sortField === 'full_name' ? b.full_name : b.current_status
       return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av)
     })
 

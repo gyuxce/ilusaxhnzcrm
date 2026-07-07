@@ -6,24 +6,18 @@ import { createClient } from '@/lib/supabase/client'
 import {
   Users,
   Flame,
-  CheckCircle,
   TrendingUp,
   DollarSign,
   Award,
-  Calendar,
-  Zap,
-  RefreshCw,
-  Percent,
-  CheckCircle2,
-  BookOpen,
-  Plus,
   AlertTriangle,
   Clock3,
   Target,
   BriefcaseBusiness,
   ArrowRight,
 } from 'lucide-react'
+import { getTodayInWIB } from '@/lib/utils'
 import { Header } from '@/components/layout/header'
+import type { BatchTargetRow, LeadInterventionRow, LeadRow, PaymentRow } from '@/lib/supabase/types'
 
 interface DashboardStats {
   totalLeads: number
@@ -45,14 +39,13 @@ interface DashboardStats {
   revenueCombined: number
 }
 
-interface BatchTarget {
-  id: string
-  batch_name: string
-  target_seat_lock: number
-  start_date: string
-  closing_date: string
-  notes: string | null
-}
+type DashboardLeadSummary = Pick<LeadRow, 'id' | 'full_name' | 'current_status' | 'source_campaign' | 'updated_at' | 'lead_entry_date'>
+
+type RecentLeadSummary = Pick<LeadRow, 'id' | 'full_name' | 'source_campaign' | 'current_status' | 'lead_entry_date' | 'lead_type'>
+
+type InterventionSummary = Pick<LeadInterventionRow, 'lead_id' | 'objection_category' | 'expert_needed' | 'expert_type' | 'commercial_type' | 'result' | 'created_at'>
+
+type PaymentSummary = Pick<PaymentRow, 'payment_type' | 'amount'>
 
 interface CampaignProgress {
   name: string
@@ -111,9 +104,10 @@ export default function DashboardPage() {
     interestedLeads: 0,
     notInterested: 0,
     notEligible: 0,
-    pemetaanScheduled: 0,
-    waitingResult: 0,
-    expertScheduled: 0,
+      pemetaanScheduled: 0,
+      waitingResult: 0,
+      sentResultPemetaan: 0,
+      expertScheduled: 0,
     seatLockOffered: 0,
     seatLockPaid: 0,
     onboarding: 0,
@@ -122,12 +116,12 @@ export default function DashboardPage() {
     revenueCombined: 0
   })
   
-  const [batchTarget, setBatchTarget] = useState<BatchTarget | null>(null)
+  const [batchTarget, setBatchTarget] = useState<BatchTargetRow | null>(null)
   const [campaignProgress, setCampaignProgress] = useState<CampaignProgress[]>([])
-  const [loading, setLoading] = useState(true)
-  const [userRole, setUserRole] = useState<string>('cro')
-  const [recentLeads, setRecentLeads] = useState<any[]>([])
-  const [fuTodayCount, setFuTodayCount] = useState(0)
+  const [_loading, setLoading] = useState(true)
+  const [_userRole, setUserRole] = useState<string>('cro')
+  const [_recentLeads, setRecentLeads] = useState<RecentLeadSummary[]>([])
+  const [_fuTodayCount, setFuTodayCount] = useState(0)
   const [intelligence, setIntelligence] = useState<IntelligenceStats>(EMPTY_INTELLIGENCE)
   
   // Edit Batch Target Modal
@@ -184,10 +178,10 @@ export default function DashboardPage() {
       .select('id, full_name, source_campaign, current_status, lead_entry_date, lead_type')
       .order('lead_entry_date', { ascending: false })
       .limit(6)
-    setRecentLeads(recent || [])
+    setRecentLeads((recent || []) as RecentLeadSummary[])
 
     // 6. Count today's follow-ups
-    const today = new Date().toISOString().split('T')[0]
+    const today = getTodayInWIB()
     const { count: fuCount } = await supabase
       .from('follow_ups')
       .select('*', { count: 'exact', head: true })
@@ -195,7 +189,12 @@ export default function DashboardPage() {
       .lte('scheduled_date', today)
     setFuTodayCount(fuCount || 0)
 
-    const latestTarget = targets && targets.length > 0 ? targets[0] : null
+    const leadRows = (leads || []) as DashboardLeadSummary[]
+    const interventionRows = (interventions || []) as InterventionSummary[]
+    const paymentRows = (payments || []) as PaymentSummary[]
+    const targetRows = (targets || []) as BatchTargetRow[]
+
+    const latestTarget = targetRows.length > 0 ? targetRows[0] : null
     setBatchTarget(latestTarget)
     
     if (latestTarget) {
@@ -223,21 +222,21 @@ export default function DashboardPage() {
       'Onboarding': 0,
     }
 
-    if (leads) {
-      total = leads.length
-      leads.forEach((lead: any) => {
+    if (leadRows.length > 0) {
+      total = leadRows.length
+      leadRows.forEach(lead => {
         const s = lead.current_status
         sc[s] = (sc[s] || 0) + 1
       })
     }
 
-    const targetByName = new Map<string, BatchTarget>()
-    ;(targets || []).forEach((target: BatchTarget) => {
+    const targetByName = new Map<string, BatchTargetRow>()
+    targetRows.forEach(target => {
       targetByName.set(target.batch_name, target)
     })
 
     const campaignMap = new Map<string, { totalLeads: number; seatLocks: number }>()
-    ;(leads || []).forEach((lead: any) => {
+    leadRows.forEach(lead => {
       const campaignName = lead.source_campaign?.trim() || 'No Campaign'
       const current = campaignMap.get(campaignName) || { totalLeads: 0, seatLocks: 0 }
       current.totalLeads += 1
@@ -249,7 +248,7 @@ export default function DashboardPage() {
       campaignMap.set(campaignName, current)
     })
 
-    ;(targets || []).forEach((target: BatchTarget) => {
+    targetRows.forEach(target => {
       if (!campaignMap.has(target.batch_name)) {
         campaignMap.set(target.batch_name, { totalLeads: 0, seatLocks: 0 })
       }
@@ -297,11 +296,11 @@ export default function DashboardPage() {
       { label: 'Expert', rank: 4 },
       { label: 'Seat Lock', rank: 5 },
     ]
-    const activeLeads = (leads || []).filter((lead: any) => !['Not Interested', 'Not Eligible'].includes(lead.current_status))
+    const activeLeads = leadRows.filter(lead => !['Not Interested', 'Not Eligible'].includes(lead.current_status))
     const funnel = funnelDefinitions.map(stage => {
       const reached = stage.rank === 0
-        ? (leads || []).length
-        : activeLeads.filter((lead: any) => (statusRank[lead.current_status] ?? -1) >= stage.rank).length
+        ? leadRows.length
+        : activeLeads.filter(lead => (statusRank[lead.current_status] ?? -1) >= stage.rank).length
       return {
         label: stage.label,
         reached,
@@ -322,8 +321,8 @@ export default function DashboardPage() {
 
     const campaignInsights = Array.from(campaignMap.entries())
       .map(([name, value]) => {
-        const campaignLeads = (leads || []).filter((lead: any) => (lead.source_campaign?.trim() || 'No Campaign') === name)
-        const qualified = campaignLeads.filter((lead: any) => (statusRank[lead.current_status] ?? -1) >= 2).length
+        const campaignLeads = leadRows.filter(lead => (lead.source_campaign?.trim() || 'No Campaign') === name)
+        const qualified = campaignLeads.filter(lead => (statusRank[lead.current_status] ?? -1) >= 2).length
         return {
           name,
           total: value.totalLeads,
@@ -338,9 +337,10 @@ export default function DashboardPage() {
 
     const now = Date.now()
     const terminalStatuses = ['Not Interested', 'Not Eligible', 'Seat Lock Paid', 'Onboarding', 'Class Started']
-    const staleRows = (leads || [])
-      .filter((lead: any) => !terminalStatuses.includes(lead.current_status))
-      .map((lead: any) => {
+    type StaleRow = { id: string; name: string; status: string; days: number }
+    const staleRows: StaleRow[] = leadRows
+      .filter(lead => !terminalStatuses.includes(lead.current_status))
+      .map(lead => {
         const lastUpdate = lead.updated_at || lead.lead_entry_date
         const days = lastUpdate ? Math.floor((now - new Date(lastUpdate).getTime()) / 86400000) : 0
         return { id: lead.id, name: lead.full_name, status: lead.current_status, days }
@@ -348,25 +348,34 @@ export default function DashboardPage() {
       .filter(row => row.days >= 3)
       .sort((a, b) => b.days - a.days)
 
-    const latestInterventionByLead = new Map<string, any>()
-    ;(interventions || []).forEach((item: any) => {
+    const latestInterventionByLead = new Map<string, InterventionSummary>()
+    interventionRows.forEach(item => {
       if (!latestInterventionByLead.has(item.lead_id)) latestInterventionByLead.set(item.lead_id, item)
     })
     const latestInterventions = Array.from(latestInterventionByLead.values())
-    const objectionCounts = (interventions || []).reduce((counts: Record<string, number>, item: any) => {
-      if (item.objection_category) counts[item.objection_category] = (counts[item.objection_category] || 0) + 1
-      return counts
-    }, {})
-    const [topObjection = '-', topObjectionCount = 0] = Object.entries(objectionCounts)
-      .sort((a, b) => b[1] - a[1])[0] || []
+    const objectionCounts: Record<string, number> = {}
+    interventionRows.forEach(item => {
+      if (item.objection_category) {
+        objectionCounts[item.objection_category] = (objectionCounts[item.objection_category] || 0) + 1
+      }
+    })
+
+    let topObjection = '-'
+    let topObjectionCount = 0
+    for (const [category, count] of Object.entries(objectionCounts)) {
+      if (count > topObjectionCount) {
+        topObjection = category
+        topObjectionCount = count
+      }
+    }
 
     setIntelligence({
       funnel,
       campaigns: campaignInsights,
       staleLeads: staleRows.length,
       stalePreview: staleRows.slice(0, 4),
-      expertPending: latestInterventions.filter((item: any) => (item.expert_needed || item.expert_type) && !item.result).length,
-      potentialPaidPending: latestInterventions.filter((item: any) => (item.commercial_type || '').toLowerCase().includes('paid') && !item.result).length,
+      expertPending: latestInterventions.filter(item => (item.expert_needed || item.expert_type) && !item.result).length,
+      potentialPaidPending: latestInterventions.filter(item => (item.commercial_type || '').toLowerCase().includes('paid') && !item.result).length,
       topObjection,
       topObjectionCount,
       biggestDrop,
@@ -375,8 +384,8 @@ export default function DashboardPage() {
     // Calculate revenue
     let revPemetaan = 0
     let revSeatLock = 0
-    if (payments) {
-      payments.forEach((p: any) => {
+    if (paymentRows.length > 0) {
+      paymentRows.forEach(p => {
         const amt = Number(p.amount)
         if (p.payment_type === 'pemetaan' || p.payment_type === 'roadmap_session') {
           revPemetaan += amt

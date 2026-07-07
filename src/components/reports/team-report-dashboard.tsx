@@ -18,7 +18,7 @@ import {
   Users,
 } from 'lucide-react'
 
-type ActivityRow = {
+export type ActivityRow = {
   id: string
   lead_id: string
   activity_type: string
@@ -35,12 +35,12 @@ type ActivityRow = {
   } | null
 }
 
-type UserRow = {
+export type UserRow = {
   id: string
   name: string
 }
 
-type InterventionRow = {
+export type InterventionRow = {
   id: string
   lead_id: string
   created_by: string | null
@@ -211,8 +211,8 @@ export function TeamReportDashboard({
       ])
 
       if (!active) return
-      if (!activitiesRes.error) setClientActivities((activitiesRes.data || []) as any[])
-      if (!interventionsRes.error) setClientInterventions((interventionsRes.data || []) as any[])
+      if (!activitiesRes.error) setClientActivities((activitiesRes.data || []) as ActivityRow[])
+      if (!interventionsRes.error) setClientInterventions((interventionsRes.data || []) as InterventionRow[])
       setLoadingReport(false)
     }
 

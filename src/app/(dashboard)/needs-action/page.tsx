@@ -6,7 +6,6 @@ import { createClient } from '@/lib/supabase/client'
 import {
   AlertCircle,
   MessageCircle,
-  CheckCircle2,
   Calendar,
   UserCheck,
   Hourglass,
@@ -17,29 +16,14 @@ import {
   FileText,
   Search,
   RefreshCw,
-  MoreHorizontal
 } from 'lucide-react'
 import { WhatsAppModal } from '@/components/leads/WhatsAppModal'
 import { Header } from '@/components/layout/header'
 import { NEEDS_ACTION_STATUSES } from '@/lib/funnel-framework'
+import { parseRpcResult } from '@/lib/rpc'
+import type { NeedsActionLead, NeedsActionType } from '@/types/crm'
 
-interface LeadWithDetails {
-  id: string
-  full_name: string
-  whatsapp_number: string
-  email: string | null
-  source_campaign: string
-  current_status: string
-  lead_entry_date: string
-  last_contacted_date: string | null
-  follow_up_result: string | null
-  notes: string | null
-  lost_reason: string | null
-  assigned_cro_id: string | null
-  users?: {
-    name: string
-  } | null
-}
+type LeadWithDetails = NeedsActionLead
 
 const QUEUES = [
   { key: 'all', label: 'Semua', status: null, icon: AlertCircle, tone: 'text-slate-600 dark:text-slate-300' },
@@ -82,7 +66,7 @@ export default function NeedsActionPage() {
       .order('lead_entry_date', { ascending: false })
 
     if (!error && data) {
-      setLeads(data as any[])
+      setLeads(data as NeedsActionLead[])
     }
     setLoading(false)
   }, [supabase])
@@ -157,129 +141,26 @@ export default function NeedsActionPage() {
   const handleUpdateStatus = async () => {
     if (!actioningLead || !actionType) return
 
-    const { data: authData } = await supabase.auth.getUser()
-    const currentUserId = authData.user?.id || null
-    let nextStatus = ''
-    let updateFields: Record<string, any> = {}
-    let activityDesc = ''
-    const promises: Promise<any>[] = []
+    const { data, error } = await supabase.rpc('apply_needs_action_fast', {
+      p_lead_id: actioningLead.id,
+      p_action_type: actionType as NeedsActionType,
+      p_input_val: inputVal || null,
+      p_input_val2: inputVal2 || null,
+    })
 
-    if (actionType === 'set_waiting_result') {
-      nextStatus = 'Waiting Result'
-      activityDesc = 'Lead moved to Waiting Result via Needs Action dashboard'
-      promises.push(
-        supabase
-          .from('pemetaan')
-          .update({
-            result_status: 'waiting',
-            updated_at: new Date().toISOString()
-          })
-          .eq('lead_id', actioningLead.id)
-      )
-    } 
-    else if (actionType === 'send_result') {
-      nextStatus = 'Sent Result Pemetaan'
-      activityDesc = `Hasil Pemetaan dikirim: ${inputVal || 'Sukses'}`
-      promises.push(
-        supabase
-          .from('pemetaan')
-          .update({
-            result_status: 'ready',
-            result_ready_at: new Date().toISOString(),
-            completed_at: new Date().toISOString(),
-            result_notes: inputVal || null,
-            updated_at: new Date().toISOString()
-          })
-          .eq('lead_id', actioningLead.id)
-      )
-    }
-    else if (actionType === 'schedule_expert') {
-      nextStatus = 'Expert Consultation Scheduled'
-      activityDesc = `Expert consultation scheduled for ${inputVal} with expert: ${inputVal2}`
-      
-      const { data: ec } = await supabase
-        .from('expert_consultations')
-        .select('id')
-        .eq('lead_id', actioningLead.id)
-        .maybeSingle()
-
-      if (ec) {
-        promises.push(
-          supabase
-            .from('expert_consultations')
-            .update({
-              scheduled_at: new Date(inputVal).toISOString(),
-              expert_name: inputVal2,
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', ec.id)
-        )
-      } else {
-        promises.push(
-          supabase
-            .from('expert_consultations')
-            .insert({
-              lead_id: actioningLead.id,
-              scheduled_at: new Date(inputVal).toISOString(),
-              expert_name: inputVal2
-            })
-        )
-      }
-    } 
-    else if (actionType === 'offer_seat_lock') {
-      nextStatus = 'Seat Lock Offered'
-      activityDesc = 'Seat Lock Offered'
-    } 
-    else if (actionType === 'pay_seat_lock') {
-      nextStatus = 'Seat Lock Paid'
-      activityDesc = `Seat lock paid: Rp ${Number(inputVal).toLocaleString('id-ID')} (${inputVal2})`
-      
-      promises.push(
-        supabase
-          .from('payments')
-          .insert({
-            lead_id: actioningLead.id,
-            payment_type: 'seat_lock',
-            amount: Number(inputVal),
-            payment_method: 'Transfer',
-            payment_date: new Date().toISOString().split('T')[0],
-            verification_status: 'verified',
-            verified_at: new Date().toISOString(),
-            verified_by: currentUserId,
-            notes: `Verified on Seat Lock Paid Action: ${inputVal2}`
-          })
-      )
+    if (error) {
+      alert(`Gagal memperbarui lead: ${error.message}`)
+      return
     }
 
-    if (nextStatus) {
-      updateFields.current_status = nextStatus
-      updateFields.updated_by = currentUserId
-      updateFields.updated_at = new Date().toISOString()
-
-      promises.push(
-        supabase
-          .from('leads')
-          .update(updateFields)
-          .eq('id', actioningLead.id)
-      )
-
-      promises.push(
-        supabase
-          .from('lead_activities')
-          .insert({
-            lead_id: actioningLead.id,
-            activity_type: 'Status changed',
-            description: activityDesc,
-            created_by: currentUserId
-          })
-      )
+    const result = parseRpcResult(data)
+    if (!result?.ok) {
+      alert(result?.message || 'Gagal memperbarui lead.')
+      return
     }
 
-    // Run all database calls in parallel
-    await Promise.all(promises)
     fetchLeads()
 
-    // Reset action state
     setActioningLead(null)
     setActionType(null)
     setInputVal('')
@@ -564,55 +445,5 @@ export default function NeedsActionPage() {
       )}
       </div>
     </>
-  )
-}
-
-interface LeadActionCardProps {
-  lead: LeadWithDetails
-  onWa: () => void
-  onAction: () => void
-  actionLabel: string
-}
-
-function LeadActionCard({ lead, onWa, onAction, actionLabel }: LeadActionCardProps) {
-  // Format Lead entry date
-  const entryDate = new Date(lead.lead_entry_date)
-  const formattedDate = entryDate.toLocaleDateString('id-ID', {
-    day: 'numeric',
-    month: 'short',
-    year: '2-digit'
-  })
-
-  return (
-    <div 
-      className="p-4 rounded-xl border border-border dark:border-white/5 space-y-3 transition-all hover:scale-[1.01] hover:border-border-hover dark:hover:border-white/10 bg-card text-card-foreground shadow-xs" 
-    >
-      <div>
-        <h4 className="font-bold text-foreground text-sm line-clamp-1 leading-tight">{lead.full_name}</h4>
-        <span className="text-muted-foreground/75 text-[10px] block mt-0.5">{lead.source_campaign}</span>
-      </div>
-
-      <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-1 border-t border-border dark:border-white/5">
-        <span>Masuk: {formattedDate}</span>
-        <span className="font-semibold text-primary">PIC: {lead.users?.name || 'Unassigned'}</span>
-      </div>
-
-      <div className="grid grid-cols-2 gap-2 pt-1">
-        <button
-          onClick={onWa}
-          className="flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 transition-all border border-emerald-500/10 cursor-pointer"
-        >
-          <MessageCircle size={12} />
-          Hubungi
-        </button>
-        <button
-          onClick={onAction}
-          className="flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[10px] font-semibold text-primary bg-primary/10 hover:bg-primary/20 transition-all border border-primary/10 cursor-pointer"
-        >
-          {actionLabel}
-          <ArrowRight size={12} />
-        </button>
-      </div>
-    </div>
   )
 }

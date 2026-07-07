@@ -4,8 +4,9 @@ import { useState, useRef } from 'react'
 import Papa from 'papaparse'
 import { X, UploadCloud, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { cn } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
+import { parseRpcResult } from '@/lib/rpc'
+import { isJsonRecord, type JsonRecord } from '@/types/crm'
 
 interface CsvUploadModalProps {
   isOpen: boolean
@@ -16,7 +17,7 @@ interface CsvUploadModalProps {
 export function CsvUploadModal({ isOpen, onClose, pics }: CsvUploadModalProps) {
   const router = useRouter()
   const [file, setFile] = useState<File | null>(null)
-  const [parsedData, setParsedData] = useState<any[]>([])
+  const [parsedData, setParsedData] = useState<JsonRecord[]>([])
   const [isParsing, setIsParsing] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0, success: 0, failed: 0 })
@@ -53,7 +54,7 @@ export function CsvUploadModal({ isOpen, onClose, pics }: CsvUploadModalProps) {
     return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString()
   }
 
-  const getField = (row: any, aliases: string[]) => {
+  const getField = (row: JsonRecord, aliases: string[]) => {
     const entries = Object.entries(row || {})
     const normalizeHeader = (value: string) =>
       String(value)
@@ -96,10 +97,10 @@ export function CsvUploadModal({ isOpen, onClose, pics }: CsvUploadModalProps) {
         header: true,
         skipEmptyLines: true,
         complete: (results) => {
-          setParsedData(results.data as any[])
+          setParsedData(results.data.filter(isJsonRecord))
           setIsParsing(false)
         },
-        error: (error: any) => {
+        error: (error: Error) => {
           setErrorMsg('Gagal membaca CSV: ' + error.message)
           setIsParsing(false)
         }
@@ -120,7 +121,7 @@ export function CsvUploadModal({ isOpen, onClose, pics }: CsvUploadModalProps) {
     let failedCount = 0
     const failures: string[] = []
 
-    const importRow = async (row: any, i: number) => {
+    const importRow = async (row: JsonRecord, i: number) => {
       try {
         const whatsapp = normalizePhone(getField(row, [
           'Nomor HP',
@@ -160,15 +161,17 @@ export function CsvUploadModal({ isOpen, onClose, pics }: CsvUploadModalProps) {
           p_notes: 'Imported from CSV',
           p_lead_entry_date: entryDate || new Date().toISOString(),
         })
-        
-        if (error || !data?.ok) {
-          const reason = error?.message || data?.message || 'Gagal menyimpan lead.'
+
+        const result = parseRpcResult(data)
+        if (error || !result?.ok) {
+          const reason = error?.message || result?.message || 'Gagal menyimpan lead.'
           return { ok: false, message: `Baris ${i + 1} (${fullName} / ${whatsapp}): ${reason}` }
         }
 
         return { ok: true, message: '' }
-      } catch (error: any) {
-        return { ok: false, message: `Baris ${i + 1}: ${error?.message || 'Gagal membaca/menyimpan baris ini.'}` }
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Gagal membaca/menyimpan baris ini.'
+        return { ok: false, message: `Baris ${i + 1}: ${message}` }
       }
     }
 

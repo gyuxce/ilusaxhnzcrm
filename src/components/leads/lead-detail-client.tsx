@@ -4,10 +4,10 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import {
-  MessageCircle, Clock, Calendar, CheckCircle2,
-  XCircle, Edit, DollarSign, Activity, FileText,
-  UserCheck, AlertCircle, Trash2, ArrowRight, Plus,
-  Copy, Sparkles, Target
+  MessageCircle, Clock, Calendar,
+  Edit, DollarSign, FileText,
+  UserCheck, AlertCircle, Trash2, ArrowRight,
+  Copy, Sparkles, Target, CheckCircle2,
 } from 'lucide-react'
 import { WhatsAppModal } from './WhatsAppModal'
 import { cn } from '@/lib/utils'
@@ -25,16 +25,9 @@ import {
   SOLUTION_OPTIONS,
 } from '@/lib/funnel-framework'
 
-interface LeadDetailClientProps {
-  initialLead: any
-  initialPayments: any[]
-  initialPemetaan: any[]
-  initialExpertConsultations: any[]
-  initialActivities: any[]
-  initialFollowUps?: any[]
-  initialInterventions?: any[]
-  pics: any[]
-}
+import type { LeadDetailProps, LeadInterventionWithUser, UserSummary, LeadWithUsers, FollowUpWithLead } from '@/types/crm'
+import type { FuType, LeadRow, PaymentRow } from '@/lib/supabase/types'
+import { isJsonRecord } from '@/types/crm'
 
 export function LeadDetailClient({
   initialLead,
@@ -45,14 +38,14 @@ export function LeadDetailClient({
   initialFollowUps,
   initialInterventions,
   pics
-}: LeadDetailClientProps) {
-  const [lead, setLead] = useState(initialLead)
+}: LeadDetailProps) {
+  const [lead, setLead] = useState<LeadWithUsers>(initialLead)
   const [payments, setPayments] = useState(initialPayments)
   const [pemetaan, setPemetaan] = useState(initialPemetaan[0] || null)
   const [expert, setExpert] = useState(initialExpertConsultations[0] || null)
   const [activities, setActivities] = useState(initialActivities)
-  const [followUps, setFollowUps] = useState<any[]>(initialFollowUps || [])
-  const [interventions, setInterventions] = useState<any[]>(initialInterventions || [])
+  const [followUps, setFollowUps] = useState<FollowUpWithLead[]>(initialFollowUps || [])
+  const [interventions, setInterventions] = useState<LeadInterventionWithUser[]>(initialInterventions || [])
   const [activeTab, setActiveTab] = useState<'overview' | 'payments' | 'pemetaan' | 'expert'>('overview')
   const [deletingPaymentId, setDeletingPaymentId] = useState<string | null>(null)
   const [paymentMessage, setPaymentMessage] = useState<{ text: string; type: 'success' | 'error' | '' }>({ text: '', type: '' })
@@ -107,7 +100,7 @@ export function LeadDetailClient({
   // Form States
   const [paymentType, setPaymentType] = useState('pemetaan')
   const [paymentAmount, setPaymentAmount] = useState('150000')
-  const [paymentMethod, setPaymentMethod] = useState('Transfer')
+  const [paymentMethod] = useState('Transfer')
   const [paymentNotes, setPaymentNotes] = useState('')
   
   // Pemetaan form states
@@ -139,26 +132,29 @@ export function LeadDetailClient({
     return cleanPhone
   }
 
-  const userLabel = (user: any, fallback?: string | null) => {
+  const userLabel = (user?: UserSummary | null, fallback?: string | null) => {
     if (user?.name) return user.name
     if (fallback) return fallback
     return '-'
   }
 
-  const friendlyDuplicateError = (err?: any) => {
-    if (err?.duplicate_lead) {
-      const duplicate = err.duplicate_lead
-      return `Nomor WhatsApp ini sudah terdaftar untuk ${duplicate.full_name} (${duplicate.source_campaign || 'tanpa campaign'}) dengan status ${duplicate.current_status || '-'}.`
+  const friendlyDuplicateError = (err?: unknown) => {
+    const payload = isJsonRecord(err) ? err : null
+    const duplicateLead = isJsonRecord(payload?.duplicate_lead) ? payload.duplicate_lead : null
+    if (duplicateLead) {
+      return `Nomor WhatsApp ini sudah terdaftar untuk ${duplicateLead.full_name} (${duplicateLead.source_campaign || 'tanpa campaign'}) dengan status ${duplicateLead.current_status || '-'}.`
     }
 
+    const code = typeof payload?.code === 'string' ? payload.code : ''
+    const message = typeof payload?.message === 'string' ? payload.message : ''
     const isDuplicate =
-      err?.code === '23505' ||
-      err?.message?.includes('leads_whatsapp_normalized_unique') ||
-      err?.message?.toLowerCase?.().includes('duplicate key')
+      code === '23505' ||
+      message.includes('leads_whatsapp_normalized_unique') ||
+      message.toLowerCase().includes('duplicate key')
 
     return isDuplicate
       ? 'Nomor WhatsApp ini sudah terdaftar. Cari nomor tersebut di menu Leads untuk membuka data existing.'
-      : err?.message || 'Terjadi kesalahan saat menyimpan data lead.'
+      : message || 'Terjadi kesalahan saat menyimpan data lead.'
   }
 
   const formatShortDate = (value?: string | null) => {
@@ -179,7 +175,7 @@ export function LeadDetailClient({
 
   const latestIntervention = interventions[0] || null
 
-  const buildRecommendedAction = (item?: any) => {
+  const buildRecommendedAction = (item?: LeadInterventionWithUser | null) => {
     if (!item) {
       return {
         title: 'Lead belum punya catatan chat',
@@ -430,7 +426,7 @@ export function LeadDetailClient({
       }
 
       await supabase.from('leads').update(leadUpdates).eq('id', lead.id)
-      setLead((prev: any) => ({ ...prev, ...leadUpdates }))
+      setLead((prev: LeadRow) => ({ ...prev, ...leadUpdates }))
 
       await logActivity(
         'Intervention Logged',
@@ -523,7 +519,6 @@ export function LeadDetailClient({
       current_status: editStatus,
       assigned_cro_id: editPic || null,
       notes: editNotes || null,
-      lost_reason: LOST_STATUSES.includes(editStatus) ? editLostReason : null,
       ...funnelPayload,
       updated_at: updatedAt
     }
@@ -535,6 +530,7 @@ export function LeadDetailClient({
       lead_id: lead.id,
       activity_type: 'Lead Updated',
       description: 'Core lead information updated manually',
+      created_by: null,
       created_at: updatedAt,
     }, ...prev])
   }
@@ -570,7 +566,7 @@ export function LeadDetailClient({
     }
   }
 
-  const handleDeletePayment = async (payment: any) => {
+  const handleDeletePayment = async (payment: PaymentRow) => {
     setPaymentMessage({ text: '', type: '' })
     const confirmed = window.confirm(`Hapus payment ${payment.payment_type} senilai Rp ${Number(payment.amount).toLocaleString('id-ID')}?`)
     if (!confirmed) return
@@ -675,7 +671,15 @@ export function LeadDetailClient({
             </div>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setIsWaOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/20 transition-all cursor-pointer"
+          >
+            <MessageCircle size={14} />
+            WhatsApp
+          </button>
           <Link
             href={`/work-queue?lead=${lead.id}`}
             className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white bg-primary hover:opacity-90 transition-all cursor-pointer shadow-sm"
@@ -683,6 +687,14 @@ export function LeadDetailClient({
             <ArrowRight size={14} />
             Kerjakan di Kerjaan Hari Ini
           </Link>
+          <button
+            type="button"
+            onClick={() => setIsEditingCore(true)}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-slate-700 dark:text-white/70 bg-slate-100 dark:bg-white/5 border border-border hover:bg-slate-200/50 dark:hover:bg-white/10 transition-all cursor-pointer"
+          >
+            <Edit size={14} />
+            Edit Lengkap
+          </button>
           <Link
             href={`/leads/${lead.id}/edit`}
             className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-slate-700 dark:text-white/70 bg-slate-100 dark:bg-white/5 border border-border hover:bg-slate-200/50 dark:hover:bg-white/10 transition-all cursor-pointer"
@@ -693,6 +705,31 @@ export function LeadDetailClient({
         </div>
       </div>
 
+      {/* Tab Navigation */}
+      <div className="flex flex-wrap gap-2">
+        {([
+          { id: 'overview' as const, label: 'Overview', icon: FileText },
+          { id: 'payments' as const, label: 'Pembayaran', icon: DollarSign },
+          { id: 'pemetaan' as const, label: 'Pemetaan', icon: FileText },
+          { id: 'expert' as const, label: 'Expert', icon: UserCheck },
+        ]).map(tab => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => setActiveTab(tab.id)}
+            className={cn(
+              'inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-xs font-bold transition-all cursor-pointer',
+              activeTab === tab.id
+                ? 'border-primary/30 bg-primary/10 text-primary'
+                : 'border-border bg-card text-muted-foreground hover:text-foreground hover:bg-slate-50 dark:hover:bg-white/5'
+            )}
+          >
+            <tab.icon size={14} />
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
       {/* Tab Contents */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
@@ -700,7 +737,7 @@ export function LeadDetailClient({
         <div className="lg:col-span-2 space-y-6">
           
           {/* Tab 1: Overview */}
-          {true && (
+          {activeTab === 'overview' && (
             <div className="glass-card rounded-2xl p-6 border border-border space-y-6">
               <h3 className="text-foreground font-bold text-sm uppercase tracking-wider flex items-center gap-2">
                 <FileText size={16} className="text-purple-650 dark:text-purple-400" />
@@ -1076,12 +1113,21 @@ export function LeadDetailClient({
                 <AlertCircle size={14} className="text-orange-500" />
                 Catatan Chat ({interventions.length})
               </h3>
-              <Link
-                href={`/work-queue?lead=${lead.id}`}
-                className="px-2.5 py-1.5 rounded-lg text-[10px] font-bold text-primary bg-primary/10 hover:bg-primary/15 transition-all"
-              >
-                Kerjaan Hari Ini
-              </Link>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowInterventionForm(prev => !prev)}
+                  className="px-2.5 py-1.5 rounded-lg text-[10px] font-bold text-orange-700 dark:text-orange-300 bg-orange-500/10 hover:bg-orange-500/15 transition-all cursor-pointer"
+                >
+                  {showInterventionForm ? 'Tutup Form' : '+ Catat Chat'}
+                </button>
+                <Link
+                  href={`/work-queue?lead=${lead.id}`}
+                  className="px-2.5 py-1.5 rounded-lg text-[10px] font-bold text-primary bg-primary/10 hover:bg-primary/15 transition-all"
+                >
+                  Kerjaan Hari Ini
+                </Link>
+              </div>
             </div>
 
             {interventionMessage.text && (
@@ -1276,12 +1322,21 @@ export function LeadDetailClient({
                 <Calendar size={14} className="text-purple-650 dark:text-purple-400" />
                 Jadwal Follow-Up ({followUps.filter(f => !f.is_done).length})
               </h3>
-              <Link
-                href={`/work-queue?lead=${lead.id}`}
-                className="px-2.5 py-1.5 rounded-lg text-[10px] font-bold text-primary bg-primary/10 hover:bg-primary/15 transition-all"
-              >
-                Kerjaan Hari Ini
-              </Link>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAddFu(prev => !prev)}
+                  className="px-2.5 py-1.5 rounded-lg text-[10px] font-bold text-purple-700 dark:text-purple-300 bg-purple-500/10 hover:bg-purple-500/15 transition-all cursor-pointer"
+                >
+                  {showAddFu ? 'Tutup Form' : '+ Jadwalkan FU'}
+                </button>
+                <Link
+                  href={`/work-queue?lead=${lead.id}`}
+                  className="px-2.5 py-1.5 rounded-lg text-[10px] font-bold text-primary bg-primary/10 hover:bg-primary/15 transition-all"
+                >
+                  Kerjaan Hari Ini
+                </Link>
+              </div>
             </div>
 
             {fuMessage.text && (
@@ -1311,7 +1366,7 @@ export function LeadDetailClient({
                   <label className="block text-[9px] text-muted-foreground font-bold uppercase mb-1">Tipe</label>
                   <select
                     value={newFuType}
-                    onChange={e => setNewFuType(e.target.value as any)}
+                    onChange={e => setNewFuType(e.target.value as FuType)}
                     className="w-full px-2.5 py-1.5 text-xs text-foreground bg-card border border-border rounded-lg outline-none cursor-pointer"
                   >
                     <option value="whatsapp" className="bg-card text-foreground">🟢 WhatsApp</option>

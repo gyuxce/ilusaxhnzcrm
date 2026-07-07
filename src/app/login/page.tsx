@@ -23,11 +23,11 @@ export default function LoginPage() {
 
     if (error) {
       setError('Email atau password salah. Coba lagi.')
-      setLoading(false)
     } else {
       router.push('/dashboard')
       router.refresh()
     }
+    setLoading(false)
   }
 
   return (

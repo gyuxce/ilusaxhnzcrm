@@ -116,6 +116,81 @@ export const EXPERT_TYPE_OPTIONS = [
   'Trust / Legalitas',
 ]
 
+export interface PipelineStageConfig {
+  key: string
+  defaultStatus: string
+  label: string
+  color: string
+  bg: string
+  border: string
+  statuses: string[]
+}
+
+export const PIPELINE_STAGES: PipelineStageConfig[] = [
+  {
+    key: 'new',
+    defaultStatus: 'New Lead',
+    label: 'New / Contacted',
+    color: '#64748b',
+    bg: 'rgba(100,116,139,0.08)',
+    border: 'rgba(100,116,139,0.18)',
+    statuses: ['New Lead', 'Contacted'],
+  },
+  {
+    key: 'pitching',
+    defaultStatus: 'Pitching',
+    label: 'Pitching / Interested',
+    color: '#3b82f6',
+    bg: 'rgba(59,130,246,0.08)',
+    border: 'rgba(59,130,246,0.18)',
+    statuses: ['Pitching', 'Interested'],
+  },
+  {
+    key: 'pemetaan',
+    defaultStatus: 'Pemetaan Scheduled',
+    label: 'Pemetaan',
+    color: '#8b5cf6',
+    bg: 'rgba(139,92,246,0.08)',
+    border: 'rgba(139,92,246,0.18)',
+    statuses: [
+      'Pemetaan Scheduled',
+      'Pemetaan Done',
+      'Waiting Result',
+      'Result Ready',
+      'Sent Result Pemetaan',
+      'Placement Test Scheduled',
+      'Placement Test Done',
+    ],
+  },
+  {
+    key: 'expert',
+    defaultStatus: 'Expert Consultation Scheduled',
+    label: 'Expert',
+    color: '#10b981',
+    bg: 'rgba(16,185,129,0.08)',
+    border: 'rgba(16,185,129,0.18)',
+    statuses: ['Expert Consultation Scheduled', 'Expert Consultation Done'],
+  },
+  {
+    key: 'closing',
+    defaultStatus: 'Seat Lock Offered',
+    label: 'Closing',
+    color: '#22c55e',
+    bg: 'rgba(34,197,94,0.08)',
+    border: 'rgba(34,197,94,0.18)',
+    statuses: ['Seat Lock Offered', 'Seat Lock Paid', 'Belum Berhasil Closing', 'Onboarding'],
+  },
+  {
+    key: 'lost',
+    defaultStatus: 'Not Interested',
+    label: 'Lost',
+    color: '#ef4444',
+    bg: 'rgba(239,68,68,0.08)',
+    border: 'rgba(239,68,68,0.18)',
+    statuses: ['Not Interested', 'Not Eligible'],
+  },
+]
+
 export const NEEDS_ACTION_STATUSES = [
   'Pemetaan Scheduled',
   'Waiting Result',

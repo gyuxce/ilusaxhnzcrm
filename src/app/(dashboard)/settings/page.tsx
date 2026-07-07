@@ -1,12 +1,11 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import type { User as AuthUser } from '@supabase/supabase-js'
 import { Header } from '@/components/layout/header'
 import { createClient } from '@/lib/supabase/client'
-import { 
-  Loader2, User, Phone, Mail, ShieldAlert, 
-  Settings, Users, Target, Plus, Trash2, Check,
-  AlertTriangle, RefreshCw
+import {
+  Loader2, User as UserIcon, Settings, Users, Target, Plus, Trash2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -34,7 +33,7 @@ export default function SettingsPage() {
   const [message, setMessage] = useState({ text: '', type: '' })
   
   // Profile State
-  const [currentUser, setCurrentUser] = useState<any>(null)
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null)
   const [profile, setProfile] = useState({
     name: '',
     role: '',
@@ -156,6 +155,7 @@ export default function SettingsPage() {
     if (!profile.name) {
       return setMessage({ text: 'Nama Lengkap wajib diisi', type: 'error' })
     }
+    if (!currentUser) return
 
     setSaving(true)
     setMessage({ text: '', type: '' })
@@ -272,7 +272,7 @@ export default function SettingsPage() {
         {/* Left Side: Navigation Sidebar */}
         <div className="lg:col-span-1 space-y-2">
           {[
-            { id: 'profile', label: 'Profil Saya', icon: User },
+            { id: 'profile', label: 'Profil Saya', icon: UserIcon },
             { id: 'users', label: 'Manage Users', icon: Users, adminOnly: true },
             { id: 'batches', label: 'Manage Batch Targets', icon: Target, adminOnly: true },
             { id: 'options', label: 'Manage CRM Options', icon: Settings, adminOnly: true }
@@ -282,7 +282,7 @@ export default function SettingsPage() {
             return (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
+                onClick={() => setActiveTab(tab.id as typeof activeTab)}
                 className={cn(
                   "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all text-left cursor-pointer border",
                   activeTab === tab.id 
@@ -381,7 +381,7 @@ export default function SettingsPage() {
                         <td className="py-3 px-3">
                           <select
                             value={u.role}
-                            disabled={u.id === currentUser.id} // cannot change own role here
+                            disabled={u.id === currentUser?.id} // cannot change own role here
                             onChange={(e) => handleUpdateRole(u.id, e.target.value)}
                             className="px-2 py-1 bg-background text-foreground border border-border rounded-lg text-xs outline-none cursor-pointer disabled:opacity-40 focus:ring-1 focus:ring-primary focus:border-primary"
                           >

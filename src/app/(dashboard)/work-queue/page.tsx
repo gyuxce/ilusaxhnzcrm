@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
-import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { Header } from '@/components/layout/header'
 import { createClient } from '@/lib/supabase/client'
@@ -10,7 +9,6 @@ import { WhatsAppModal } from '@/components/leads/WhatsAppModal'
 import {
   ArrowLeft,
   ArrowRight,
-  CalendarDays,
   CheckCircle2,
   ClipboardCheck,
   Loader2,
@@ -27,6 +25,8 @@ import {
   OBJECTION_CATEGORY_OPTIONS,
   SOLUTION_OPTIONS,
 } from '@/lib/funnel-framework'
+import { parseRpcResult } from '@/lib/rpc'
+import { getTodayInWIB } from '@/lib/utils'
 
 type LeadRow = {
   id: string
@@ -102,7 +102,7 @@ const QUEUE_FILTERS = [
 type QueueFilter = typeof QUEUE_FILTERS[number]['key']
 
 function todayInput() {
-  return new Date().toISOString().split('T')[0]
+  return getTodayInWIB()
 }
 
 function dateTime(value?: string | null) {
@@ -185,14 +185,25 @@ export default function WorkQueuePage() {
         .limit(10000),
     ])
 
-    const nextLeads = ((leadsRes.data || []) as any[]).filter(lead =>
+    if (leadsRes.error || followUpsRes.error) {
+      setMessage({
+        type: 'error',
+        text: leadsRes.error?.message || followUpsRes.error?.message || 'Gagal memuat antrian kerja.',
+      })
+      setLeads([])
+      setFollowUps([])
+      setLoading(false)
+      return
+    }
+
+    const nextLeads = (leadsRes.data || []).filter((lead: LeadRow) =>
       lead.current_status === 'New Lead' || NEEDS_ACTION_STATUSES.includes(lead.current_status) || isStaleLead(lead)
     )
-    const nextFollowUps = (followUpsRes.data || []) as any[]
+    const nextFollowUps = (followUpsRes.data || []) as FollowUpRow[]
 
     if (requestedLeadId) {
-      const alreadyLoaded = nextLeads.some(lead => lead.id === requestedLeadId)
-        || nextFollowUps.some(fu => fu.leads?.id === requestedLeadId)
+      const alreadyLoaded = nextLeads.some((lead: LeadRow) => lead.id === requestedLeadId)
+        || nextFollowUps.some((fu: FollowUpRow) => fu.leads?.id === requestedLeadId)
 
       if (!alreadyLoaded) {
         const { data: requestedLead } = await supabase
@@ -202,7 +213,7 @@ export default function WorkQueuePage() {
           .maybeSingle()
 
         if (requestedLead) {
-          nextLeads.unshift(requestedLead as any)
+          nextLeads.unshift(requestedLead)
         }
       }
     }
@@ -216,7 +227,7 @@ export default function WorkQueuePage() {
   useEffect(() => {
     fetchData()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [searchParams])
 
   useEffect(() => {
     if (searchParams.get('filter') === 'new') {
@@ -335,86 +346,37 @@ export default function WorkQueuePage() {
 
     setSaving(true)
     setMessage({ type: '', text: '' })
-    const { data: authData } = await supabase.auth.getUser()
-    const actorId = authData.user?.id || null
-    const now = new Date().toISOString()
 
-    const interventionPayload = {
-      lead_id: selectedLead.id,
-      created_by: actorId,
-      lead_condition: form.lead_condition,
-      objection_category: form.objection_category,
-      solution_given: form.solution_given,
-      expert_needed: form.expert_needed,
-      expert_type: form.expert_needed ? form.expert_type || null : null,
-      commercial_type: form.commercial_type,
-      service_opportunity: form.service_opportunity || null,
-      next_action: form.next_action,
-      next_follow_up_date: form.next_follow_up_date || null,
-      result: form.result || null,
-      notes: form.notes || null,
-    }
+    const { data, error } = await supabase.rpc('save_work_queue_fast', {
+      p_lead_id: selectedLead.id,
+      p_current_status: selectedLead.current_status,
+      p_next_status: nextStatus,
+      p_lead_condition: form.lead_condition,
+      p_objection_category: form.objection_category,
+      p_solution_given: form.solution_given,
+      p_expert_needed: form.expert_needed,
+      p_expert_type: form.expert_needed ? form.expert_type || null : null,
+      p_commercial_type: form.commercial_type,
+      p_service_opportunity: form.service_opportunity || null,
+      p_next_action: form.next_action,
+      p_next_follow_up_date: form.next_follow_up_date || null,
+      p_result: form.result || null,
+      p_notes: form.notes || null,
+      p_funnel_notes: form.notes || selectedLead.funnel_notes || null,
+      p_follow_up_id: selectedItem?.followUp?.id || null,
+      p_complete_follow_up: Boolean(selectedItem?.followUp),
+    })
 
-    const promises: Promise<any>[] = [
-      supabase.from('lead_interventions').insert(interventionPayload),
-      supabase.from('leads').update({
-        current_status: nextStatus,
-        lead_segment: form.objection_category,
-        next_action: form.next_action,
-        next_follow_up_date: form.next_follow_up_date || null,
-        funnel_notes: form.notes || selectedLead.funnel_notes || null,
-        last_contacted_date: now,
-        updated_by: actorId,
-        updated_at: now,
-      }).eq('id', selectedLead.id),
-      supabase.from('lead_activities').insert({
-        lead_id: selectedLead.id,
-        activity_type: 'Intervention Logged',
-        description: `${form.lead_condition} | Objection: ${form.objection_category} | Solusi: ${form.solution_given}`,
-        created_by: actorId,
-      }),
-    ]
-
-    if (nextStatus !== selectedLead.current_status) {
-      promises.push(
-        supabase.from('lead_activities').insert({
-          lead_id: selectedLead.id,
-          activity_type: 'Status changed',
-          description: `${selectedLead.current_status} -> ${nextStatus} via Work Queue`,
-          created_by: actorId,
-        })
-      )
-    }
-
-    if (form.next_follow_up_date) {
-      promises.push(
-        supabase.from('follow_ups').insert({
-          lead_id: selectedLead.id,
-          scheduled_date: form.next_follow_up_date,
-          fu_type: 'whatsapp',
-          notes: form.notes || form.result || `Next action: ${form.next_action}`,
-          pic_id: actorId,
-        })
-      )
-    }
-
-    if (selectedItem?.followUp) {
-      promises.push(
-        supabase.from('follow_ups').update({
-          is_done: true,
-          done_at: now,
-          result: form.result || form.notes || 'Selesai via Work Queue',
-          updated_at: now,
-        }).eq('id', selectedItem.followUp.id)
-      )
-    }
-
-    const results = await Promise.all(promises)
-    const firstError = results.find(result => result.error)?.error
     setSaving(false)
 
-    if (firstError) {
-      setMessage({ type: 'error', text: `Gagal menyimpan workflow: ${firstError.message}` })
+    if (error) {
+      setMessage({ type: 'error', text: `Gagal menyimpan workflow: ${error.message}` })
+      return
+    }
+
+    const result = parseRpcResult(data)
+    if (!result?.ok) {
+      setMessage({ type: 'error', text: result?.message || 'Gagal menyimpan workflow.' })
       return
     }
 

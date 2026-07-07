@@ -9,6 +9,8 @@ import { LOST_REASON_OPTIONS, LOST_STATUSES } from '@/lib/lost-reasons'
 import {
   FUNNEL_STATUS_OPTIONS,
 } from '@/lib/funnel-framework'
+import { parseRpcResult, type RpcResult } from '@/lib/rpc'
+import { isJsonRecord } from '@/types/crm'
 
 interface LeadFormProps {
   pics: { id: string; name: string }[]
@@ -75,8 +77,8 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
     return cleanPhone
   }
 
-  function rpcErrorMessage(result: any, fallback = 'Terjadi kesalahan saat menyimpan lead.') {
-    if (result?.duplicate_lead) {
+  function rpcErrorMessage(result: RpcResult | null | undefined, fallback = 'Terjadi kesalahan saat menyimpan lead.') {
+    if (result?.duplicate_lead && isJsonRecord(result.duplicate_lead)) {
       const duplicate = result.duplicate_lead
       return `Nomor WhatsApp ini sudah terdaftar untuk ${duplicate.full_name} (${duplicate.source_campaign || 'tanpa campaign'}) dengan status ${duplicate.current_status || '-'}. Buka data existing dari menu Leads.`
     }
@@ -118,6 +120,7 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
           p_lead_id: leadId,
           ...params,
           p_lost_reason: LOST_STATUSES.includes(form.current_status) ? form.lost_reason : null,
+          p_lead_entry_date: form.lead_entry_date ? new Date(form.lead_entry_date).toISOString() : null,
         })
       : await supabase.rpc('create_lead_fast', {
           ...params,
@@ -131,16 +134,18 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
       return
     }
 
-    if (!data?.ok) {
-      setError(rpcErrorMessage(data))
+    const result = parseRpcResult(data)
+    if (!result?.ok) {
+      setError(rpcErrorMessage(result))
       setLoading(false)
-    } else {
-      setLoading(false)
-      setSuccess(leadId ? 'Perubahan lead berhasil disimpan. Mengalihkan ke Data Leads...' : 'Lead baru berhasil ditambahkan. Mengalihkan ke Kerjaan Hari Ini untuk mulai dikerjakan...')
-      setTimeout(() => {
-        router.push(leadId ? '/leads' : '/work-queue?filter=new')
-      }, 250)
+      return
     }
+
+    setLoading(false)
+    setSuccess(leadId ? 'Perubahan lead berhasil disimpan. Mengalihkan ke Data Leads...' : 'Lead baru berhasil ditambahkan. Mengalihkan ke Kerjaan Hari Ini untuk mulai dikerjakan...')
+    setTimeout(() => {
+      router.push(leadId ? '/leads' : '/work-queue?filter=new')
+    }, 250)
   }
 
   const inputClass = "w-full px-4 py-2.5 rounded-xl text-sm text-foreground placeholder-muted-foreground/60 outline-none transition-all bg-card border border-border focus:ring-1 focus:ring-primary focus:border-primary"

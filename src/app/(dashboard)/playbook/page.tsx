@@ -11,7 +11,6 @@ import {
   MessageSquareText,
   Sparkles,
   Target,
-  Users,
 } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'
@@ -131,7 +130,7 @@ export default async function PlaybookPage() {
   const expertRows = interventions.filter(item => item.expert_needed || item.expert_type)
   const potentialPaidRows = interventions.filter(item => (item.commercial_type || '').toLowerCase().includes('paid'))
   const withFollowUp = interventions.filter(item => item.next_follow_up_date)
-  const solvedRows = interventions.filter(item => item.result)
+  const _solvedRows = interventions.filter(item => item.result)
 
   const objectionRows = countBy(interventions, item => item.objection_category, total, 8)
   const solutionRows = countBy(interventions, item => item.solution_given, total, 8)
