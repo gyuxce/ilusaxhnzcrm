@@ -27,6 +27,8 @@ import {
 } from '@/lib/funnel-framework'
 import { parseRpcResult } from '@/lib/rpc'
 import { getTodayInWIB } from '@/lib/utils'
+import { isTerminalStatus, type LostStatus } from '@/lib/lead-lifecycle'
+import { LOST_REASON_OPTIONS, LOST_STATUSES } from '@/lib/lost-reasons'
 
 type LeadRow = {
   id: string
@@ -90,7 +92,8 @@ const EMPTY_FORM: WorkForm = {
   result: '',
 }
 
-const STEP_LABELS = ['Hubungi', 'Catat Chat', 'Langkah Berikutnya', 'Cek Ulang']
+const STEP_LABELS_ACTIVE = ['Hubungi', 'Catat Chat', 'Langkah Berikutnya', 'Cek Ulang'] as const
+const STEP_LABELS_CLOSE = ['Hubungi', 'Tutup Lead'] as const
 const QUEUE_FILTERS = [
   { key: 'all', label: 'Semua' },
   { key: 'fu', label: 'FU Hari Ini' },
@@ -100,6 +103,7 @@ const QUEUE_FILTERS = [
 ] as const
 
 type QueueFilter = typeof QUEUE_FILTERS[number]['key']
+type WorkflowOutcome = 'active' | 'close'
 
 function todayInput() {
   return getTodayInWIB()
@@ -131,12 +135,8 @@ function daysSinceTouch(lead: Pick<LeadRow, 'last_contacted_date' | 'updated_at'
   return Math.max(0, Math.floor((now.getTime() - latest.getTime()) / (1000 * 60 * 60 * 24)))
 }
 
-function isClosedStatus(status: string) {
-  return ['Seat Lock Paid', 'Onboarding', 'Not Interested', 'Not Eligible'].includes(status)
-}
-
 function isStaleLead(lead: LeadRow) {
-  return !isClosedStatus(lead.current_status) && daysSinceTouch(lead) >= 3
+  return !isTerminalStatus(lead.current_status) && daysSinceTouch(lead) >= 3
 }
 
 function inferNextStatus(currentStatus: string, nextAction: string) {
@@ -164,6 +164,9 @@ export default function WorkQueuePage() {
   const [form, setForm] = useState<WorkForm>(EMPTY_FORM)
   const [message, setMessage] = useState<{ type: 'success' | 'error' | ''; text: string }>({ type: '', text: '' })
   const [waLead, setWaLead] = useState<LeadRow | null>(null)
+  const [workflowOutcome, setWorkflowOutcome] = useState<WorkflowOutcome>('active')
+  const [closeStatus, setCloseStatus] = useState<LostStatus>('Not Interested')
+  const [lostReason, setLostReason] = useState('')
 
   async function fetchData() {
     setLoading(true)
@@ -197,9 +200,12 @@ export default function WorkQueuePage() {
     }
 
     const nextLeads = (leadsRes.data || []).filter((lead: LeadRow) =>
-      lead.current_status === 'New Lead' || NEEDS_ACTION_STATUSES.includes(lead.current_status) || isStaleLead(lead)
+      !isTerminalStatus(lead.current_status)
+      && (lead.current_status === 'New Lead' || NEEDS_ACTION_STATUSES.includes(lead.current_status) || isStaleLead(lead))
     )
-    const nextFollowUps = (followUpsRes.data || []) as FollowUpRow[]
+    const nextFollowUps = ((followUpsRes.data || []) as FollowUpRow[]).filter(
+      fu => fu.leads && !isTerminalStatus(fu.leads.current_status)
+    )
 
     if (requestedLeadId) {
       const alreadyLoaded = nextLeads.some((lead: LeadRow) => lead.id === requestedLeadId)
@@ -212,7 +218,7 @@ export default function WorkQueuePage() {
           .eq('id', requestedLeadId)
           .maybeSingle()
 
-        if (requestedLead) {
+        if (requestedLead && !isTerminalStatus(requestedLead.current_status)) {
           nextLeads.unshift(requestedLead)
         }
       }
@@ -318,10 +324,23 @@ export default function WorkQueuePage() {
 
   const selectedItem = queueItems.find(item => item.lead.id === selectedLeadId) || (!selectedLeadId ? queueItems[0] : null)
   const selectedLead = selectedItem?.lead || null
-  const nextStatus = selectedLead ? inferNextStatus(selectedLead.current_status, form.next_action) : '-'
+  const isCloseFlow = workflowOutcome === 'close'
+  const stepLabels = isCloseFlow ? STEP_LABELS_CLOSE : STEP_LABELS_ACTIVE
+  const maxStep = stepLabels.length - 1
+  const nextStatus = selectedLead
+    ? isCloseFlow
+      ? closeStatus
+      : inferNextStatus(selectedLead.current_status, form.next_action)
+    : '-'
 
   const updateForm = (field: keyof WorkForm, value: string | boolean) => {
-    setForm(prev => ({ ...prev, [field]: value }))
+    setForm(prev => {
+      const next = { ...prev, [field]: value }
+      if (field === 'lead_condition' && value === 'Lost') {
+        setWorkflowOutcome('close')
+      }
+      return next
+    })
   }
 
   const chooseLead = (leadId: string) => {
@@ -329,12 +348,74 @@ export default function WorkQueuePage() {
     setStep(0)
     setMessage({ type: '', text: '' })
     setForm(EMPTY_FORM)
+    setWorkflowOutcome('active')
+    setCloseStatus('Not Interested')
+    setLostReason('')
   }
 
   const canContinue = () => {
-    if (step === 1) return Boolean(form.lead_condition && form.objection_category && form.solution_given)
+    if (step === 1) {
+      const baseValid = Boolean(form.lead_condition && form.objection_category && form.solution_given)
+      if (isCloseFlow) {
+        return baseValid && Boolean(lostReason)
+      }
+      return baseValid
+    }
     if (step === 2) return Boolean(form.next_action)
     return true
+  }
+
+  const saveCloseLead = async () => {
+    if (!selectedLead || saving) return
+    if (!form.lead_condition || !form.objection_category || !form.solution_given || !lostReason) {
+      setMessage({ type: 'error', text: 'Lengkapi kondisi lead, objection, solusi, dan alasan lost dulu.' })
+      return
+    }
+
+    setSaving(true)
+    setMessage({ type: '', text: '' })
+
+    const { data, error } = await supabase.rpc('save_work_queue_fast', {
+      p_lead_id: selectedLead.id,
+      p_current_status: selectedLead.current_status,
+      p_next_status: closeStatus,
+      p_lead_condition: form.lead_condition,
+      p_objection_category: form.objection_category,
+      p_solution_given: form.solution_given,
+      p_result: form.result || null,
+      p_notes: form.notes || null,
+      p_funnel_notes: form.notes || selectedLead.funnel_notes || null,
+      p_follow_up_id: selectedItem?.followUp?.id || null,
+      p_complete_follow_up: Boolean(selectedItem?.followUp),
+      p_close_lead: true,
+      p_lost_status: closeStatus,
+      p_lost_reason: lostReason,
+    })
+
+    setSaving(false)
+
+    if (error) {
+      setMessage({ type: 'error', text: `Gagal menutup lead: ${error.message}` })
+      return
+    }
+
+    const result = parseRpcResult(data)
+    if (!result?.ok) {
+      setMessage({ type: 'error', text: result?.message || 'Gagal menutup lead.' })
+      return
+    }
+
+    setMessage({
+      type: 'success',
+      text: `Lead ditutup sebagai ${closeStatus}. Follow-up pending dibatalkan dan lead keluar dari antrian kerja.`,
+    })
+    setStep(0)
+    setForm(EMPTY_FORM)
+    setWorkflowOutcome('active')
+    setCloseStatus('Not Interested')
+    setLostReason('')
+    setSelectedLeadId(null)
+    await fetchData()
   }
 
   const saveWork = async () => {
@@ -365,6 +446,7 @@ export default function WorkQueuePage() {
       p_funnel_notes: form.notes || selectedLead.funnel_notes || null,
       p_follow_up_id: selectedItem?.followUp?.id || null,
       p_complete_follow_up: Boolean(selectedItem?.followUp),
+      p_close_lead: false,
     })
 
     setSaving(false)
@@ -512,8 +594,8 @@ export default function WorkQueuePage() {
                     </div>
                   </div>
 
-                  <div className="mt-5 grid grid-cols-4 gap-2">
-                    {STEP_LABELS.map((label, index) => (
+                  <div className={`mt-5 grid gap-2 ${stepLabels.length === 2 ? 'grid-cols-2' : 'grid-cols-4'}`}>
+                    {stepLabels.map((label, index) => (
                       <div key={label} className={`rounded-xl border px-3 py-2 ${
                         index === step
                           ? 'border-primary/30 bg-primary/10 text-primary'
@@ -571,9 +653,46 @@ export default function WorkQueuePage() {
                   {step === 1 && (
                     <section className="mx-auto max-w-3xl space-y-5">
                       <div>
-                      <h2 className="text-xl font-black text-foreground">Step 2: Catat hasil chat</h2>
-                        <p className="mt-2 text-sm text-muted-foreground">Isi kondisi lead, kendala yang muncul, dan respon CRO. Ini yang menjadi sumber Report Harian dan Alasan Gagal.</p>
+                      <h2 className="text-xl font-black text-foreground">
+                        {isCloseFlow ? 'Step 2: Tutup lead' : 'Step 2: Catat hasil chat'}
+                      </h2>
+                        <p className="mt-2 text-sm text-muted-foreground">
+                          {isCloseFlow
+                            ? 'Lead tidak akan dilanjutkan. Isi alasan lost, lalu simpan — tidak perlu follow-up atau langkah berikutnya.'
+                            : 'Isi kondisi lead, kendala yang muncul, dan respon CRO. Ini yang menjadi sumber Report Harian dan Alasan Gagal.'}
+                        </p>
                       </div>
+
+                      <div className="rounded-2xl border border-border bg-background p-4">
+                        <p className="text-[10px] font-black uppercase tracking-wide text-muted-foreground">Apakah lead masih mau dilanjutkan?</p>
+                        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                          <button
+                            type="button"
+                            onClick={() => setWorkflowOutcome('active')}
+                            className={`rounded-xl border px-4 py-3 text-left transition-all ${
+                              workflowOutcome === 'active'
+                                ? 'border-primary/30 bg-primary/10 text-primary'
+                                : 'border-border bg-card text-muted-foreground hover:border-primary/20'
+                            }`}
+                          >
+                            <p className="text-sm font-extrabold">Ya, lanjut proses</p>
+                            <p className="mt-1 text-xs opacity-80">Lanjut ke next action & follow-up</p>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setWorkflowOutcome('close')}
+                            className={`rounded-xl border px-4 py-3 text-left transition-all ${
+                              workflowOutcome === 'close'
+                                ? 'border-red-500/30 bg-red-500/10 text-red-600 dark:text-red-300'
+                                : 'border-border bg-card text-muted-foreground hover:border-red-500/20'
+                            }`}
+                          >
+                            <p className="text-sm font-extrabold">Tidak, tutup lead</p>
+                            <p className="mt-1 text-xs opacity-80">Not Interested / Not Eligible, tanpa FU</p>
+                          </button>
+                        </div>
+                      </div>
+
                       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                         <Field label="Kondisi Lead">
                           <select value={form.lead_condition} onChange={e => updateForm('lead_condition', e.target.value)} className="input-work">
@@ -594,18 +713,49 @@ export default function WorkQueuePage() {
                           </select>
                         </Field>
                         <Field label="Hasil Chat Singkat">
-                          <input value={form.result} onChange={e => updateForm('result', e.target.value)} placeholder="Contoh: masih dipertimbangkan..." className="input-work" />
+                          <input value={form.result} onChange={e => updateForm('result', e.target.value)} placeholder="Contoh: menolak lanjut..." className="input-work" />
                         </Field>
+                        {isCloseFlow && (
+                          <>
+                            <Field label="Status Akhir">
+                              <select
+                                value={closeStatus}
+                                onChange={e => setCloseStatus(e.target.value as LostStatus)}
+                                className="input-work"
+                              >
+                                {LOST_STATUSES.map(item => <option key={item} value={item}>{item}</option>)}
+                              </select>
+                            </Field>
+                            <Field label="Alasan Lost (wajib)">
+                              <select value={lostReason} onChange={e => setLostReason(e.target.value)} className="input-work">
+                                <option value="">Pilih alasan</option>
+                                {LOST_REASON_OPTIONS.map(item => <option key={item} value={item}>{item}</option>)}
+                              </select>
+                            </Field>
+                          </>
+                        )}
                         <div className="md:col-span-2">
                           <Field label="Notes">
                             <textarea value={form.notes} onChange={e => updateForm('notes', e.target.value)} rows={4} placeholder="Catatan percakapan singkat..." className="input-work resize-none" />
                           </Field>
                         </div>
                       </div>
+
+                      {isCloseFlow && (
+                        <div className="rounded-2xl border border-red-500/20 bg-red-500/5 p-4">
+                          <p className="text-[10px] font-black uppercase text-red-600 dark:text-red-300">Setelah simpan</p>
+                          <p className="mt-1 text-sm font-semibold text-foreground">
+                            Status: {selectedLead.current_status} → {closeStatus}
+                          </p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Follow-up pending dibatalkan. Lead tidak muncul lagi di antrian kerja.
+                          </p>
+                        </div>
+                      )}
                     </section>
                   )}
 
-                  {step === 2 && (
+                  {step === 2 && !isCloseFlow && (
                     <section className="mx-auto max-w-3xl space-y-5">
                       <div>
                         <h2 className="text-xl font-black text-foreground">Step 3: Tentukan langkah berikutnya</h2>
@@ -651,7 +801,7 @@ export default function WorkQueuePage() {
                     </section>
                   )}
 
-                  {step === 3 && (
+                  {step === 3 && !isCloseFlow && (
                     <section className="mx-auto max-w-3xl space-y-5">
                       <div>
                         <h2 className="text-xl font-black text-foreground">Step 4: Cek ulang & simpan</h2>
@@ -692,16 +842,28 @@ export default function WorkQueuePage() {
                     <ArrowLeft size={15} />
                     Back
                   </button>
-                  {step < 3 ? (
-                    <button
-                      type="button"
-                      onClick={() => setStep(prev => Math.min(3, prev + 1))}
-                      disabled={!canContinue()}
-                      className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2 text-sm font-bold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      Lanjut
-                      <ArrowRight size={15} />
-                    </button>
+                  {step < maxStep ? (
+                    isCloseFlow && step === 1 ? (
+                      <button
+                        type="button"
+                        onClick={saveCloseLead}
+                        disabled={saving || !canContinue()}
+                        className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-5 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50 hover:bg-red-700"
+                      >
+                        {saving ? <Loader2 className="animate-spin" size={15} /> : <CheckCircle2 size={15} />}
+                        Simpan & Tutup Lead
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setStep(prev => Math.min(maxStep, prev + 1))}
+                        disabled={!canContinue()}
+                        className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2 text-sm font-bold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Lanjut
+                        <ArrowRight size={15} />
+                      </button>
+                    )
                   ) : (
                     <button
                       type="button"

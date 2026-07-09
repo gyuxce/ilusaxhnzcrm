@@ -390,6 +390,9 @@ export type Database = {
           p_funnel_notes?: string | null
           p_follow_up_id?: string | null
           p_complete_follow_up?: boolean
+          p_close_lead?: boolean
+          p_lost_status?: string | null
+          p_lost_reason?: string | null
         }
         Returns: Json
       }
