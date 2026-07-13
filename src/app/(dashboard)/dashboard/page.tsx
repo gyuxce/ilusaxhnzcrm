@@ -154,17 +154,20 @@ export default function DashboardPage() {
     const { data: leads } = await supabase
       .from('leads')
       .select('id, full_name, current_status, source_campaign, updated_at, lead_entry_date')
+      .limit(5000)
 
     const { data: interventions } = await supabase
       .from('lead_interventions')
       .select('lead_id, objection_category, expert_needed, expert_type, commercial_type, result, created_at')
       .order('created_at', { ascending: false })
+      .limit(3000)
 
     // 3. Fetch verified payments for revenue
     const { data: payments } = await supabase
       .from('payments')
       .select('payment_type, amount')
       .eq('verification_status', 'verified')
+      .limit(3000)
 
     // 4. Fetch all batch targets
     const { data: targets } = await supabase

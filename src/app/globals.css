@@ -198,14 +198,22 @@
     animation: shimmer 2s infinite;
   }
 
-  /* Fade in */
+  /* Page transition */
   @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(8px); }
+    from { opacity: 0.92; transform: translateY(2px); }
     to { opacity: 1; transform: translateY(0); }
   }
 
   .animate-fade-in {
-    animation: fadeIn 0.3s ease-out forwards;
+    animation: fadeIn 120ms ease-out both;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-fade-in,
+    .animate-shimmer,
+    .animate-pulse-ring::before {
+      animation: none !important;
+    }
   }
 
   /* Pulse ring */
