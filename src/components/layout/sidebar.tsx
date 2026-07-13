@@ -20,6 +20,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { useLayoutStore } from '@/lib/store'
 import { useEffect } from 'react'
+import { useLanguage } from '@/lib/language'
 
 const mainNav: { href: string; label: string; icon: React.ComponentType<{ size?: number; className?: string }> }[] = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -35,10 +36,38 @@ const toolsNav: { href: string; label: string; icon: React.ComponentType<{ size?
   { href: '/playbook', label: 'Alasan Gagal', icon: Tags },
 ]
 
+const SIDEBAR_COPY = {
+  en: {
+    sectionMain: 'Main Menu',
+    sectionTools: 'CRO Tools',
+    settings: 'Settings',
+    logout: 'Logout',
+    labels: {
+      Dashboard: 'Dashboard',
+      'Kerjaan Hari Ini': 'Today Work',
+      'Data Leads': 'Lead Data',
+      'Alur Leads': 'Lead Flow',
+      'Butuh Dibantu': 'Help Needed',
+      'Report Harian': 'Daily Report',
+      Performa: 'Performance',
+      'Alasan Gagal': 'Lost Reasons',
+    } as Record<string, string>,
+  },
+  id: {
+    sectionMain: 'Menu Utama',
+    sectionTools: 'Tools CRO',
+    settings: 'Pengaturan',
+    logout: 'Keluar',
+    labels: {} as Record<string, string>,
+  },
+} as const
+
 export function Sidebar() {
   const pathname = usePathname()
   const router = useRouter()
   const { sidebarOpen, closeSidebar } = useLayoutStore()
+  const { lang } = useLanguage()
+  const copy = SIDEBAR_COPY[lang]
   const supabase = createClient()
 
   // Automatically close sidebar on mobile when pathname changes
@@ -82,7 +111,7 @@ export function Sidebar() {
             isActive ? 'text-purple-600 dark:text-purple-400' : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-400'
           )}
         />
-        <span className="truncate text-[13px] mr-1">{label}</span>
+        <span className="truncate text-[13px] mr-1">{copy.labels[label] || label}</span>
         {/* spacer pushes active indicator to right edge */}
         <span className="flex-1" />
         {isActive && (
@@ -133,7 +162,7 @@ export function Sidebar() {
           {/* Main Menu */}
           <div className="space-y-0.5">
             <p className="text-[9px] font-extrabold text-muted-foreground/60 uppercase tracking-[0.15em] px-3 mb-2">
-              Main Menu
+              {copy.sectionMain}
             </p>
             {mainNav.map((item) => (
               <NavItem key={item.href} {...item} />
@@ -146,7 +175,7 @@ export function Sidebar() {
           {/* Tools */}
           <div className="space-y-0.5">
             <p className="text-[9px] font-extrabold text-muted-foreground/60 uppercase tracking-[0.15em] px-3 mb-2">
-              Tools CRO
+              {copy.sectionTools}
             </p>
             {toolsNav.map((item) => (
               <NavItem key={item.href} {...item} />
@@ -168,14 +197,14 @@ export function Sidebar() {
             )}
           >
             <Settings size={16} className="text-slate-400 dark:text-slate-500 flex-shrink-0" />
-            Pengaturan
+            {copy.settings}
           </Link>
           <button
             onClick={handleSignOut}
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium text-slate-600 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all duration-150"
           >
             <LogOut size={16} className="flex-shrink-0" />
-            Keluar
+            {copy.logout}
           </button>
         </div>
       </aside>

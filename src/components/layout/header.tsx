@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useLayoutStore } from '@/lib/store'
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useLanguage } from '@/lib/language'
 
 import type { LeadRow } from '@/lib/supabase/types'
 
@@ -22,8 +23,81 @@ interface NotifItem {
   href: string
 }
 
+const HEADER_COPY = {
+  en: {
+    titles: {
+      Dashboard: 'Dashboard',
+      'Kerjaan Hari Ini': 'Today Work',
+      'Data Leads': 'Lead Data',
+      'Alur Leads': 'Lead Flow',
+      'Butuh Dibantu': 'Help Needed',
+      'Report Harian': 'Daily Report',
+      Performa: 'Performance',
+      'Alasan Gagal': 'Lost Reasons',
+      'Detail Pembayaran': 'Payment Details',
+      'Tambah Lead Baru': 'Add New Lead',
+      'Detail Lead': 'Lead Detail',
+      'Edit Lead': 'Edit Lead',
+      Pengaturan: 'Settings',
+      Campaign: 'Campaign',
+      'Needs Action': 'Needs Action',
+    } as Record<string, string>,
+    subtitles: {
+      'Track lead progress, revenue, and CRO performance': 'Track lead progress, revenue, and CRO performance',
+      'Tempat utama CRO bekerja: hubungi lead, catat hasil chat, pilih langkah berikutnya, lalu simpan.': 'Main CRO workspace: contact leads, record chat results, choose the next step, then save.',
+      'Tempat cek, import, edit, dan hapus data lead. Kerja harian tetap dari Kerjaan Hari Ini.': 'Database area for checking, importing, editing, and deleting leads. Daily work stays in Today Work.',
+      'Tampilan visual posisi lead. Ini untuk memantau alur, bukan tempat input kerja utama.': 'Visual overview of lead positions. Use this for monitoring, not daily input.',
+      'Daftar lead yang perlu dibantu orang lain, seperti sensei, program, dokumen, atau admin.': 'Leads that need help from another team, such as expert, program, document, or admin support.',
+      'Ringkasan kerja harian otomatis dari aktivitas tim di CRM.': 'Automatic daily work summary from team activity in CRM.',
+      'Ringkasan hasil leads, revenue, campaign, dan kerja tim CRO.': 'Summary of leads, revenue, campaign, and CRO team performance.',
+      'Insight objection, solusi, expert need, dan peluang monetisasi dari handling CRO.': 'Insights from CRO handling: objections, responses, help needed, and paid opportunities.',
+      'Daftar pembayaran verified dari sumber angka revenue dashboard.': 'Verified payment list behind the dashboard revenue numbers.',
+      'Input data lead inbound untuk tim CRO': 'Add inbound lead data for the CRO team',
+      'Kelola data profil dan preferensi CRM': 'Manage profile data and CRM preferences',
+      'Kelola campaign dan event': 'Manage campaigns and events',
+      'Daftar leads yang membutuhkan tindakan follow-up segera berdasarkan status pipeline.': 'Leads that need immediate follow-up based on pipeline status.',
+    } as Record<string, string>,
+    search: 'Search...',
+    addLead: 'Add Lead',
+    darkMode: 'Dark Mode',
+    lightMode: 'Light Mode',
+    openMenu: 'Open Menu',
+    back: 'Back',
+    notifications: 'Notifications',
+    notificationDesc: 'items need attention',
+    clearAll: 'Clear All',
+    noNotifications: 'No notifications right now',
+    searching: 'Searching...',
+    searchPlaceholder: 'Search leads by name, WhatsApp, or email...',
+    searchEmpty: 'No leads found.',
+    searchHint: 'Type at least 2 characters to search...',
+  },
+  id: {
+    titles: {} as Record<string, string>,
+    subtitles: {} as Record<string, string>,
+    search: 'Cari...',
+    addLead: 'Tambah Lead',
+    darkMode: 'Mode Gelap',
+    lightMode: 'Mode Terang',
+    openMenu: 'Buka Menu',
+    back: 'Kembali',
+    notifications: 'Notifikasi',
+    notificationDesc: 'item perlu perhatian',
+    clearAll: 'Bersihkan Semua',
+    noNotifications: 'Tidak ada notifikasi saat ini',
+    searching: 'Mencari data...',
+    searchPlaceholder: 'Cari lead berdasarkan nama, WhatsApp, atau email...',
+    searchEmpty: 'Tidak ada lead ditemukan.',
+    searchHint: 'Ketik minimal 2 karakter untuk memulai pencarian...',
+  },
+} as const
+
 export function Header({ title, subtitle, backUrl }: HeaderProps) {
   const { toggleSidebar } = useLayoutStore()
+  const { lang, toggleLang } = useLanguage()
+  const copy = HEADER_COPY[lang]
+  const displayTitle = lang === 'en' ? (copy.titles[title] || title) : title
+  const displaySubtitle = subtitle && lang === 'en' ? (copy.subtitles[subtitle] || subtitle) : subtitle
   const [notifOpen, setNotifOpen] = useState(false)
   const [notifs, setNotifs] = useState<NotifItem[]>([])
   const [notifCount, setNotifCount] = useState(0)
@@ -271,7 +345,7 @@ export function Header({ title, subtitle, backUrl }: HeaderProps) {
         <button
           onClick={toggleSidebar}
           className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-slate-100 dark:hover:bg-white/5 transition-all lg:hidden flex-shrink-0"
-          title="Buka Menu"
+          title={copy.openMenu}
         >
           <Menu size={18} />
         </button>
@@ -279,14 +353,14 @@ export function Header({ title, subtitle, backUrl }: HeaderProps) {
           <Link
             href={backUrl}
             className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-slate-100 dark:hover:bg-white/5 transition-all flex-shrink-0"
-            title="Kembali"
+            title={copy.back}
           >
             <ArrowLeft size={18} />
           </Link>
         )}
         <div className="min-w-0">
-          <h1 className="text-sm sm:text-base font-semibold text-foreground truncate">{title}</h1>
-          {subtitle && <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 hidden sm:block truncate">{subtitle}</p>}
+          <h1 className="text-sm sm:text-base font-semibold text-foreground truncate">{displayTitle}</h1>
+          {displaySubtitle && <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 hidden sm:block truncate">{displaySubtitle}</p>}
         </div>
       </div>
 
@@ -298,8 +372,18 @@ export function Header({ title, subtitle, backUrl }: HeaderProps) {
           className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-slate-100/80 dark:hover:bg-white/5 transition-all border border-border bg-card/50 cursor-pointer"
         >
           <Search size={14} />
-          <span className="hidden sm:inline">Cari...</span>
+          <span className="hidden sm:inline">{copy.search}</span>
           <kbd className="hidden sm:inline text-[10px] px-1 py-0.5 rounded bg-slate-100 dark:bg-white/5 text-muted-foreground/60 border border-border/40">⌘K</kbd>
+        </button>
+
+        <button
+          type="button"
+          onClick={toggleLang}
+          className="w-10 h-9 flex items-center justify-center rounded-lg text-xs font-extrabold text-primary border border-border bg-card/50 hover:bg-slate-100/80 dark:hover:bg-white/5 transition-all"
+          title={lang === 'en' ? 'Switch to Indonesian' : 'Ganti ke English'}
+          aria-label={lang === 'en' ? 'Switch to Indonesian' : 'Ganti ke English'}
+        >
+          {lang.toUpperCase()}
         </button>
 
         {/* Add lead */}
@@ -308,14 +392,14 @@ export function Header({ title, subtitle, backUrl }: HeaderProps) {
           className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium text-primary-foreground bg-primary hover:opacity-90 transition-all flex-shrink-0 shadow-sm"
         >
           <Plus size={14} />
-          <span className="hidden sm:inline">Tambah Lead</span>
+          <span className="hidden sm:inline">{copy.addLead}</span>
         </Link>
 
         {/* Theme Toggle */}
         <button
           onClick={toggleTheme}
           className="w-9 h-9 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-slate-100/80 dark:hover:bg-white/5 transition-all border border-border bg-card/50 cursor-pointer"
-          title={theme === 'light' ? 'Mode Gelap' : 'Mode Terang'}
+          title={theme === 'light' ? copy.darkMode : copy.lightMode}
         >
           {theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}
         </button>
@@ -346,8 +430,8 @@ export function Header({ title, subtitle, backUrl }: HeaderProps) {
               {/* Header */}
               <div className="flex items-center justify-between px-4 py-3 border-b border-border">
                 <div>
-                  <p className="text-sm font-extrabold text-foreground">Notifikasi</p>
-                  <p className="text-[10px] text-muted-foreground">{notifCount} item perlu perhatian</p>
+                  <p className="text-sm font-extrabold text-foreground">{copy.notifications}</p>
+                  <p className="text-[10px] text-muted-foreground">{notifCount} {copy.notificationDesc}</p>
                 </div>
                 <div className="flex items-center gap-1.5">
                   {notifCount > 0 && (
@@ -355,7 +439,7 @@ export function Header({ title, subtitle, backUrl }: HeaderProps) {
                       onClick={clearAllNotifs}
                       className="text-[10px] font-bold text-red-500 hover:text-red-600 hover:bg-red-500/10 px-2 py-1 rounded-lg transition-colors cursor-pointer border border-transparent"
                     >
-                      Bersihkan Semua
+                      {copy.clearAll}
                     </button>
                   )}
                   <button onClick={() => setNotifOpen(false)} className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 cursor-pointer">
@@ -369,7 +453,7 @@ export function Header({ title, subtitle, backUrl }: HeaderProps) {
                 {notifs.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-8 gap-2">
                     <Bell size={24} className="text-muted-foreground/30" />
-                    <p className="text-muted-foreground text-xs">Tidak ada notifikasi saat ini</p>
+                    <p className="text-muted-foreground text-xs">{copy.noNotifications}</p>
                   </div>
                 ) : (
                   notifs.map(notif => (
@@ -454,7 +538,7 @@ export function Header({ title, subtitle, backUrl }: HeaderProps) {
               <input
                 ref={searchInputRef}
                 type="text"
-                placeholder="Cari lead berdasarkan nama, WhatsApp, atau email..."
+                placeholder={copy.searchPlaceholder}
                 value={globalQuery}
                 onChange={(e) => handleGlobalQueryChange(e.target.value)}
                 className="w-full pl-10 pr-10 py-2 text-sm text-foreground bg-transparent border-0 outline-none placeholder:text-muted-foreground/60"
@@ -474,11 +558,11 @@ export function Header({ title, subtitle, backUrl }: HeaderProps) {
               {globalLoading ? (
                 <div className="flex flex-col items-center justify-center py-8 gap-2">
                   <RefreshCw className="animate-spin text-primary" size={16} />
-                  <p className="text-xs text-muted-foreground">Mencari data...</p>
+                  <p className="text-xs text-muted-foreground">{copy.searching}</p>
                 </div>
               ) : globalResults.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground/50 text-xs">
-                  {globalQuery.trim().length >= 2 ? 'Tidak ada lead ditemukan.' : 'Ketik minimal 2 karakter untuk memulai pencarian...'}
+                  {globalQuery.trim().length >= 2 ? copy.searchEmpty : copy.searchHint}
                 </div>
               ) : (
                 <div className="space-y-1">

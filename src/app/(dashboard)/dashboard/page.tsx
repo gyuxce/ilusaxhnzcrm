@@ -18,6 +18,7 @@ import {
 import { getTodayInWIB } from '@/lib/utils'
 import { Header } from '@/components/layout/header'
 import type { BatchTargetRow, LeadInterventionRow, LeadRow, PaymentRow } from '@/lib/supabase/types'
+import { useLanguage, type Language } from '@/lib/language'
 
 interface DashboardStats {
   totalLeads: number
@@ -95,8 +96,6 @@ const EMPTY_INTELLIGENCE: IntelligenceStats = {
   topObjectionCount: 0,
   biggestDrop: null,
 }
-
-type DashboardLang = 'en' | 'id'
 
 const DASHBOARD_COPY = {
   en: {
@@ -236,7 +235,7 @@ export default function DashboardPage() {
   const [_recentLeads, setRecentLeads] = useState<RecentLeadSummary[]>([])
   const [_fuTodayCount, setFuTodayCount] = useState(0)
   const [intelligence, setIntelligence] = useState<IntelligenceStats>(EMPTY_INTELLIGENCE)
-  const [lang, setLang] = useState<DashboardLang>('en')
+  const { lang } = useLanguage()
   
   // Edit Batch Target Modal
   const [isEditingTarget, setIsEditingTarget] = useState(false)
@@ -247,19 +246,7 @@ export default function DashboardPage() {
   const [newNotes, setNewNotes] = useState('')
 
   const supabase = createClient()
-  const c = DASHBOARD_COPY[lang]
-
-  useEffect(() => {
-    const savedLang = window.localStorage.getItem('crm.dashboard.lang')
-    if (savedLang === 'en' || savedLang === 'id') {
-      setLang(savedLang)
-    }
-  }, [])
-
-  const handleSetLang = (nextLang: DashboardLang) => {
-    setLang(nextLang)
-    window.localStorage.setItem('crm.dashboard.lang', nextLang)
-  }
+  const c = DASHBOARD_COPY[lang as Language]
 
   const fetchStats = useCallback(async () => {
     setLoading(true)
@@ -648,26 +635,6 @@ export default function DashboardPage() {
       <Header title={c.title} subtitle={c.subtitle} />
       
       <div className="w-full p-6 space-y-6 animate-fade-in">
-        <div className="flex justify-end">
-          <div className="inline-flex items-center gap-1 rounded-xl border border-border bg-card p-1 text-xs font-bold shadow-sm">
-            <span className="px-2 text-muted-foreground">{c.language}</span>
-            <button
-              type="button"
-              onClick={() => handleSetLang('en')}
-              className={`rounded-lg px-3 py-1.5 transition-colors ${lang === 'en' ? 'bg-primary text-white' : 'text-muted-foreground hover:bg-slate-100 dark:hover:bg-white/5'}`}
-            >
-              EN
-            </button>
-            <button
-              type="button"
-              onClick={() => handleSetLang('id')}
-              className={`rounded-lg px-3 py-1.5 transition-colors ${lang === 'id' ? 'bg-primary text-white' : 'text-muted-foreground hover:bg-slate-100 dark:hover:bg-white/5'}`}
-            >
-              ID
-            </button>
-          </div>
-        </div>
-        
         {/* Top Section: Revenue & Campaign Snapshot */}
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
           
