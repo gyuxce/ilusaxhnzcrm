@@ -1,13 +1,13 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard,
   Users,
   Settings,
   LogOut,
-  Zap,
   KanbanSquare,
   BarChart3,
   ClipboardList,
@@ -112,11 +112,15 @@ export function Sidebar() {
       >
         {/* Logo */}
         <div className="flex items-center gap-3 px-5 py-5 border-b border-border">
-          <div
-            className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-            style={{ background: 'linear-gradient(135deg, hsl(250,84%,60%), hsl(280,60%,55%))' }}
-          >
-            <Zap size={17} className="text-white" />
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 bg-white border border-border overflow-hidden">
+            <Image
+              src="/harunokaze-logo.jpg"
+              alt="Harunokaze"
+              width={36}
+              height={36}
+              className="h-full w-full object-contain p-0.5"
+              priority
+            />
           </div>
           <div className="min-w-0">
             <p className="text-sm font-extrabold text-foreground leading-none tracking-tight">CRM Harunokaze</p>

@@ -1,9 +1,10 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { Zap, Eye, EyeOff, Loader2 } from 'lucide-react'
+import { Eye, EyeOff, Loader2 } from 'lucide-react'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -49,8 +50,15 @@ export default function LoginPage() {
         <div className="rounded-2xl p-8 bg-card text-card-foreground border border-border dark:border-white/10 shadow-2xl relative w-full max-w-md">
           {/* Logo */}
           <div className="flex flex-col items-center mb-8">
-            <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4 bg-primary shadow-md shadow-primary/20">
-              <Zap size={26} className="text-primary-foreground" />
+            <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 bg-white border border-border shadow-md overflow-hidden">
+              <Image
+                src="/harunokaze-logo.jpg"
+                alt="Harunokaze"
+                width={64}
+                height={64}
+                className="h-full w-full object-contain p-1"
+                priority
+              />
             </div>
             <h1 className="text-2xl font-extrabold text-foreground">CRM Harunokaze</h1>
             <p className="text-sm text-muted-foreground mt-1 font-medium">Harunokaze × Wiwitan</p>

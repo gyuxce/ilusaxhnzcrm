@@ -9,6 +9,10 @@ export const metadata: Metadata = {
   title: 'CRM Harunokaze',
   description: 'Sistem CRM modern untuk tim CRO Harunokaze. Kelola leads, follow-up, pipeline, dan konversi dalam satu platform.',
   keywords: ['CRM', 'Harunokaze', 'Leads Management', 'Follow Up'],
+  icons: {
+    icon: '/harunokaze-logo.jpg',
+    apple: '/harunokaze-logo.jpg',
+  },
 }
 
 export default function RootLayout({
