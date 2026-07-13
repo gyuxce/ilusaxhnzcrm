@@ -1,143 +1,202 @@
+import Link from 'next/link'
+import { CheckCircle2, CreditCard, DollarSign, ReceiptText } from 'lucide-react'
 import { Header } from '@/components/layout/header'
 import { createClient } from '@/lib/supabase/server'
-import { formatDate } from '@/lib/utils'
-import Link from 'next/link'
-import { CheckSquare, DollarSign, MessageCircle } from 'lucide-react'
-import { generateWALink } from '@/lib/utils'
 
-type ConversionLead = {
+export const dynamic = 'force-dynamic'
+
+type PaymentWithLead = {
   id: string
-  name: string
-  phone_number: string
-  source?: string
-  stage?: string
+  lead_id: string
+  payment_type: string
+  amount: number
+  payment_method: string
+  payment_date: string
+  verification_status: string
+  notes: string | null
+  created_at: string
+  leads: {
+    id: string
+    full_name: string
+    whatsapp_number: string
+    source_campaign: string
+  } | null
 }
 
-type ConversionRow = {
-  id: string
-  conversion_type: string
-  conversion_date: string
-  amount: number | null
-  attended_event: boolean | null
-  interview_date: string | null
-  leads: ConversionLead | null
+type PageProps = {
+  searchParams?: Promise<{ type?: string }>
 }
 
-export default async function ConversionsPage() {
+const PAYMENT_TYPE_LABEL: Record<string, string> = {
+  pemetaan: 'Pemetaan',
+  roadmap_session: 'Pemetaan',
+  seat_lock: 'Seat Lock',
+}
+
+function rupiah(value: number) {
+  return `Rp ${Number(value || 0).toLocaleString('id-ID')}`
+}
+
+function paymentLabel(type: string) {
+  return PAYMENT_TYPE_LABEL[type] || type.replaceAll('_', ' ')
+}
+
+function isPemetaan(type: string) {
+  return type === 'pemetaan' || type === 'roadmap_session'
+}
+
+export default async function ConversionsPage({ searchParams }: PageProps) {
+  const params = await searchParams
+  const selectedType = params?.type || 'all'
   const supabase = await createClient()
 
-  const { data } = await supabase
-    .from('conversions')
+  const { data } = (await supabase
+    .from('payments')
     .select(`
-      *,
-      leads(id, name, phone_number, source, stage),
-      users!conversions_created_by_fkey(full_name)
+      id,
+      lead_id,
+      payment_type,
+      amount,
+      payment_method,
+      payment_date,
+      verification_status,
+      notes,
+      created_at,
+      leads(id, full_name, whatsapp_number, source_campaign)
     `)
-    .order('created_at', { ascending: false })
-    .limit(100)
+    .eq('verification_status', 'verified')
+    .order('payment_date', { ascending: false })
+    .order('created_at', { ascending: false })) as { data: PaymentWithLead[] | null }
 
-  const conversions = (data || []) as ConversionRow[]
+  const payments = data || []
+  const visiblePayments = payments.filter(payment => {
+    if (selectedType === 'pemetaan') return isPemetaan(payment.payment_type)
+    if (selectedType === 'seat_lock') return payment.payment_type === 'seat_lock'
+    return true
+  })
 
-  const CONV_TYPE: Record<string, { label: string; color: string; bg: string }> = {
-    pemetaan: { label: 'Pemetaan', color: '#8b5cf6', bg: 'rgba(139,92,246,0.12)' },
-    full_payment: { label: 'Full Payment', color: '#22c55e', bg: 'rgba(34,197,94,0.12)' },
-    dp: { label: 'DP', color: '#eab308', bg: 'rgba(234,179,8,0.12)' },
-    webinar_attend: { label: 'Webinar Hadir', color: '#06b6d4', bg: 'rgba(6,182,212,0.12)' },
-  }
+  const revenuePemetaan = payments
+    .filter(payment => isPemetaan(payment.payment_type))
+    .reduce((sum, payment) => sum + Number(payment.amount || 0), 0)
+  const revenueSeatLock = payments
+    .filter(payment => payment.payment_type === 'seat_lock')
+    .reduce((sum, payment) => sum + Number(payment.amount || 0), 0)
+  const totalRevenue = revenuePemetaan + revenueSeatLock
 
-  const totalAmount = conversions.reduce((sum, c) => sum + (c.amount || 0), 0)
+  const filters = [
+    { href: '/conversions', label: 'Semua', active: selectedType === 'all', count: payments.length },
+    { href: '/conversions?type=pemetaan', label: 'Pemetaan', active: selectedType === 'pemetaan', count: payments.filter(payment => isPemetaan(payment.payment_type)).length },
+    { href: '/conversions?type=seat_lock', label: 'Seat Lock', active: selectedType === 'seat_lock', count: payments.filter(payment => payment.payment_type === 'seat_lock').length },
+  ]
 
   return (
     <>
-      <Header title="Konversi" subtitle="Semua leads yang sudah convert" />
-      <div className="p-6 animate-fade-in space-y-5">
+      <Header title="Detail Pembayaran" subtitle="Daftar pembayaran verified dari sumber angka revenue dashboard." />
 
-        {/* Summary */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="w-full p-6 space-y-6 animate-fade-in">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {[
-            { label: 'Total Konversi', value: conversions.length.toString(), color: '#22c55e', icon: CheckSquare },
-            { label: 'Total Revenue', value: `Rp ${(totalAmount / 1_000_000).toFixed(1)}jt`, color: '#8b5cf6', icon: DollarSign },
-            { label: 'Pemetaan', value: conversions.filter(c => c.conversion_type === 'pemetaan').length.toString(), color: '#3b82f6', icon: CheckSquare },
-            { label: 'Full Payment', value: conversions.filter(c => c.conversion_type === 'full_payment').length.toString(), color: '#f97316', icon: DollarSign },
-          ].map(s => (
-            <div key={s.label} className="glass-card rounded-2xl p-4">
-              <p className="text-xl font-bold" style={{ color: s.color }}>{s.value}</p>
-              <p className="text-xs text-white/40 mt-1">{s.label}</p>
+            { label: 'Revenue Pemetaan', value: rupiah(revenuePemetaan), icon: ReceiptText, tone: 'text-purple-600 bg-purple-500/10' },
+            { label: 'Revenue Seat Lock', value: rupiah(revenueSeatLock), icon: CreditCard, tone: 'text-emerald-600 bg-emerald-500/10' },
+            { label: 'Total Revenue', value: rupiah(totalRevenue), icon: DollarSign, tone: 'text-blue-600 bg-blue-500/10' },
+          ].map(card => (
+            <div key={card.label} className="rounded-2xl border border-border bg-card p-5 shadow-xs">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-xs font-bold text-muted-foreground">{card.label}</span>
+                <div className={`h-9 w-9 rounded-xl flex items-center justify-center ${card.tone}`}>
+                  <card.icon size={17} />
+                </div>
+              </div>
+              <p className="mt-5 text-2xl font-black text-foreground">{card.value}</p>
             </div>
           ))}
         </div>
 
-        {/* Table */}
-        <div className="glass-card rounded-2xl overflow-hidden">
+        <div className="rounded-2xl border border-blue-200 bg-blue-50/70 px-5 py-4 text-sm text-blue-950 dark:border-blue-900/40 dark:bg-blue-950/20 dark:text-blue-100">
+          Halaman ini menampilkan detail dari angka revenue di dashboard. Yang dihitung hanya pembayaran dengan status <b>verified</b>.
+        </div>
+
+        <div className="rounded-2xl border border-border bg-card p-4 shadow-xs">
+          <div className="flex flex-wrap items-center gap-2">
+            {filters.map(filter => (
+              <Link
+                key={filter.href}
+                href={filter.href}
+                className={`rounded-full border px-4 py-2 text-xs font-bold transition-colors ${
+                  filter.active
+                    ? 'border-purple-300 bg-purple-50 text-purple-700 dark:border-purple-800 dark:bg-purple-950/30 dark:text-purple-300'
+                    : 'border-border text-muted-foreground hover:bg-muted'
+                }`}
+              >
+                {filter.label}
+                <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-[10px] text-foreground">{filter.count}</span>
+              </Link>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-border bg-card shadow-xs overflow-hidden">
+          <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-4">
+            <div>
+              <h2 className="text-sm font-extrabold uppercase tracking-wide text-foreground">Rincian Pembayaran</h2>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {visiblePayments.length} transaksi verified ditampilkan.
+              </p>
+            </div>
+            <CheckCircle2 size={18} className="text-emerald-500" />
+          </div>
+
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr style={{ borderBottom: '1px solid hsl(222,47%,14%)' }}>
-                  {['Lead', 'Tipe', 'Tanggal', 'Amount', 'Interview', 'Aksi'].map(h => (
-                    <th key={h} className="px-4 py-3 text-left text-xs font-medium text-white/40">{h}</th>
-                  ))}
+                <tr className="border-b border-border text-left text-[11px] uppercase tracking-wide text-muted-foreground">
+                  <th className="px-5 py-3">Lead</th>
+                  <th className="px-5 py-3">Tipe</th>
+                  <th className="px-5 py-3">Tanggal Bayar</th>
+                  <th className="px-5 py-3 text-right">Nominal</th>
+                  <th className="px-5 py-3">Metode</th>
+                  <th className="px-5 py-3">Campaign</th>
+                  <th className="px-5 py-3">Aksi</th>
                 </tr>
               </thead>
               <tbody>
-                {conversions.length === 0 ? (
+                {visiblePayments.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-4 py-12 text-center text-white/30 text-sm">
-                      Belum ada konversi. Data akan muncul setelah Supabase terhubung.
+                    <td colSpan={7} className="px-5 py-12 text-center text-sm text-muted-foreground">
+                      Belum ada pembayaran verified untuk filter ini.
                     </td>
                   </tr>
-                ) : (
-                  conversions.map((conv, i) => {
-                    const typeConf = CONV_TYPE[conv.conversion_type] || { label: conv.conversion_type, color: '#64748b', bg: 'rgba(100,116,139,0.1)' }
-                    const lead = conv.leads
-
-                    return (
-                      <tr
-                        key={conv.id}
-                        className="hover:bg-white/[0.02] transition-colors group"
-                        style={{ borderBottom: i < conversions.length - 1 ? '1px solid hsl(222,47%,11%)' : 'none' }}
-                      >
-                        <td className="px-4 py-3">
-                          <Link href={`/leads/${lead?.id}`} className="font-medium text-white hover:text-purple-300 transition-colors">
-                            {lead?.name || 'Tanpa Nama'}
-                          </Link>
-                          <p className="text-xs text-white/30 font-mono">{lead?.phone_number}</p>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className="text-xs px-2.5 py-0.5 rounded-full font-medium"
-                            style={{ background: typeConf.bg, color: typeConf.color }}>
-                            {typeConf.label}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-xs text-white/50">{formatDate(conv.conversion_date)}</td>
-                        <td className="px-4 py-3 text-xs font-medium text-green-400">
-                          {conv.amount ? `Rp ${conv.amount.toLocaleString('id-ID')}` : '-'}
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-1.5 text-xs text-white/40">
-                            {conv.attended_event !== null && (
-                              <span>{conv.attended_event ? '✅ Hadir' : '❌ Absen'}</span>
-                            )}
-                            {conv.interview_date && (
-                              <span>{formatDate(conv.interview_date)}</span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          {lead?.phone_number && (
-                            <a
-                              href={generateWALink(lead.phone_number)}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="opacity-0 group-hover:opacity-100 w-7 h-7 rounded-lg flex items-center justify-center text-green-400 hover:bg-green-500/10 transition-all"
-                            >
-                              <MessageCircle size={14} />
-                            </a>
-                          )}
-                        </td>
-                      </tr>
-                    )
-                  })
-                )}
+                ) : visiblePayments.map(payment => (
+                  <tr key={payment.id} className="border-b border-border/70 last:border-b-0">
+                    <td className="px-5 py-4">
+                      <p className="font-bold text-foreground">{payment.leads?.full_name || 'Lead tidak ditemukan'}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">{payment.leads?.whatsapp_number || '-'}</p>
+                    </td>
+                    <td className="px-5 py-4">
+                      <span className="rounded-full border border-purple-200 bg-purple-50 px-2.5 py-1 text-xs font-bold text-purple-700 dark:border-purple-900 dark:bg-purple-950/30 dark:text-purple-300">
+                        {paymentLabel(payment.payment_type)}
+                      </span>
+                    </td>
+                    <td className="px-5 py-4 text-muted-foreground">{payment.payment_date}</td>
+                    <td className="px-5 py-4 text-right font-black text-emerald-600 dark:text-emerald-300">
+                      {rupiah(payment.amount)}
+                    </td>
+                    <td className="px-5 py-4 text-muted-foreground">{payment.payment_method || '-'}</td>
+                    <td className="px-5 py-4 text-muted-foreground">{payment.leads?.source_campaign || '-'}</td>
+                    <td className="px-5 py-4">
+                      {payment.leads?.id ? (
+                        <Link
+                          href={`/leads/${payment.leads.id}`}
+                          className="inline-flex items-center justify-center rounded-xl border border-border px-3 py-2 text-xs font-bold text-foreground hover:bg-muted"
+                        >
+                          Detail Lead
+                        </Link>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">-</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>

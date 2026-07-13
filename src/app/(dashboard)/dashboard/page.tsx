@@ -506,7 +506,7 @@ export default function DashboardPage() {
           <div className="xl:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-4">
             
             {/* Revenue Pemetaan */}
-            <div className="glass-card rounded-2xl p-5 border border-border relative overflow-hidden flex flex-col justify-between">
+            <Link href="/conversions?type=pemetaan" className="glass-card rounded-2xl p-5 border border-border relative overflow-hidden flex flex-col justify-between transition-all hover:-translate-y-0.5 hover:border-purple-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-muted-foreground text-xs font-medium">Revenue Pemetaan</span>
                 <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-600 dark:text-purple-400">
@@ -519,10 +519,10 @@ export default function DashboardPage() {
                 </p>
                 <p className="text-[10px] text-muted-foreground/80 mt-1">Total pembayaran sesi pemetaan verified</p>
               </div>
-            </div>
+            </Link>
 
             {/* Revenue Seat Lock */}
-            <div className="glass-card rounded-2xl p-5 border border-border relative overflow-hidden flex flex-col justify-between">
+            <Link href="/conversions?type=seat_lock" className="glass-card rounded-2xl p-5 border border-border relative overflow-hidden flex flex-col justify-between transition-all hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-muted-foreground text-xs font-medium">Revenue Seat Lock</span>
                 <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
@@ -535,10 +535,10 @@ export default function DashboardPage() {
                 </p>
                 <p className="text-[10px] text-muted-foreground/80 mt-1">Total pembayaran seat lock verified</p>
               </div>
-            </div>
+            </Link>
 
             {/* Combined Revenue */}
-            <div className="glass-card rounded-2xl p-5 border border-purple-200 dark:border-purple-500/10 relative overflow-hidden flex flex-col justify-between" style={{ background: 'linear-gradient(135deg, rgba(139,92,246,0.05), rgba(168,85,247,0.02))' }}>
+            <Link href="/conversions" className="glass-card rounded-2xl p-5 border border-purple-200 dark:border-purple-500/10 relative overflow-hidden flex flex-col justify-between transition-all hover:-translate-y-0.5 hover:border-purple-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500" style={{ background: 'linear-gradient(135deg, rgba(139,92,246,0.05), rgba(168,85,247,0.02))' }}>
               <div className="flex items-center justify-between mb-2">
                 <span className="text-purple-600 dark:text-purple-300 text-xs font-bold">Revenue Combined</span>
                 <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center text-purple-600 dark:text-purple-300">
@@ -551,7 +551,7 @@ export default function DashboardPage() {
                 </p>
                 <p className="text-[10px] text-purple-600/60 dark:text-purple-300/40 mt-1 font-medium">Total Akumulasi Pendapatan</p>
               </div>
-            </div>
+            </Link>
 
           </div>
 
