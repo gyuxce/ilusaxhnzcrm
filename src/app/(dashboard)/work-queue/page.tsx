@@ -172,26 +172,41 @@ export default function WorkQueuePage() {
     setLoading(true)
     const today = todayInput()
     const requestedLeadId = searchParams.get('lead')
+    const staleCutoff = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString()
+    const leadSelect = 'id, full_name, whatsapp_number, email, source_campaign, current_status, lead_entry_date, last_contacted_date, updated_at, assigned_cro_id, next_action, next_follow_up_date, lead_segment, funnel_notes, users:assigned_cro_id(id, name)'
 
-    const [leadsRes, followUpsRes] = await Promise.all([
+    const [newLeadsRes, needsActionRes, staleLeadsRes, followUpsRes] = await Promise.all([
       supabase
         .from('leads')
-        .select('id, full_name, whatsapp_number, email, source_campaign, current_status, lead_entry_date, last_contacted_date, updated_at, assigned_cro_id, next_action, next_follow_up_date, lead_segment, funnel_notes, users:assigned_cro_id(id, name)')
+        .select(leadSelect)
+        .eq('current_status', 'New Lead')
         .order('lead_entry_date', { ascending: false })
-        .limit(10000),
+        .limit(800),
+      supabase
+        .from('leads')
+        .select(leadSelect)
+        .in('current_status', NEEDS_ACTION_STATUSES)
+        .order('updated_at', { ascending: false })
+        .limit(800),
+      supabase
+        .from('leads')
+        .select(leadSelect)
+        .lte('updated_at', staleCutoff)
+        .order('updated_at', { ascending: true })
+        .limit(800),
       supabase
         .from('follow_ups')
         .select('id, lead_id, scheduled_date, fu_type, notes, leads:lead_id(id, full_name, whatsapp_number, email, source_campaign, current_status, lead_entry_date, last_contacted_date, updated_at, assigned_cro_id, next_action, next_follow_up_date, lead_segment, funnel_notes, users:assigned_cro_id(id, name))')
         .eq('is_done', false)
         .lte('scheduled_date', today)
         .order('scheduled_date', { ascending: true })
-        .limit(10000),
+        .limit(800),
     ])
 
-    if (leadsRes.error || followUpsRes.error) {
+    if (newLeadsRes.error || needsActionRes.error || staleLeadsRes.error || followUpsRes.error) {
       setMessage({
         type: 'error',
-        text: leadsRes.error?.message || followUpsRes.error?.message || 'Gagal memuat antrian kerja.',
+        text: newLeadsRes.error?.message || needsActionRes.error?.message || staleLeadsRes.error?.message || followUpsRes.error?.message || 'Gagal memuat antrian kerja.',
       })
       setLeads([])
       setFollowUps([])
@@ -199,7 +214,16 @@ export default function WorkQueuePage() {
       return
     }
 
-    const nextLeads = (leadsRes.data || []).filter((lead: LeadRow) =>
+    const leadMap = new Map<string, LeadRow>()
+    ;[
+      ...(newLeadsRes.data || []),
+      ...(needsActionRes.data || []),
+      ...(staleLeadsRes.data || []),
+    ].forEach((lead: LeadRow) => {
+      leadMap.set(lead.id, lead)
+    })
+
+    const nextLeads = Array.from(leadMap.values()).filter((lead: LeadRow) =>
       !isTerminalStatus(lead.current_status)
       && (lead.current_status === 'New Lead' || NEEDS_ACTION_STATUSES.includes(lead.current_status) || isStaleLead(lead))
     )
