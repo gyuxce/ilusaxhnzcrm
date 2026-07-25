@@ -6,6 +6,8 @@ export function normalizeWhatsApp(phone: string): string {
   let cleaned = phone.replace(/\D/g, '')
   if (cleaned.startsWith('0')) {
     cleaned = '62' + cleaned.slice(1)
+  } else if (cleaned.startsWith('8')) {
+    cleaned = '62' + cleaned
   }
   return cleaned
 }
@@ -28,7 +30,7 @@ export const leadSchema = z.object({
     .or(z.literal(''))
     .optional(),
   source_campaign: z.string().optional(),
-  lead_type: z.enum(['inbound', 'outbound']).default('inbound'),
+  lead_type: z.enum(['inbound', 'outbound']),
   current_status: z.string().min(1, 'Status pipeline wajib dipilih'),
   assigned_cro_id: z.string().optional(),
   notes: z.string().optional(),
