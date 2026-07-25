@@ -30,6 +30,7 @@ const HEADER_COPY = {
     titles: {
       Dashboard: 'Reports',
       Laporan: 'Reports',
+      'Laporan Klien': 'Client Report',
       'Hari Ini': 'Today',
       'Kerjaan Hari Ini': 'Today Work',
       'Data Leads': 'Lead Data',

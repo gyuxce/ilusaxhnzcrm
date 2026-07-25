@@ -9,7 +9,8 @@ import { createClient } from '@/lib/supabase/client'
 import { useLayoutStore } from '@/lib/store'
 import { useLanguage } from '@/lib/language'
 import { PRODUCT } from '@/lib/brand'
-import { PRIMARY_NAV, isNavActive } from '@/lib/navigation'
+import { PRIMARY_NAV, OWNER_PRIMARY_NAV, isNavActive } from '@/lib/navigation'
+import { useCurrentRole } from '@/lib/use-current-role'
 import {
   LayoutDashboard,
   Users,
@@ -18,6 +19,7 @@ import {
   KanbanSquare,
   ClipboardCheck,
   Wallet,
+  FileText,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -27,6 +29,7 @@ const NAV_ICONS: Record<string, LucideIcon> = {
   '/pipeline': KanbanSquare,
   '/conversions': Wallet,
   '/dashboard': LayoutDashboard,
+  '/client-report': FileText,
 }
 
 const COPY = {
@@ -34,13 +37,19 @@ const COPY = {
     settings: 'Settings',
     logout: 'Logout',
     legend: 'Where to work',
-    legendBody: 'Input in Today or Lead detail. Pipeline & Reports are for monitoring.',
+    legendCro: 'Input in Today or Lead detail. Pipeline & Reports are for monitoring.',
+    legendOwner: 'Client Report is the clean summary. Team tools stay available under Leads/Pipeline.',
+    roleOwner: 'Owner view',
+    roleCro: 'CRO view',
   },
   id: {
     settings: 'Pengaturan',
     logout: 'Keluar',
     legend: 'Data ini ke mana?',
-    legendBody: 'Input di Hari Ini atau Detail Lead. Pipeline & Laporan untuk pantau.',
+    legendCro: 'Input di Hari Ini atau Detail Lead. Pipeline & Laporan untuk pantau.',
+    legendOwner: 'Laporan Klien = ringkas untuk owner. Detail operasional di Leads/Pipeline.',
+    roleOwner: 'Tampilan owner',
+    roleCro: 'Tampilan CRO',
   },
 } as const
 
@@ -51,6 +60,8 @@ export function Sidebar() {
   const { lang } = useLanguage()
   const copy = COPY[lang]
   const supabase = createClient()
+  const { isOwnerLike, role } = useCurrentRole()
+  const navItems = isOwnerLike ? OWNER_PRIMARY_NAV : PRIMARY_NAV
 
   useEffect(() => {
     closeSidebar()
@@ -95,6 +106,7 @@ export function Sidebar() {
             </p>
             <p className="text-[10px] text-muted-foreground mt-0.5 truncate">
               {PRODUCT.partnership}
+              {role ? ` · ${isOwnerLike ? copy.roleOwner : copy.roleCro}` : ''}
             </p>
           </div>
         </div>
@@ -103,7 +115,7 @@ export function Sidebar() {
           <p className="px-3 mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
             Menu utama
           </p>
-          {PRIMARY_NAV.map((item) => {
+          {navItems.map((item) => {
             const Icon = NAV_ICONS[item.href] || Users
             const active = isNavActive(pathname, item.href)
             const label = lang === 'en' ? item.labelEn : item.labelId
@@ -149,7 +161,7 @@ export function Sidebar() {
               {copy.legend}
             </p>
             <p className="text-[11px] text-muted-foreground mt-1.5 leading-relaxed">
-              {copy.legendBody}
+              {isOwnerLike ? copy.legendOwner : copy.legendCro}
             </p>
           </div>
         </nav>

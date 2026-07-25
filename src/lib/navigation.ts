@@ -94,6 +94,11 @@ export const LAPORAN_LINKS = [
     labelEn: 'Overview',
   },
   {
+    href: '/client-report',
+    labelId: 'Laporan Klien',
+    labelEn: 'Client Report',
+  },
+  {
     href: '/reports',
     labelId: 'Report Harian',
     labelEn: 'Daily Report',
@@ -110,6 +115,45 @@ export const LAPORAN_LINKS = [
   },
 ]
 
+/** Owner/admin primary nav — fewer ops tools, more monitoring. */
+export const OWNER_PRIMARY_NAV: NavItem[] = [
+  {
+    href: '/client-report',
+    labelId: 'Laporan Klien',
+    labelEn: 'Client Report',
+    hintId: 'Ringkas untuk owner & klien',
+    hintEn: 'Clean summary for owners & clients',
+  },
+  {
+    href: '/dashboard',
+    labelId: 'Laporan Tim',
+    labelEn: 'Team Reports',
+    hintId: 'KPI operasional lengkap',
+    hintEn: 'Full operational KPIs',
+  },
+  {
+    href: '/pipeline',
+    labelId: 'Pipeline',
+    labelEn: 'Pipeline',
+    hintId: 'Pantau tahap 1–6',
+    hintEn: 'Monitor stages 1–6',
+  },
+  {
+    href: '/leads',
+    labelId: 'Leads',
+    labelEn: 'Leads',
+    hintId: 'Data master lead',
+    hintEn: 'Lead master data',
+  },
+  {
+    href: '/conversions',
+    labelId: 'Pembayaran',
+    labelEn: 'Payments',
+    hintId: 'Uang masuk verified',
+    hintEn: 'Verified payments',
+  },
+]
+
 export function isNavActive(pathname: string, href: string): boolean {
   if (href === '/today') {
     return (
@@ -119,6 +163,9 @@ export function isNavActive(pathname: string, href: string): boolean {
       pathname.startsWith('/follow-ups') ||
       pathname.startsWith('/expert-queue')
     )
+  }
+  if (href === '/client-report') {
+    return pathname.startsWith('/client-report')
   }
   if (href === '/dashboard') {
     return (

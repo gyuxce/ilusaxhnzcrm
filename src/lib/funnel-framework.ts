@@ -13,9 +13,10 @@ export const FUNNEL_STATUS_OPTIONS = [
   'Expert Consultation Scheduled',
   'Expert Consultation Done',
   'Seat Lock Offered',
-  'Seat Lock Paid',
   'Belum Berhasil Closing',
+  'Seat Lock Paid',
   'Onboarding',
+  'Class Started',
   'Not Interested',
   'Not Eligible',
 ]

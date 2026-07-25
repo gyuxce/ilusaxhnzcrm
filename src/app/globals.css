@@ -231,6 +231,12 @@
     border-color: color-mix(in srgb, var(--stage-6) 22%, transparent);
   }
 
+  .stage-badge-lost {
+    background: rgba(220, 38, 38, 0.12);
+    color: #dc2626;
+    border-color: rgba(220, 38, 38, 0.22);
+  }
+
   /* Legacy badge names → calm neutrals (no neon) */
   .badge-new { background: var(--stage-1-soft); color: var(--stage-1); }
   .badge-probing { background: var(--stage-2-soft); color: var(--stage-2); }

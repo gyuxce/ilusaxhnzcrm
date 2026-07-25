@@ -19,12 +19,13 @@ export default async function PipelinePage() {
 
   return (
     <>
-      <Header title="Pipeline" subtitle="Pantau tahap lead 1–6. Untuk input kerja harian, pakai menu Hari Ini." />
+      <Header title="Pipeline" subtitle="Pantau tahap lead 1–6. Kolom 6 dipisah Menang/Lost agar drag-and-drop aman." />
       <div className="p-6 animate-fade-in">
         <div className="mb-4 rounded-2xl border border-border bg-secondary/60 px-5 py-4">
-          <p className="text-sm font-semibold text-foreground">Pipeline = pantau posisi, bukan tempat input utama</p>
+          <p className="text-sm font-semibold text-foreground">Pipeline = pantau posisi (tahap 1–6)</p>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-            Kolom diringkas agar mudah dipantau. Catatan chat, kendala, follow-up, dan next action dikerjakan dari Hari Ini.
+            Status detail tetap disimpan di database. Tahap 1–6 adalah mapping resmi untuk tim & klien.
+            Kerja harian (chat, next action) dari menu Hari Ini.
           </p>
         </div>
         <PipelineBoard initialLeads={leads || []} />

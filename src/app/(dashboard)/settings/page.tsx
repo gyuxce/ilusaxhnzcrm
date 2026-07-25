@@ -5,9 +5,12 @@ import type { User as AuthUser } from '@supabase/supabase-js'
 import { Header } from '@/components/layout/header'
 import { createClient } from '@/lib/supabase/client'
 import {
-  Loader2, User as UserIcon, Settings, Users, Target, Plus, Trash2,
+  Loader2, User as UserIcon, BookOpen, Users, Target, Trash2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { FUNNEL_STAGES } from '@/lib/brand'
+import { FUNNEL_STATUS_OPTIONS } from '@/lib/funnel-framework'
+import { LOST_REASON_OPTIONS } from '@/lib/lost-reasons'
 
 interface DBUser {
   id: string
@@ -27,7 +30,7 @@ interface BatchTarget {
 }
 
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState<'profile' | 'users' | 'batches' | 'options'>('profile')
+  const [activeTab, setActiveTab] = useState<'profile' | 'users' | 'batches' | 'vocab'>('profile')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState({ text: '', type: '' })
@@ -50,13 +53,6 @@ export default function SettingsPage() {
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [batchNotes, setBatchNotes] = useState('')
-
-  // Custom Dropdown Option state (stored in localStorage for simplicity & mock configuration)
-  const [lostReasons, setLostReasons] = useState<string[]>([])
-  const [newReason, setNewReason] = useState('')
-  
-  const [statusOptions, setStatusOptions] = useState<string[]>([])
-  const [newStatus, setNewStatus] = useState('')
 
   const supabase = createClient()
 
@@ -100,46 +96,6 @@ export default function SettingsPage() {
 
     if (allBatches) {
       setBatchesList(allBatches)
-    }
-
-    // Load custom options from localStorage
-    const savedReasons = localStorage.getItem('ilusa_lost_reasons')
-    if (savedReasons) {
-      setLostReasons(JSON.parse(savedReasons))
-    } else {
-      const defaultReasons = [
-        'Financial constraint / kendala biaya',
-        'Belum siap berangkat',
-        'Perlu diskusi keluarga',
-        'Tidak memenuhi kualifikasi',
-        'Tidak merespons',
-        'Pilih program lain',
-        'Lainnya'
-      ]
-      setLostReasons(defaultReasons)
-      localStorage.setItem('ilusa_lost_reasons', JSON.stringify(defaultReasons))
-    }
-
-    const savedStatuses = localStorage.getItem('ilusa_status_options')
-    if (savedStatuses) {
-      setStatusOptions(JSON.parse(savedStatuses))
-    } else {
-      const defaultStatuses = [
-        'New Lead',
-        'Pitching',
-        'Interested',
-        'Not Interested',
-        'Not Eligible',
-        'Pemetaan Scheduled',
-        'Waiting Result',
-        'Sent Result Pemetaan',
-        'Expert Consultation Scheduled',
-        'Seat Lock Offered',
-        'Seat Lock Paid',
-        'Onboarding',
-      ]
-      setStatusOptions(defaultStatuses)
-      localStorage.setItem('ilusa_status_options', JSON.stringify(defaultStatuses))
     }
 
     setLoading(false)
@@ -223,36 +179,6 @@ export default function SettingsPage() {
     }
   }
 
-  // Manage Lost Reasons CRUD
-  const handleAddReason = () => {
-    if (!newReason) return
-    const updated = [...lostReasons, newReason]
-    setLostReasons(updated)
-    localStorage.setItem('ilusa_lost_reasons', JSON.stringify(updated))
-    setNewReason('')
-  }
-
-  const handleDeleteReason = (idx: number) => {
-    const updated = lostReasons.filter((_, i) => i !== idx)
-    setLostReasons(updated)
-    localStorage.setItem('ilusa_lost_reasons', JSON.stringify(updated))
-  }
-
-  // Manage Statuses CRUD
-  const handleAddStatus = () => {
-    if (!newStatus) return
-    const updated = [...statusOptions, newStatus]
-    setStatusOptions(updated)
-    localStorage.setItem('ilusa_status_options', JSON.stringify(updated))
-    setNewStatus('')
-  }
-
-  const handleDeleteStatus = (idx: number) => {
-    const updated = statusOptions.filter((_, i) => i !== idx)
-    setStatusOptions(updated)
-    localStorage.setItem('ilusa_status_options', JSON.stringify(updated))
-  }
-
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-120px)]">
@@ -275,7 +201,7 @@ export default function SettingsPage() {
             { id: 'profile', label: 'Profil Saya', icon: UserIcon },
             { id: 'users', label: 'Manage Users', icon: Users, adminOnly: true },
             { id: 'batches', label: 'Manage Batch Targets', icon: Target, adminOnly: true },
-            { id: 'options', label: 'Manage CRM Options', icon: Settings, adminOnly: true }
+            { id: 'vocab', label: 'Kamus Tahap 1–6', icon: BookOpen, adminOnly: false }
           ].map(tab => {
             if (tab.adminOnly && !isAdmin) return null
             const Icon = tab.icon
@@ -503,80 +429,67 @@ export default function SettingsPage() {
             </div>
           )}
 
-          {/* Tab 4: Manage Options */}
-          {activeTab === 'options' && isAdmin && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              
-              {/* Lost Reasons options */}
-              <div className="bg-card text-card-foreground rounded-2xl p-6 border border-border dark:border-white/5 space-y-4 shadow-xs">
-                <h3 className="text-xs font-bold text-foreground uppercase tracking-wider">Manage Lost Reasons</h3>
-                
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    placeholder="Tambah alasan baru..."
-                    value={newReason}
-                    onChange={e => setNewReason(e.target.value)}
-                    className="flex-1 px-3 py-1.5 rounded-xl text-xs bg-background text-foreground border border-border outline-none focus:ring-1 focus:ring-primary focus:border-primary placeholder:text-muted-foreground/50"
-                  />
-                  <button
-                    onClick={handleAddReason}
-                    className="px-3 rounded-xl bg-primary text-primary-foreground flex items-center justify-center cursor-pointer hover:opacity-90 transition-all"
-                  >
-                    <Plus size={14} />
-                  </button>
-                </div>
-
-                <div className="space-y-1.5 max-h-60 overflow-y-auto pr-1">
-                  {lostReasons.map((reason, idx) => (
-                    <div key={idx} className="flex items-center justify-between p-2 rounded-lg bg-muted/30 border border-border dark:bg-white/[0.01] dark:border-white/5 text-[11px] text-muted-foreground">
-                      <span>{reason}</span>
-                      <button
-                        onClick={() => handleDeleteReason(idx)}
-                        className="text-red-600 hover:text-red-700 dark:text-red-500/60 dark:hover:text-red-400 p-0.5 cursor-pointer transition-all"
-                      >
-                        <Trash2 size={12} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
+          {/* Tab 4: Read-only vocabulary (single source of truth in code) */}
+          {activeTab === 'vocab' && (
+            <div className="space-y-4">
+              <div className="rounded-2xl border border-border bg-card p-5">
+                <h2 className="text-sm font-semibold text-foreground">Kamus tahap 1–6</h2>
+                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                  Sumber tunggal dari kode (`brand.ts` / `funnel-framework.ts`). Bukan localStorage —
+                  supaya form, pipeline, dan laporan selalu sama.
+                </p>
               </div>
 
-              {/* Status options */}
-              <div className="bg-card text-card-foreground rounded-2xl p-6 border border-border dark:border-white/5 space-y-4 shadow-xs">
-                <h3 className="text-xs font-bold text-foreground uppercase tracking-wider">Manage Pipeline Status</h3>
-                
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    placeholder="Tambah status baru..."
-                    value={newStatus}
-                    onChange={e => setNewStatus(e.target.value)}
-                    className="flex-1 px-3 py-1.5 rounded-xl text-xs bg-background text-foreground border border-border outline-none focus:ring-1 focus:ring-primary focus:border-primary placeholder:text-muted-foreground/50"
-                  />
-                  <button
-                    onClick={handleAddStatus}
-                    className="px-3 rounded-xl bg-primary text-primary-foreground flex items-center justify-center cursor-pointer hover:opacity-90 transition-all"
-                  >
-                    <Plus size={14} />
-                  </button>
-                </div>
-
-                <div className="space-y-1.5 max-h-60 overflow-y-auto pr-1">
-                  {statusOptions.map((status, idx) => (
-                    <div key={idx} className="flex items-center justify-between p-2 rounded-lg bg-muted/30 border border-border dark:bg-white/[0.01] dark:border-white/5 text-[11px] text-muted-foreground">
-                      <span>{status}</span>
-                      <button
-                        onClick={() => handleDeleteStatus(idx)}
-                        className="text-red-600 hover:text-red-700 dark:text-red-500/60 dark:hover:text-red-400 p-0.5 cursor-pointer transition-all"
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {FUNNEL_STAGES.map((stage) => (
+                  <div key={stage.id} className="rounded-2xl border border-border bg-card p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span
+                        className="w-6 h-6 rounded-md text-[11px] font-bold flex items-center justify-center text-white"
+                        style={{ background: stage.color }}
                       >
-                        <Trash2 size={12} />
-                      </button>
+                        {stage.id}
+                      </span>
+                      <p className="text-sm font-semibold text-foreground">{stage.labelId}</p>
                     </div>
-                  ))}
-                </div>
+                    <p className="text-xs text-muted-foreground mb-2">{stage.meaningId}</p>
+                    <ul className="space-y-1">
+                      {stage.statuses.map((status) => (
+                        <li key={status} className="text-[11px] text-foreground/80">
+                          · {status}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
               </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="rounded-2xl border border-border bg-card p-5">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-foreground mb-3">
+                    Status detail (picker)
+                  </h3>
+                  <div className="space-y-1 max-h-64 overflow-y-auto">
+                    {FUNNEL_STATUS_OPTIONS.map((status) => (
+                      <p key={status} className="text-[11px] text-muted-foreground px-2 py-1 rounded-lg bg-secondary/50">
+                        {status}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-border bg-card p-5">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-foreground mb-3">
+                    Alasan lost (picker)
+                  </h3>
+                  <div className="space-y-1 max-h-64 overflow-y-auto">
+                    {LOST_REASON_OPTIONS.map((reason) => (
+                      <p key={reason} className="text-[11px] text-muted-foreground px-2 py-1 rounded-lg bg-secondary/50">
+                        {reason}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 
