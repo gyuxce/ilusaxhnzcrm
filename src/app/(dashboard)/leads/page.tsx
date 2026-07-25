@@ -35,7 +35,7 @@ export default async function LeadsPage() {
     <>
       <Header
         title="Leads"
-        subtitle="Data master lead — cek, import, edit, hapus. Kerja chat harian dari menu Kerjaan."
+        subtitle="Data master lead — cek, import CSV, edit. Klik Kerjakan untuk mulai Stage 1."
       />
       <div className="p-5 sm:p-6 animate-fade-in w-full font-sans">
         <Suspense fallback={<div className="p-8 text-center text-xs text-muted-foreground animate-pulse">Memuat data leads...</div>}>

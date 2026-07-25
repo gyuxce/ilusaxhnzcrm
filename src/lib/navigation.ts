@@ -39,20 +39,6 @@ export const PRIMARY_NAV: NavItem[] = [
     hintId: 'Pipeline Kanban: Pemetaan → Closing',
     hintEn: 'Kanban pipeline: Mapping → Closing',
   },
-  {
-    href: '/dashboard',
-    labelId: 'Laporan',
-    labelEn: 'Reports',
-    hintId: 'Ringkasan kerja & performa',
-    hintEn: 'Work summary & performance',
-  },
-  {
-    href: '/guide',
-    labelId: 'Cara pakai',
-    labelEn: 'How to use',
-    hintId: 'Alur 3 stage, menu, sumber angka',
-    hintEn: '3-stage flow, menus, where numbers come from',
-  },
 ]
 
 /** Tools nested under Antrian / Hari Ini (routes preserved). */
@@ -92,16 +78,9 @@ export const TODAY_TOOLS = [
 ]
 
 /**
- * Owner primary nav — pantau pipeline + laporan.
+ * Owner primary nav — pantau pipeline + verifikasi pembayaran.
  */
 export const OWNER_PRIMARY_NAV: NavItem[] = [
-  {
-    href: '/dashboard',
-    labelId: 'Dashboard',
-    labelEn: 'Dashboard',
-    hintId: 'Ringkasan klien & tim dalam satu tempat',
-    hintEn: 'Client & team summary in one place',
-  },
   {
     href: '/stage-3',
     labelId: 'Stage 3',
@@ -129,13 +108,6 @@ export const OWNER_PRIMARY_NAV: NavItem[] = [
     labelEn: 'Payments',
     hintId: 'Uang masuk verified',
     hintEn: 'Verified payments',
-  },
-  {
-    href: '/guide',
-    labelId: 'Cara pakai',
-    labelEn: 'How to use',
-    hintId: 'Alur 3 stage, menu, sumber angka',
-    hintEn: '3-stage flow, menus, where numbers come from',
   },
 ]
 
