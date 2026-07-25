@@ -295,4 +295,22 @@
     background: hsl(var(--card));
     border: 1px solid hsl(var(--border));
   }
+
+  .field-input,
+  .detail-input {
+    width: 100%;
+    padding: 0.55rem 0.75rem;
+    border-radius: 0.75rem;
+    border: 1px solid hsl(var(--border));
+    background: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-size: 0.75rem;
+    outline: none;
+  }
+
+  .field-input:focus,
+  .detail-input:focus {
+    border-color: hsl(var(--primary));
+    box-shadow: 0 0 0 2px hsl(var(--primary) / 0.15);
+  }
 }

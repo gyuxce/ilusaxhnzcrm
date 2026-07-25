@@ -2,19 +2,16 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
+import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { Header } from '@/components/layout/header'
 import { createClient } from '@/lib/supabase/client'
-import { WhatsAppModal } from '@/components/leads/WhatsAppModal'
+import { WhatsAppButton } from '@/components/leads/WhatsAppButton'
 import {
-  ArrowLeft,
-  ArrowRight,
   CheckCircle2,
   ClipboardCheck,
   Loader2,
-  MessageCircle,
   Search,
-  Sparkles,
 } from 'lucide-react'
 import {
   COMMERCIAL_TYPE_OPTIONS,
@@ -26,9 +23,10 @@ import {
   SOLUTION_OPTIONS,
 } from '@/lib/funnel-framework'
 import { parseRpcResult } from '@/lib/rpc'
-import { getTodayInWIB } from '@/lib/utils'
+import { cn, getTodayInWIB } from '@/lib/utils'
 import { isTerminalStatus, type LostStatus } from '@/lib/lead-lifecycle'
-import { LOST_REASON_OPTIONS, LOST_STATUSES } from '@/lib/lost-reasons'
+import { LOST_REASON_OPTIONS } from '@/lib/lost-reasons'
+import { getFunnelStage, getStageBadgeClasses } from '@/lib/brand'
 
 type LeadRow = {
   id: string
@@ -92,8 +90,6 @@ const EMPTY_FORM: WorkForm = {
   result: '',
 }
 
-const STEP_LABELS_ACTIVE = ['Hubungi', 'Catat Chat', 'Langkah Berikutnya', 'Cek Ulang'] as const
-const STEP_LABELS_CLOSE = ['Hubungi', 'Tutup Lead'] as const
 const QUEUE_FILTERS = [
   { key: 'all', label: 'Semua' },
   { key: 'fu', label: 'FU Hari Ini' },
@@ -102,7 +98,7 @@ const QUEUE_FILTERS = [
   { key: 'stale', label: 'Belum Disentuh' },
 ] as const
 
-type QueueFilter = typeof QUEUE_FILTERS[number]['key']
+type QueueFilter = (typeof QUEUE_FILTERS)[number]['key']
 type WorkflowOutcome = 'active' | 'close'
 
 function todayInput() {
@@ -160,13 +156,12 @@ export default function WorkQueuePage() {
   const [query, setQuery] = useState('')
   const [queueFilter, setQueueFilter] = useState<QueueFilter>('all')
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null)
-  const [step, setStep] = useState(0)
   const [form, setForm] = useState<WorkForm>(EMPTY_FORM)
   const [message, setMessage] = useState<{ type: 'success' | 'error' | ''; text: string }>({ type: '', text: '' })
-  const [waLead, setWaLead] = useState<LeadRow | null>(null)
   const [workflowOutcome, setWorkflowOutcome] = useState<WorkflowOutcome>('active')
   const [closeStatus, setCloseStatus] = useState<LostStatus>('Not Interested')
   const [lostReason, setLostReason] = useState('')
+  const [showAdvanced, setShowAdvanced] = useState(false)
 
   async function fetchData() {
     setLoading(true)
@@ -176,24 +171,9 @@ export default function WorkQueuePage() {
     const leadSelect = 'id, full_name, whatsapp_number, email, source_campaign, current_status, lead_entry_date, last_contacted_date, updated_at, assigned_cro_id, next_action, next_follow_up_date, lead_segment, funnel_notes, users:assigned_cro_id(id, name)'
 
     const [newLeadsRes, needsActionRes, staleLeadsRes, followUpsRes] = await Promise.all([
-      supabase
-        .from('leads')
-        .select(leadSelect)
-        .eq('current_status', 'New Lead')
-        .order('lead_entry_date', { ascending: false })
-        .limit(800),
-      supabase
-        .from('leads')
-        .select(leadSelect)
-        .in('current_status', NEEDS_ACTION_STATUSES)
-        .order('updated_at', { ascending: false })
-        .limit(800),
-      supabase
-        .from('leads')
-        .select(leadSelect)
-        .lte('updated_at', staleCutoff)
-        .order('updated_at', { ascending: true })
-        .limit(800),
+      supabase.from('leads').select(leadSelect).eq('current_status', 'New Lead').order('lead_entry_date', { ascending: false }).limit(800),
+      supabase.from('leads').select(leadSelect).in('current_status', NEEDS_ACTION_STATUSES).order('updated_at', { ascending: false }).limit(800),
+      supabase.from('leads').select(leadSelect).lte('updated_at', staleCutoff).order('updated_at', { ascending: true }).limit(800),
       supabase
         .from('follow_ups')
         .select('id, lead_id, scheduled_date, fu_type, notes, leads:lead_id(id, full_name, whatsapp_number, email, source_campaign, current_status, lead_entry_date, last_contacted_date, updated_at, assigned_cro_id, next_action, next_follow_up_date, lead_segment, funnel_notes, users:assigned_cro_id(id, name))')
@@ -215,30 +195,28 @@ export default function WorkQueuePage() {
     }
 
     const leadMap = new Map<string, LeadRow>()
-    ;[
-      ...(newLeadsRes.data || []),
-      ...(needsActionRes.data || []),
-      ...(staleLeadsRes.data || []),
-    ].forEach((lead: LeadRow) => {
+    ;[...(newLeadsRes.data || []), ...(needsActionRes.data || []), ...(staleLeadsRes.data || [])].forEach((lead: LeadRow) => {
       leadMap.set(lead.id, lead)
     })
 
-    const nextLeads = Array.from(leadMap.values()).filter((lead: LeadRow) =>
-      !isTerminalStatus(lead.current_status)
-      && (lead.current_status === 'New Lead' || NEEDS_ACTION_STATUSES.includes(lead.current_status) || isStaleLead(lead))
+    const nextLeads = Array.from(leadMap.values()).filter(
+      (lead: LeadRow) =>
+        !isTerminalStatus(lead.current_status) &&
+        (lead.current_status === 'New Lead' || NEEDS_ACTION_STATUSES.includes(lead.current_status) || isStaleLead(lead))
     )
     const nextFollowUps = ((followUpsRes.data || []) as FollowUpRow[]).filter(
-      fu => fu.leads && !isTerminalStatus(fu.leads.current_status)
+      (fu) => fu.leads && !isTerminalStatus(fu.leads.current_status)
     )
 
     if (requestedLeadId) {
-      const alreadyLoaded = nextLeads.some((lead: LeadRow) => lead.id === requestedLeadId)
-        || nextFollowUps.some((fu: FollowUpRow) => fu.leads?.id === requestedLeadId)
+      const alreadyLoaded =
+        nextLeads.some((lead: LeadRow) => lead.id === requestedLeadId) ||
+        nextFollowUps.some((fu: FollowUpRow) => fu.leads?.id === requestedLeadId)
 
       if (!alreadyLoaded) {
         const { data: requestedLead } = await supabase
           .from('leads')
-          .select('id, full_name, whatsapp_number, email, source_campaign, current_status, lead_entry_date, last_contacted_date, updated_at, assigned_cro_id, next_action, next_follow_up_date, lead_segment, funnel_notes, users:assigned_cro_id(id, name)')
+          .select(leadSelect)
           .eq('id', requestedLeadId)
           .maybeSingle()
 
@@ -250,7 +228,7 @@ export default function WorkQueuePage() {
 
     setLeads(nextLeads)
     setFollowUps(nextFollowUps)
-    setSelectedLeadId(prev => requestedLeadId || prev || nextFollowUps[0]?.leads?.id || nextLeads[0]?.id || null)
+    setSelectedLeadId((prev) => requestedLeadId || prev || nextFollowUps[0]?.leads?.id || nextLeads[0]?.id || null)
     setLoading(false)
   }
 
@@ -274,17 +252,12 @@ export default function WorkQueuePage() {
   const queueItems = useMemo(() => {
     const map = new Map<string, QueueItem>()
 
-    followUps.forEach(fu => {
+    followUps.forEach((fu) => {
       if (!fu.leads) return
-      map.set(fu.leads.id, {
-        lead: fu.leads,
-        reason: 'FU Hari Ini',
-        priority: 1,
-        followUp: fu,
-      })
+      map.set(fu.leads.id, { lead: fu.leads, reason: 'FU Hari Ini', priority: 1, followUp: fu })
     })
 
-    leads.forEach(lead => {
+    leads.forEach((lead) => {
       if (map.has(lead.id)) return
       const isNeedsAction = NEEDS_ACTION_STATUSES.includes(lead.current_status)
       const isStale = isStaleLead(lead)
@@ -297,14 +270,14 @@ export default function WorkQueuePage() {
 
     const keyword = query.trim().toLowerCase()
     return Array.from(map.values())
-      .filter(item => !keyword || [
-        item.lead.full_name,
-        item.lead.whatsapp_number,
-        item.lead.source_campaign,
-        item.lead.current_status,
-        item.reason,
-      ].some(value => String(value || '').toLowerCase().includes(keyword)))
-      .filter(item => {
+      .filter(
+        (item) =>
+          !keyword ||
+          [item.lead.full_name, item.lead.whatsapp_number, item.lead.source_campaign, item.lead.current_status, item.reason].some(
+            (value) => String(value || '').toLowerCase().includes(keyword)
+          )
+      )
+      .filter((item) => {
         if (queueFilter === 'fu') return item.reason === 'FU Hari Ini'
         if (queueFilter === 'needs') return item.reason === 'Needs Action'
         if (queueFilter === 'new') return item.reason === 'New Lead'
@@ -322,11 +295,11 @@ export default function WorkQueuePage() {
 
   const queueCounts = useMemo(() => {
     const allItems = new Map<string, QueueItem>()
-    followUps.forEach(fu => {
+    followUps.forEach((fu) => {
       if (!fu.leads) return
       allItems.set(fu.leads.id, { lead: fu.leads, reason: 'FU Hari Ini', priority: 1, followUp: fu })
     })
-    leads.forEach(lead => {
+    leads.forEach((lead) => {
       if (allItems.has(lead.id)) return
       const isNeedsAction = NEEDS_ACTION_STATUSES.includes(lead.current_status)
       const isStale = isStaleLead(lead)
@@ -339,18 +312,17 @@ export default function WorkQueuePage() {
     const items = Array.from(allItems.values())
     return {
       all: items.length,
-      fu: items.filter(item => item.reason === 'FU Hari Ini').length,
-      needs: items.filter(item => item.reason === 'Needs Action').length,
-      new: items.filter(item => item.reason === 'New Lead').length,
-      stale: items.filter(item => item.reason === 'Belum Disentuh').length,
+      fu: items.filter((item) => item.reason === 'FU Hari Ini').length,
+      needs: items.filter((item) => item.reason === 'Needs Action').length,
+      new: items.filter((item) => item.reason === 'New Lead').length,
+      stale: items.filter((item) => item.reason === 'Belum Disentuh').length,
     }
   }, [followUps, leads])
 
-  const selectedItem = queueItems.find(item => item.lead.id === selectedLeadId) || (!selectedLeadId ? queueItems[0] : null)
+  const selectedItem = queueItems.find((item) => item.lead.id === selectedLeadId) || (!selectedLeadId ? queueItems[0] : null)
   const selectedLead = selectedItem?.lead || null
   const isCloseFlow = workflowOutcome === 'close'
-  const stepLabels = isCloseFlow ? STEP_LABELS_CLOSE : STEP_LABELS_ACTIVE
-  const maxStep = stepLabels.length - 1
+  const stage = selectedLead ? getFunnelStage(selectedLead.current_status) : null
   const nextStatus = selectedLead
     ? isCloseFlow
       ? closeStatus
@@ -358,7 +330,7 @@ export default function WorkQueuePage() {
     : '-'
 
   const updateForm = (field: keyof WorkForm, value: string | boolean) => {
-    setForm(prev => {
+    setForm((prev) => {
       const next = { ...prev, [field]: value }
       if (field === 'lead_condition' && value === 'Lost') {
         setWorkflowOutcome('close')
@@ -369,30 +341,24 @@ export default function WorkQueuePage() {
 
   const chooseLead = (leadId: string) => {
     setSelectedLeadId(leadId)
-    setStep(0)
     setMessage({ type: '', text: '' })
     setForm(EMPTY_FORM)
     setWorkflowOutcome('active')
     setCloseStatus('Not Interested')
     setLostReason('')
+    setShowAdvanced(false)
   }
 
-  const canContinue = () => {
-    if (step === 1) {
-      const baseValid = Boolean(form.lead_condition && form.objection_category && form.solution_given)
-      if (isCloseFlow) {
-        return baseValid && Boolean(lostReason)
-      }
-      return baseValid
-    }
-    if (step === 2) return Boolean(form.next_action)
-    return true
+  const canSave = () => {
+    const baseValid = Boolean(form.lead_condition && form.objection_category && form.solution_given)
+    if (isCloseFlow) return baseValid && Boolean(lostReason)
+    return baseValid && Boolean(form.next_action)
   }
 
   const saveCloseLead = async () => {
     if (!selectedLead || saving) return
     if (!form.lead_condition || !form.objection_category || !form.solution_given || !lostReason) {
-      setMessage({ type: 'error', text: 'Lengkapi kondisi lead, objection, solusi, dan alasan lost dulu.' })
+      setMessage({ type: 'error', text: 'Lengkapi kondisi, kendala, solusi, dan alasan lost dulu.' })
       return
     }
 
@@ -431,9 +397,8 @@ export default function WorkQueuePage() {
 
     setMessage({
       type: 'success',
-      text: `Lead ditutup sebagai ${closeStatus}. Follow-up pending dibatalkan dan lead keluar dari antrian kerja.`,
+      text: `Lead ditutup sebagai ${closeStatus}. Lead keluar dari antrian kerja.`,
     })
-    setStep(0)
     setForm(EMPTY_FORM)
     setWorkflowOutcome('active')
     setCloseStatus('Not Interested')
@@ -445,7 +410,7 @@ export default function WorkQueuePage() {
   const saveWork = async () => {
     if (!selectedLead || saving) return
     if (!form.lead_condition || !form.objection_category || !form.solution_given || !form.next_action) {
-      setMessage({ type: 'error', text: 'Lengkapi kondisi lead, objection, solusi, dan next action dulu.' })
+      setMessage({ type: 'error', text: 'Lengkapi kondisi, kendala, solusi, dan next action dulu.' })
       return
     }
 
@@ -476,451 +441,381 @@ export default function WorkQueuePage() {
     setSaving(false)
 
     if (error) {
-      setMessage({ type: 'error', text: `Gagal menyimpan workflow: ${error.message}` })
+      setMessage({ type: 'error', text: `Gagal menyimpan: ${error.message}` })
       return
     }
 
     const result = parseRpcResult(data)
     if (!result?.ok) {
-      setMessage({ type: 'error', text: result?.message || 'Gagal menyimpan workflow.' })
+      setMessage({ type: 'error', text: result?.message || 'Gagal menyimpan.' })
       return
     }
 
-    setMessage({ type: 'success', text: 'Catatan tersimpan. Data masuk ke Report Harian, Alasan Gagal, follow-up, dan Butuh Dibantu bila relevan.' })
-    setStep(0)
+    setMessage({ type: 'success', text: 'Tersimpan. Catatan masuk ke report, follow-up, dan antrian terkait.' })
     setForm(EMPTY_FORM)
+    setShowAdvanced(false)
     await fetchData()
+  }
+
+  const handlePrimarySave = () => {
+    if (isCloseFlow) void saveCloseLead()
+    else void saveWork()
   }
 
   return (
     <>
-      <Header title="Kerjaan Hari Ini" subtitle="Tempat utama CRO bekerja: hubungi lead, catat hasil chat, pilih langkah berikutnya, lalu simpan." />
-      <div className="w-full p-6 animate-fade-in">
-        <div className="mb-4 rounded-2xl border border-blue-500/20 bg-blue-50/60 p-4 dark:border-blue-900/30 dark:bg-blue-950/20">
-          <div className="flex items-center justify-between gap-3 mb-3">
-            <div>
-              <p className="text-xs font-black uppercase text-blue-700 dark:text-blue-300">🔵 Zona Kerja Harian CRO — Alur Kerja 4 Step</p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">Semua hasil chat & follow-up langsung tersimpan dan terhitung ke Laporan Harian & Analisis.</p>
-            </div>
+      <Header
+        title="Kerjaan Hari Ini"
+        subtitle="Hubungi → catat singkat → next action → simpan. Satu form, tanpa wizard panjang."
+      />
+      <div className="w-full p-4 sm:p-6 animate-fade-in">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="font-display text-lg font-semibold text-foreground tracking-tight">Antrian kerja CRO</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Pilih lead kiri, isi form kanan. Detail lengkap tetap di halaman Lead.
+            </p>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-center text-xs font-extrabold">
-            <div className="rounded-xl border border-blue-200 bg-white p-2.5 dark:border-blue-800 dark:bg-slate-900 shadow-xs">
-              <span className="text-blue-600 dark:text-blue-400 text-[10px]">1️⃣ STEP 1</span>
-              <p className="text-xs text-foreground font-bold mt-0.5">Hubungi Lead (WA)</p>
-            </div>
-            <div className="rounded-xl border border-blue-200 bg-white p-2.5 dark:border-blue-800 dark:bg-slate-900 shadow-xs">
-              <span className="text-blue-600 dark:text-blue-400 text-[10px]">2️⃣ STEP 2</span>
-              <p className="text-xs text-foreground font-bold mt-0.5">Catat Kendala & Solusi</p>
-            </div>
-            <div className="rounded-xl border border-blue-200 bg-white p-2.5 dark:border-blue-800 dark:bg-slate-900 shadow-xs">
-              <span className="text-blue-600 dark:text-blue-400 text-[10px]">3️⃣ STEP 3</span>
-              <p className="text-xs text-foreground font-bold mt-0.5">Next Action & Jadwal FU</p>
-            </div>
-            <div className="rounded-xl border border-blue-200 bg-white p-2.5 dark:border-blue-800 dark:bg-slate-900 shadow-xs">
-              <span className="text-blue-600 dark:text-blue-400 text-[10px]">4️⃣ STEP 4</span>
-              <p className="text-xs text-foreground font-bold mt-0.5">Simpan & Update Status</p>
-            </div>
-          </div>
+          <Link href="/today" className="text-xs font-semibold text-accent hover:opacity-80">
+            ← Kembali ke Hari Ini
+          </Link>
         </div>
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[24rem_minmax(0,1fr)]">
-          <aside className="rounded-2xl border border-border bg-card shadow-xs overflow-hidden">
-            <div className="border-b border-border p-4">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <h2 className="text-sm font-extrabold uppercase tracking-wide text-foreground">Antrian Kerja</h2>
-                  <p className="mt-1 text-xs font-medium text-muted-foreground">
-                    <span className="font-extrabold text-primary">{queueItems.length} Lead Aktif</span> perlu dikerjakan
-                  </p>
-                </div>
-                <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-black text-primary">{queueItems.length}</span>
-              </div>
-              <div className="relative mt-4">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={15} />
-                <input
-                  value={query}
-                  onChange={event => setQuery(event.target.value)}
-                  placeholder="Cari lead, WA, campaign..."
-                  className="w-full rounded-xl border border-border bg-background py-2.5 pl-9 pr-3 text-sm text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                />
-              </div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {QUEUE_FILTERS.map(filter => {
-                  const active = queueFilter === filter.key
-                  return (
-                    <button
-                      key={filter.key}
-                      type="button"
-                      onClick={() => {
-                        setQueueFilter(filter.key)
-                        setSelectedLeadId(null)
-                      }}
-                      className={`rounded-full border px-3 py-1 text-[10px] font-black transition-all ${
-                        active
-                          ? 'border-primary/30 bg-primary/10 text-primary'
-                          : 'border-border bg-background text-muted-foreground hover:text-foreground'
-                      }`}
-                    >
-                      {filter.label} {queueCounts[filter.key]}
-                    </button>
-                  )
-                })}
-              </div>
-              <div className="mt-3 rounded-xl border border-blue-500/20 bg-blue-50/50 p-2.5 text-[10px] leading-relaxed text-blue-950 dark:border-blue-900/40 dark:bg-blue-950/20 dark:text-blue-200">
-                💡 <b>Keterangan untuk Klien:</b> Antrian ini hanya menampilkan <b>{queueItems.length} Lead Aktif</b>. Lead yang sudah gugur/menolak (<i>Not Interested / Not Eligible</i>) tidak ditampilkan di antrian kerja harian agar CRO fokus pada lead berpotensi.
-              </div>
+
+        <div className="grid grid-cols-1 xl:grid-cols-[22rem_minmax(0,1fr)] gap-4 items-start">
+          {/* Left queue */}
+          <aside className="rounded-2xl border border-border bg-card p-4 xl:sticky xl:top-20">
+            <div className="relative mb-3">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Cari nama / WA / campaign..."
+                className="w-full pl-9 pr-3 py-2 rounded-xl text-xs border border-border bg-background outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+              />
             </div>
 
-            <div className="max-h-[calc(100vh-14rem)] overflow-y-auto p-2">
+            <div className="flex flex-wrap gap-1.5 mb-3">
+              {QUEUE_FILTERS.map((filter) => (
+                <button
+                  key={filter.key}
+                  type="button"
+                  onClick={() => setQueueFilter(filter.key)}
+                  className={cn(
+                    'px-2.5 py-1 rounded-lg text-[10px] font-semibold border transition-colors',
+                    queueFilter === filter.key
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'bg-secondary/50 text-muted-foreground border-border hover:text-foreground'
+                  )}
+                >
+                  {filter.label} ({queueCounts[filter.key]})
+                </button>
+              ))}
+            </div>
+
+            <div className="space-y-1.5 max-h-[70vh] overflow-y-auto pr-1">
               {loading ? (
-                <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
-                  <Loader2 className="animate-spin" size={16} />
-                  Memuat queue...
+                <div className="flex items-center justify-center gap-2 py-10 text-xs text-muted-foreground">
+                  <Loader2 size={14} className="animate-spin" /> Memuat antrian...
                 </div>
               ) : queueItems.length === 0 ? (
-                <p className="py-10 text-center text-sm text-muted-foreground">Tidak ada pekerjaan aktif.</p>
-              ) : queueItems.map(item => {
-                const active = selectedLead?.id === item.lead.id
-                return (
-                  <button
-                    key={item.lead.id}
-                    type="button"
-                    onClick={() => chooseLead(item.lead.id)}
-                    className={`mb-2 w-full rounded-xl border p-3 text-left transition-all ${
-                      active
-                        ? 'border-primary/30 bg-primary/10'
-                        : 'border-border bg-background hover:border-primary/20 hover:bg-muted/50'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-extrabold text-foreground">{item.lead.full_name}</p>
-                        <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{item.lead.source_campaign}</p>
+                <p className="text-xs text-muted-foreground py-8 text-center">Antrian kosong untuk filter ini.</p>
+              ) : (
+                queueItems.map((item) => {
+                  const active = selectedLead?.id === item.lead.id
+                  const itemStage = getFunnelStage(item.lead.current_status)
+                  return (
+                    <button
+                      key={item.lead.id}
+                      type="button"
+                      onClick={() => chooseLead(item.lead.id)}
+                      className={cn(
+                        'w-full text-left rounded-xl border px-3 py-2.5 transition-colors',
+                        active
+                          ? 'border-primary/30 bg-secondary'
+                          : 'border-border bg-card hover:bg-secondary/50'
+                      )}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-xs font-semibold text-foreground truncate">{item.lead.full_name}</p>
+                        <span className="text-[9px] font-bold text-accent flex-shrink-0">{item.reason}</span>
                       </div>
-                      <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black ${
-                        item.reason === 'FU Hari Ini'
-                          ? 'bg-red-500/10 text-red-600 dark:text-red-300'
-                          : item.reason === 'Needs Action'
-                            ? 'bg-amber-500/10 text-amber-600 dark:text-amber-300'
-                            : item.reason === 'Belum Disentuh'
-                              ? 'bg-slate-500/10 text-slate-600 dark:text-slate-300'
-                              : 'bg-blue-500/10 text-blue-600 dark:text-blue-300'
-                      }`}>
-                        {item.reason}
-                      </span>
-                    </div>
-                    <div className="mt-3 flex items-center justify-between gap-3 border-t border-border/70 pt-2 text-[10px] text-muted-foreground">
-                      <span>{item.lead.current_status}</span>
-                      <span>{item.followUp ? `FU ${formatDate(item.followUp.scheduled_date)}` : formatDate(item.lead.lead_entry_date)}</span>
-                    </div>
-                  </button>
-                )
-              })}
+                      <p className="text-[10px] text-muted-foreground mt-0.5 truncate">
+                        {item.lead.source_campaign}
+                      </p>
+                      <div className="mt-1.5 flex items-center gap-1.5">
+                        <span className={cn('text-[9px] px-1.5 py-0.5 rounded-md', getStageBadgeClasses(item.lead.current_status))}>
+                          {itemStage ? `T${itemStage.id}` : '—'} {item.lead.current_status}
+                        </span>
+                      </div>
+                    </button>
+                  )
+                })
+              )}
             </div>
           </aside>
 
-          <main className="rounded-2xl border border-border bg-card shadow-xs overflow-hidden">
+          {/* Right form */}
+          <main className="rounded-2xl border border-border bg-card p-4 sm:p-5 min-h-[28rem]">
             {!selectedLead ? (
-              <div className="flex min-h-[32rem] flex-col items-center justify-center gap-3 p-8 text-center">
-                <ClipboardCheck size={34} className="text-muted-foreground/40" />
-                <p className="text-sm font-bold text-foreground">Pilih lead dari antrian kerja.</p>
-                <p className="max-w-sm text-xs text-muted-foreground">Setelah lead dipilih, sistem akan memandu langkah kerja dari WA sampai simpan handling.</p>
+              <div className="h-full min-h-[20rem] flex flex-col items-center justify-center text-center gap-2 text-muted-foreground">
+                <ClipboardCheck size={28} className="opacity-40" />
+                <p className="text-sm font-medium">Pilih lead dari antrian kiri</p>
               </div>
             ) : (
-              <div>
-                <div className="border-b border-border p-5">
-                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                    <div>
-                      <p className="text-[10px] font-extrabold uppercase tracking-wide text-primary">{selectedItem?.reason}</p>
-                      <h1 className="mt-1 text-2xl font-black text-foreground">{selectedLead.full_name}</h1>
-                      <p className="mt-1 text-sm text-muted-foreground">{selectedLead.whatsapp_number} / {selectedLead.source_campaign}</p>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <span className="rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-bold text-primary">{selectedLead.current_status}</span>
-                      <span className="rounded-full border border-border bg-muted px-3 py-1 text-xs font-bold text-foreground">{selectedLead.users?.name || 'Unassigned'}</span>
-                    </div>
-                  </div>
-
-                  <div className={`mt-5 grid gap-2 ${stepLabels.length === 2 ? 'grid-cols-2' : 'grid-cols-4'}`}>
-                    {stepLabels.map((label, index) => (
-                      <div key={label} className={`rounded-xl border px-3 py-2 ${
-                        index === step
-                          ? 'border-primary/30 bg-primary/10 text-primary'
-                          : index < step
-                            ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300'
-                            : 'border-border bg-background text-muted-foreground'
-                      }`}>
-                        <p className="text-[10px] font-black uppercase">Step {index + 1}</p>
-                        <p className="mt-0.5 truncate text-xs font-bold">{label}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="min-h-[26rem] p-6">
-                  {message.text && (
-                    <div className={`mb-5 rounded-xl border p-3 text-sm font-bold ${
-                      message.type === 'success'
-                        ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300'
-                        : 'border-red-200 bg-red-50 text-red-700 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300'
-                    }`}>
-                      {message.text}
-                    </div>
-                  )}
-
-                  {step === 0 && (
-                    <section className="mx-auto max-w-2xl space-y-5 text-center">
-                      <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-600">
-                        <MessageCircle size={28} />
-                      </div>
-                      <div>
-                        <h2 className="text-xl font-black text-foreground">Step 1: Hubungi lead via WhatsApp</h2>
-                        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">Mulai dari komunikasi. Setelah WhatsApp terbuka dan pesan dikirim, lanjut ke pencatatan handling.</p>
-                      </div>
-                      <div className="rounded-2xl border border-border bg-background p-5 text-left">
-                        <p className="text-xs font-bold uppercase text-muted-foreground">Data Lead</p>
-                        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                          <Info label="Nama" value={selectedLead.full_name} />
-                          <Info label="WhatsApp" value={selectedLead.whatsapp_number} />
-                          <Info label="Campaign" value={selectedLead.source_campaign} />
-                          <Info label="Status" value={selectedLead.current_status} />
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setWaLead(selectedLead)}
-                        className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 py-4 text-sm font-extrabold text-white hover:bg-emerald-700 sm:w-auto"
-                      >
-                        <MessageCircle size={18} />
-                        Buka WhatsApp
-                      </button>
-                    </section>
-                  )}
-
-                  {step === 1 && (
-                    <section className="mx-auto max-w-3xl space-y-5">
-                      <div>
-                      <h2 className="text-xl font-black text-foreground">
-                        {isCloseFlow ? 'Step 2: Tutup lead' : 'Step 2: Catat hasil chat'}
-                      </h2>
-                        <p className="mt-2 text-sm text-muted-foreground">
-                          {isCloseFlow
-                            ? 'Lead tidak akan dilanjutkan. Isi alasan lost, lalu simpan — tidak perlu follow-up atau langkah berikutnya.'
-                            : 'Isi kondisi lead, kendala yang muncul, dan respon CRO. Ini yang menjadi sumber Report Harian dan Alasan Gagal.'}
-                        </p>
-                      </div>
-
-                      <div className="rounded-2xl border border-border bg-background p-4">
-                        <p className="text-[10px] font-black uppercase tracking-wide text-muted-foreground">Apakah lead masih mau dilanjutkan?</p>
-                        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                          <button
-                            type="button"
-                            onClick={() => setWorkflowOutcome('active')}
-                            className={`rounded-xl border px-4 py-3 text-left transition-all ${
-                              workflowOutcome === 'active'
-                                ? 'border-primary/30 bg-primary/10 text-primary'
-                                : 'border-border bg-card text-muted-foreground hover:border-primary/20'
-                            }`}
-                          >
-                            <p className="text-sm font-extrabold">Ya, lanjut proses</p>
-                            <p className="mt-1 text-xs opacity-80">Lanjut ke next action & follow-up</p>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setWorkflowOutcome('close')}
-                            className={`rounded-xl border px-4 py-3 text-left transition-all ${
-                              workflowOutcome === 'close'
-                                ? 'border-red-500/30 bg-red-500/10 text-red-600 dark:text-red-300'
-                                : 'border-border bg-card text-muted-foreground hover:border-red-500/20'
-                            }`}
-                          >
-                            <p className="text-sm font-extrabold">Tidak, tutup lead</p>
-                            <p className="mt-1 text-xs opacity-80">Not Interested / Not Eligible, tanpa FU</p>
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                        <Field label="Kondisi Lead">
-                          <select value={form.lead_condition} onChange={e => updateForm('lead_condition', e.target.value)} className="input-work">
-                            <option value="">Pilih kondisi</option>
-                            {LEAD_CONDITION_OPTIONS.map(item => <option key={item} value={item}>{item}</option>)}
-                          </select>
-                        </Field>
-                        <Field label="Kendala Lead">
-                          <select value={form.objection_category} onChange={e => updateForm('objection_category', e.target.value)} className="input-work">
-                            <option value="">Pilih objection</option>
-                            {OBJECTION_CATEGORY_OPTIONS.map(item => <option key={item} value={item}>{item}</option>)}
-                          </select>
-                        </Field>
-                        <Field label="Respon CRO">
-                          <select value={form.solution_given} onChange={e => updateForm('solution_given', e.target.value)} className="input-work">
-                            <option value="">Pilih solusi</option>
-                            {SOLUTION_OPTIONS.map(item => <option key={item} value={item}>{item}</option>)}
-                          </select>
-                        </Field>
-                        <Field label="Hasil Chat Singkat">
-                          <input value={form.result} onChange={e => updateForm('result', e.target.value)} placeholder="Contoh: menolak lanjut..." className="input-work" />
-                        </Field>
-                        {isCloseFlow && (
-                          <>
-                            <Field label="Status Akhir">
-                              <select
-                                value={closeStatus}
-                                onChange={e => setCloseStatus(e.target.value as LostStatus)}
-                                className="input-work"
-                              >
-                                {LOST_STATUSES.map(item => <option key={item} value={item}>{item}</option>)}
-                              </select>
-                            </Field>
-                            <Field label="Alasan Lost (wajib)">
-                              <select value={lostReason} onChange={e => setLostReason(e.target.value)} className="input-work">
-                                <option value="">Pilih alasan</option>
-                                {LOST_REASON_OPTIONS.map(item => <option key={item} value={item}>{item}</option>)}
-                              </select>
-                            </Field>
-                          </>
-                        )}
-                        <div className="md:col-span-2">
-                          <Field label="Notes">
-                            <textarea value={form.notes} onChange={e => updateForm('notes', e.target.value)} rows={4} placeholder="Catatan percakapan singkat..." className="input-work resize-none" />
-                          </Field>
-                        </div>
-                      </div>
-
-                      {isCloseFlow && (
-                        <div className="rounded-2xl border border-red-500/20 bg-red-500/5 p-4">
-                          <p className="text-[10px] font-black uppercase text-red-600 dark:text-red-300">Setelah simpan</p>
-                          <p className="mt-1 text-sm font-semibold text-foreground">
-                            Status: {selectedLead.current_status} → {closeStatus}
-                          </p>
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            Follow-up pending dibatalkan. Lead tidak muncul lagi di antrian kerja.
-                          </p>
-                        </div>
+              <div className="space-y-5">
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 pb-4 border-b border-border">
+                  <div className="min-w-0">
+                    <h2 className="font-display text-xl font-semibold tracking-tight text-foreground truncate">
+                      {selectedLead.full_name}
+                    </h2>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {selectedLead.whatsapp_number} · {selectedLead.source_campaign} · PIC:{' '}
+                      {selectedLead.users?.name || '—'}
+                    </p>
+                    <div className="flex flex-wrap items-center gap-2 mt-2">
+                      <span className={cn('text-[10px] px-2 py-0.5 rounded-md', getStageBadgeClasses(selectedLead.current_status))}>
+                        {stage ? `Tahap ${stage.id} · ${stage.labelId}` : selectedLead.current_status}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground">{selectedLead.current_status}</span>
+                      {selectedItem?.followUp && (
+                        <span className="text-[10px] font-semibold text-accent">
+                          FU {formatDate(selectedItem.followUp.scheduled_date)}
+                        </span>
                       )}
-                    </section>
-                  )}
-
-                  {step === 2 && !isCloseFlow && (
-                    <section className="mx-auto max-w-3xl space-y-5">
-                      <div>
-                        <h2 className="text-xl font-black text-foreground">Step 3: Tentukan langkah berikutnya</h2>
-                        <p className="mt-2 text-sm text-muted-foreground">Pilihan ini akan menyarankan status setelah disimpan. Kalau ada tanggal follow-up, sistem otomatis membuat jadwal follow-up.</p>
-                      </div>
-                      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                        <Field label="Langkah Berikutnya">
-                          <select value={form.next_action} onChange={e => updateForm('next_action', e.target.value)} className="input-work">
-                            <option value="">Pilih next action</option>
-                            {NEXT_ACTION_OPTIONS.map(item => <option key={item} value={item}>{item}</option>)}
-                          </select>
-                        </Field>
-                        <Field label="Tanggal Follow-Up">
-                          <input type="date" value={form.next_follow_up_date} onChange={e => updateForm('next_follow_up_date', e.target.value)} className="input-work" />
-                        </Field>
-                        <Field label="Gratis / Berbayar">
-                          <select value={form.commercial_type} onChange={e => updateForm('commercial_type', e.target.value)} className="input-work">
-                            {COMMERCIAL_TYPE_OPTIONS.map(item => <option key={item} value={item}>{item}</option>)}
-                          </select>
-                        </Field>
-                        <Field label="Perlu Dibantu">
-                          <select value={form.expert_needed ? 'yes' : 'no'} onChange={e => updateForm('expert_needed', e.target.value === 'yes')} className="input-work">
-                            <option value="no">Tidak</option>
-                            <option value="yes">Ya</option>
-                          </select>
-                        </Field>
-                        {form.expert_needed && (
-                          <Field label="Dibantu Oleh">
-                            <select value={form.expert_type} onChange={e => updateForm('expert_type', e.target.value)} className="input-work">
-                              <option value="">Pilih expert</option>
-                              {EXPERT_TYPE_OPTIONS.map(item => <option key={item} value={item}>{item}</option>)}
-                            </select>
-                          </Field>
-                        )}
-                        <Field label="Catatan Potensi Tambahan">
-                          <input value={form.service_opportunity} onChange={e => updateForm('service_opportunity', e.target.value)} placeholder="Contoh: kelas bahasa / dokumen..." className="input-work" />
-                        </Field>
-                      </div>
-                      <div className="rounded-2xl border border-primary/20 bg-primary/10 p-4">
-                        <p className="text-[10px] font-black uppercase text-primary">Status setelah simpan</p>
-                        <p className="mt-1 text-lg font-black text-foreground">{nextStatus}</p>
-                      </div>
-                    </section>
-                  )}
-
-                  {step === 3 && !isCloseFlow && (
-                    <section className="mx-auto max-w-3xl space-y-5">
-                      <div>
-                        <h2 className="text-xl font-black text-foreground">Step 4: Cek ulang & simpan</h2>
-                        <p className="mt-2 text-sm text-muted-foreground">Pastikan ringkasan sudah benar. Setelah simpan, data otomatis masuk ke output report dan analytics.</p>
-                      </div>
-                      <div className="rounded-2xl border border-border bg-background p-5">
-                        <div className="mb-4 flex items-start gap-3">
-                          <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                            <Sparkles size={18} />
-                          </div>
-                          <div>
-                            <p className="text-lg font-black text-foreground">{selectedLead.full_name}</p>
-                            <p className="text-xs text-muted-foreground">{selectedLead.current_status} {'->'} {nextStatus}</p>
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                          <Info label="Kondisi" value={form.lead_condition || '-'} />
-                          <Info label="Kendala" value={form.objection_category || '-'} />
-                          <Info label="Respon CRO" value={form.solution_given || '-'} />
-                          <Info label="Langkah Berikutnya" value={form.next_action || '-'} />
-                          <Info label="Next FU" value={form.next_follow_up_date ? formatDate(form.next_follow_up_date) : '-'} />
-                          <Info label="Gratis / Berbayar" value={form.commercial_type || 'Free'} />
-                          <Info label="Perlu Dibantu" value={form.expert_needed ? form.expert_type || 'Ya' : 'Tidak'} />
-                          <Info label="Hasil Chat" value={form.result || '-'} />
-                        </div>
-                      </div>
-                    </section>
-                  )}
+                    </div>
+                  </div>
+                  <div className="w-full sm:w-48">
+                    <WhatsAppButton
+                      leadName={selectedLead.full_name}
+                      leadPhone={selectedLead.whatsapp_number}
+                      leadId={selectedLead.id}
+                      picName={selectedLead.users?.name}
+                    />
+                  </div>
                 </div>
 
-                <div className="flex items-center justify-between gap-3 border-t border-border bg-background/60 p-5">
+                {message.text && (
+                  <div
+                    className={cn(
+                      'rounded-xl border px-3 py-2.5 text-xs font-medium',
+                      message.type === 'success'
+                        ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300'
+                        : 'border-destructive/20 bg-destructive/5 text-destructive'
+                    )}
+                  >
+                    {message.text}
+                  </div>
+                )}
+
+                <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
-                    onClick={() => setStep(prev => Math.max(0, prev - 1))}
-                    disabled={step === 0 || saving}
-                    className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2 text-sm font-bold text-foreground disabled:cursor-not-allowed disabled:opacity-40"
+                    onClick={() => setWorkflowOutcome('active')}
+                    className={cn(
+                      'px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors',
+                      !isCloseFlow
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'bg-card text-muted-foreground border-border'
+                    )}
                   >
-                    <ArrowLeft size={15} />
-                    Back
+                    Lanjut kerja
                   </button>
-                  {step < maxStep ? (
-                    isCloseFlow && step === 1 ? (
-                      <button
-                        type="button"
-                        onClick={saveCloseLead}
-                        disabled={saving || !canContinue()}
-                        className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-5 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50 hover:bg-red-700"
-                      >
-                        {saving ? <Loader2 className="animate-spin" size={15} /> : <CheckCircle2 size={15} />}
-                        Simpan & Tutup Lead
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => setStep(prev => Math.min(maxStep, prev + 1))}
-                        disabled={!canContinue()}
-                        className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2 text-sm font-bold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        Lanjut
-                        <ArrowRight size={15} />
-                      </button>
-                    )
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={saveWork}
-                      disabled={saving}
-                      className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2 text-sm font-bold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60"
+                  <button
+                    type="button"
+                    onClick={() => setWorkflowOutcome('close')}
+                    className={cn(
+                      'px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors',
+                      isCloseFlow
+                        ? 'bg-destructive text-destructive-foreground border-destructive'
+                        : 'bg-card text-muted-foreground border-border'
+                    )}
+                  >
+                    Tandai Lost
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <Field label="1. Kondisi lead">
+                    <select
+                      value={form.lead_condition}
+                      onChange={(e) => updateForm('lead_condition', e.target.value)}
+                      className="field-input"
                     >
-                      {saving ? <Loader2 className="animate-spin" size={15} /> : <CheckCircle2 size={15} />}
-                      Simpan Catatan
-                    </button>
+                      {LEAD_CONDITION_OPTIONS.map((opt) => (
+                        <option key={opt} value={opt}>{opt}</option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="2. Kendala / keberatan">
+                    <select
+                      value={form.objection_category}
+                      onChange={(e) => updateForm('objection_category', e.target.value)}
+                      className="field-input"
+                    >
+                      <option value="">Pilih kendala...</option>
+                      {OBJECTION_CATEGORY_OPTIONS.map((opt) => (
+                        <option key={opt} value={opt}>{opt}</option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="3. Solusi / respon CRO" className="sm:col-span-2">
+                    <select
+                      value={form.solution_given}
+                      onChange={(e) => updateForm('solution_given', e.target.value)}
+                      className="field-input"
+                    >
+                      <option value="">Pilih solusi...</option>
+                      {SOLUTION_OPTIONS.map((opt) => (
+                        <option key={opt} value={opt}>{opt}</option>
+                      ))}
+                    </select>
+                  </Field>
+
+                  {!isCloseFlow ? (
+                    <>
+                      <Field label="4. Next action">
+                        <select
+                          value={form.next_action}
+                          onChange={(e) => updateForm('next_action', e.target.value)}
+                          className="field-input"
+                        >
+                          {NEXT_ACTION_OPTIONS.map((opt) => (
+                            <option key={opt} value={opt}>{opt}</option>
+                          ))}
+                        </select>
+                      </Field>
+                      <Field label="5. Jadwal follow-up">
+                        <input
+                          type="date"
+                          value={form.next_follow_up_date}
+                          onChange={(e) => updateForm('next_follow_up_date', e.target.value)}
+                          className="field-input"
+                        />
+                      </Field>
+                      <p className="sm:col-span-2 text-[11px] text-muted-foreground">
+                        Setelah simpan, status menjadi: <span className="font-semibold text-foreground">{nextStatus}</span>
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <Field label="4. Status lost">
+                        <select
+                          value={closeStatus}
+                          onChange={(e) => setCloseStatus(e.target.value as LostStatus)}
+                          className="field-input"
+                        >
+                          <option value="Not Interested">Not Interested</option>
+                          <option value="Not Eligible">Not Eligible</option>
+                        </select>
+                      </Field>
+                      <Field label="5. Alasan lost">
+                        <select
+                          value={lostReason}
+                          onChange={(e) => setLostReason(e.target.value)}
+                          className="field-input"
+                        >
+                          <option value="">Pilih alasan...</option>
+                          {LOST_REASON_OPTIONS.map((opt) => (
+                            <option key={opt} value={opt}>{opt}</option>
+                          ))}
+                        </select>
+                      </Field>
+                    </>
                   )}
+                </div>
+
+                <details
+                  open={showAdvanced}
+                  onToggle={(e) => setShowAdvanced((e.target as HTMLDetailsElement).open)}
+                  className="rounded-xl border border-border bg-secondary/40 px-3 py-2"
+                >
+                  <summary className="cursor-pointer text-xs font-semibold text-muted-foreground">
+                    Opsi lanjutan (opsional)
+                  </summary>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3 pb-1">
+                    <Field label="Hasil chat">
+                      <input
+                        value={form.result}
+                        onChange={(e) => updateForm('result', e.target.value)}
+                        className="field-input"
+                        placeholder="Ringkas hasil..."
+                      />
+                    </Field>
+                    <Field label="Tipe komersial">
+                      <select
+                        value={form.commercial_type}
+                        onChange={(e) => updateForm('commercial_type', e.target.value)}
+                        className="field-input"
+                      >
+                        {COMMERCIAL_TYPE_OPTIONS.map((opt) => (
+                          <option key={opt} value={opt}>{opt}</option>
+                        ))}
+                      </select>
+                    </Field>
+                    <Field label="Peluang layanan">
+                      <input
+                        value={form.service_opportunity}
+                        onChange={(e) => updateForm('service_opportunity', e.target.value)}
+                        className="field-input"
+                        placeholder="Opsional"
+                      />
+                    </Field>
+                    <Field label="Butuh expert?">
+                      <label className="flex items-center gap-2 text-xs text-foreground h-[38px]">
+                        <input
+                          type="checkbox"
+                          checked={form.expert_needed}
+                          onChange={(e) => updateForm('expert_needed', e.target.checked)}
+                        />
+                        Ya, butuh dibantu
+                      </label>
+                    </Field>
+                    {form.expert_needed && (
+                      <Field label="Tipe expert" className="sm:col-span-2">
+                        <select
+                          value={form.expert_type}
+                          onChange={(e) => updateForm('expert_type', e.target.value)}
+                          className="field-input"
+                        >
+                          <option value="">Pilih...</option>
+                          {EXPERT_TYPE_OPTIONS.map((opt) => (
+                            <option key={opt} value={opt}>{opt}</option>
+                          ))}
+                        </select>
+                      </Field>
+                    )}
+                    <Field label="Catatan" className="sm:col-span-2">
+                      <textarea
+                        value={form.notes}
+                        onChange={(e) => updateForm('notes', e.target.value)}
+                        className="field-input min-h-[72px] resize-y"
+                        placeholder="Opsional"
+                      />
+                    </Field>
+                  </div>
+                </details>
+
+                <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+                  <Link
+                    href={`/leads/${selectedLead.id}`}
+                    className="text-xs font-semibold text-muted-foreground hover:text-foreground"
+                  >
+                    Buka detail lead →
+                  </Link>
+                  <button
+                    type="button"
+                    disabled={saving || !canSave()}
+                    onClick={handlePrimarySave}
+                    className={cn(
+                      'inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-opacity disabled:opacity-50 disabled:cursor-not-allowed',
+                      isCloseFlow
+                        ? 'bg-destructive text-destructive-foreground'
+                        : 'bg-accent text-accent-foreground'
+                    )}
+                  >
+                    {saving ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle2 size={15} />}
+                    {isCloseFlow ? 'Simpan & tutup lead' : 'Simpan'}
+                  </button>
                 </div>
               </div>
             )}
@@ -928,50 +823,23 @@ export default function WorkQueuePage() {
         </div>
       </div>
 
-      {waLead && (
-        <WhatsAppModal
-          isOpen={Boolean(waLead)}
-          onClose={() => setWaLead(null)}
-          leadName={waLead.full_name}
-          leadPhone={waLead.whatsapp_number}
-          leadId={waLead.id}
-        />
-      )}
-
-      <style jsx global>{`
-        .input-work {
-          width: 100%;
-          border-radius: 0.875rem;
-          border: 1px solid hsl(var(--border));
-          background: hsl(var(--card));
-          color: hsl(var(--foreground));
-          padding: 0.75rem 0.875rem;
-          font-size: 0.875rem;
-          outline: none;
-        }
-        .input-work:focus {
-          border-color: hsl(var(--primary));
-          box-shadow: 0 0 0 1px hsl(var(--primary));
-        }
-      `}</style>
     </>
   )
 }
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
+function Field({
+  label,
+  children,
+  className,
+}: {
+  label: string
+  children: ReactNode
+  className?: string
+}) {
   return (
-    <label className="block">
-      <span className="mb-1.5 block text-[10px] font-black uppercase tracking-wide text-muted-foreground">{label}</span>
+    <label className={cn('block space-y-1.5', className)}>
+      <span className="text-[11px] font-semibold text-foreground/80">{label}</span>
       {children}
     </label>
-  )
-}
-
-function Info({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-xl border border-border bg-card p-3">
-      <p className="text-[10px] font-black uppercase text-muted-foreground">{label}</p>
-      <p className="mt-1 text-sm font-semibold text-foreground">{value}</p>
-    </div>
   )
 }
