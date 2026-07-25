@@ -14,8 +14,8 @@ export default async function Home() {
     .maybeSingle()
 
   if (isOwnerLikeRole(profile?.role)) {
-    redirect('/dashboard')
+    redirect('/stage-3')
   }
 
-  redirect('/work-queue')
+  redirect('/leads')
 }

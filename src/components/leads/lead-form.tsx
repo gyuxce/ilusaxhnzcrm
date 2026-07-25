@@ -8,7 +8,11 @@ import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 import { CheckCircle2, Loader2, Phone, User, Calendar, MessageSquare, Mail, TrendingUp, AlertCircle } from 'lucide-react'
 import { LOST_REASON_OPTIONS, LOST_STATUSES } from '@/lib/lost-reasons'
-import { FUNNEL_STATUS_OPTIONS } from '@/lib/funnel-framework'
+import {
+  STAGE1_CURRENT_STATUS_OPTIONS,
+  STAGE2_ENTRY_STATUSES,
+  STAGE3_STATUS_OPTIONS,
+} from '@/lib/prd-stages'
 import { parseRpcResult, type RpcResult } from '@/lib/rpc'
 import { isJsonRecord } from '@/types/crm'
 import { leadSchema, type LeadFormValues, normalizeWhatsApp } from '@/lib/validations/lead'
@@ -138,7 +142,7 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
   const inputClass = "w-full px-4 py-2.5 rounded-xl text-sm text-foreground placeholder-muted-foreground/60 outline-none transition-all bg-card border border-border focus:ring-1 focus:ring-primary focus:border-primary"
   const inputStyle = {}
 
-  const statusOptions = FUNNEL_STATUS_OPTIONS
+  const statusOptions = [...STAGE1_CURRENT_STATUS_OPTIONS, ...STAGE2_ENTRY_STATUSES, ...STAGE3_STATUS_OPTIONS, 'Not Interested', 'Not Eligible']
 
   return (
     <form onSubmit={handleFormSubmit(onSubmit)} className="space-y-6">

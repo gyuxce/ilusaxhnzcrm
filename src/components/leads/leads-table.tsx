@@ -8,13 +8,12 @@ import {
   Search, Filter,
   ChevronUp, ChevronDown,
   ChevronLeft, ChevronRight,
-  FileUp, Loader2, Trash2, MoreHorizontal,
+  FileUp, Loader2, Trash2, Pencil, ClipboardCheck,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import type { Lead, PaymentRow, PemetaanRow, ExpertConsultationRow } from '@/lib/supabase/types'
 import { CsvUploadModal } from './csv-upload-modal'
-import { NEEDS_ACTION_STATUSES } from '@/lib/funnel-framework'
 import { getStageBadgeClasses } from '@/lib/brand'
 import { useCurrentRole } from '@/lib/use-current-role'
 
@@ -31,46 +30,13 @@ interface LeadsTableProps {
   pics: { id: string; name: string; email?: string }[]
 }
 
-const paymentBadgeClass = (status: string) => {
-  if (status === 'verified') return 'border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
-  if (status === 'pending') return 'border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-300'
-  return 'border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-800 dark:bg-white/5 dark:text-slate-400'
-}
-
-function paymentShort(status: string) {
-  if (status === 'verified') return 'OK'
-  if (status === 'pending') return 'Pending'
-  return '—'
-}
-
-const renderPaymentSummary = (lead: LeadWithRelations) => {
-  const pemetaanPayment = lead.payments?.find((p) => p.payment_type === 'pemetaan')
-  const seatLockPayment = lead.payments?.find((p) => p.payment_type === 'seat_lock')
-  const pemetaanStatus = pemetaanPayment?.verification_status || 'not_paid'
-  const seatLockStatus = seatLockPayment?.verification_status || 'not_paid'
-
-  return (
-    <p className="text-[11px] text-muted-foreground whitespace-nowrap">
-      <span className={cn('font-semibold', paymentBadgeClass(pemetaanStatus).includes('emerald') && 'text-emerald-700 dark:text-emerald-300')}>
-        P {paymentShort(pemetaanStatus)}
-      </span>
-      <span className="mx-1 text-border">·</span>
-      <span className={cn('font-semibold', paymentBadgeClass(seatLockStatus).includes('emerald') && 'text-emerald-700 dark:text-emerald-300')}>
-        SL {paymentShort(seatLockStatus)}
-      </span>
-    </p>
-  )
-}
-
-type QuickFilter = 'all' | 'new' | 'unassigned' | 'needs_action' | 'stale' | 'seat_lock_paid' | 'duplicate'
+type QuickFilter = 'all' | 'new' | 'bridging' | 'pitching' | 'duplicate'
 
 const quickFilterLabels: Record<QuickFilter, string> = {
   all: 'Semua',
   new: 'New Lead',
-  unassigned: 'Belum Ada PIC',
-  needs_action: 'Needs Action',
-  stale: 'Belum Disentuh 3+ Hari',
-  seat_lock_paid: 'Seat Lock Paid',
+  bridging: 'Bridging',
+  pitching: 'Pitching',
   duplicate: 'Duplikat',
 }
 
@@ -131,25 +97,12 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
   const [toast, setToast] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [mounted, setMounted] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
-  const [openActionId, setOpenActionId] = useState<string | null>(null)
-  const actionMenuRef = useRef<HTMLDivElement | null>(null)
   const { isOwnerLike } = useCurrentRole()
   const pageSize = 25
 
   useEffect(() => {
     setMounted(true)
   }, [])
-
-  useEffect(() => {
-    if (!openActionId) return
-    const onPointerDown = (event: MouseEvent) => {
-      if (!actionMenuRef.current?.contains(event.target as Node)) {
-        setOpenActionId(null)
-      }
-    }
-    document.addEventListener('mousedown', onPointerDown)
-    return () => document.removeEventListener('mousedown', onPointerDown)
-  }, [openActionId])
 
   // Get unique campaigns for filter dropdown
   const campaignsList = useMemo(() => {
@@ -209,14 +162,10 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
 
     if (quickFilter === 'new') {
       data = data.filter(l => l.current_status === 'New Lead')
-    } else if (quickFilter === 'unassigned') {
-      data = data.filter(l => !l.assigned_cro_id)
-    } else if (quickFilter === 'needs_action') {
-      data = data.filter(l => NEEDS_ACTION_STATUSES.includes(l.current_status))
-    } else if (quickFilter === 'stale') {
-      data = data.filter(l => daysSinceLastTouch(l) >= 3)
-    } else if (quickFilter === 'seat_lock_paid') {
-      data = data.filter(l => l.current_status === 'Seat Lock Paid' || l.current_status === 'Onboarding')
+    } else if (quickFilter === 'bridging') {
+      data = data.filter(l => l.current_status === 'Bridging')
+    } else if (quickFilter === 'pitching') {
+      data = data.filter(l => l.current_status === 'Pitching')
     } else if (quickFilter === 'duplicate') {
       data = data.filter(l => duplicateLeadIds.has(l.id))
     }
@@ -308,10 +257,8 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
     return {
       all: initialLeads.length,
       new: initialLeads.filter(l => l.current_status === 'New Lead').length,
-      unassigned: initialLeads.filter(l => !l.assigned_cro_id).length,
-      needs_action: initialLeads.filter(l => NEEDS_ACTION_STATUSES.includes(l.current_status)).length,
-      stale: initialLeads.filter(l => daysSinceLastTouch(l) >= 3).length,
-      seat_lock_paid: initialLeads.filter(l => l.current_status === 'Seat Lock Paid' || l.current_status === 'Onboarding').length,
+      bridging: initialLeads.filter(l => l.current_status === 'Bridging').length,
+      pitching: initialLeads.filter(l => l.current_status === 'Pitching').length,
       duplicate: duplicateLeadIds.size,
     }
   }, [initialLeads, duplicateLeadIds])
@@ -603,29 +550,25 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
         )}
       </div>
 
-      {/* Table Data */}
+      {/* Table Data — PRD A.1: Nama | WhatsApp | Current Status | Last update | Edit | Kerjakan */}
       <div className="glass-card rounded-2xl overflow-hidden border border-border">
         <div className="overflow-x-auto">
           <table className="w-full text-xs text-left">
             <thead>
               <tr className="border-b border-border bg-secondary/40">
                 {[
-                  { label: 'Lead', field: 'full_name' as const },
-                  { label: 'WA', field: null },
-                  { label: 'Masuk', field: 'lead_entry_date' as const },
-                  { label: 'PIC', field: null },
-                  { label: 'Status', field: 'current_status' as const },
-                  { label: 'Next', field: null },
-                  { label: 'Update', field: null },
-                  { label: 'Bayar', field: null },
-                  { label: '', field: null },
+                  { label: 'Nama', field: 'full_name' as const },
+                  { label: 'Nomor WhatsApp', field: null },
+                  { label: 'Current Status', field: 'current_status' as const },
+                  { label: 'Tanggal Last Update', field: null },
+                  { label: 'Edit', field: null },
+                  { label: 'Kerjakan', field: null },
                 ].map((col) => (
                   <th
-                    key={col.label || 'aksi'}
+                    key={col.label}
                     className={cn(
                       'px-3 py-2.5 text-[11px] font-semibold text-muted-foreground whitespace-nowrap',
-                      col.field && 'cursor-pointer hover:text-foreground select-none',
-                      !col.label && 'w-12 text-right'
+                      col.field && 'cursor-pointer hover:text-foreground select-none'
                     )}
                     onClick={() => col.field && toggleSort(col.field)}
                   >
@@ -640,135 +583,77 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
             <tbody className="divide-y divide-border">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-16 text-center text-muted-foreground/40 text-sm">
+                  <td colSpan={6} className="px-4 py-16 text-center text-muted-foreground/40 text-sm">
                     Tidak ada data leads yang cocok dengan filter.
                   </td>
                 </tr>
               ) : (
-                paginatedLeads.map((lead) => {
-                  const menuOpen = openActionId === lead.id
-                  return (
-                    <tr key={lead.id} className="hover:bg-secondary/30 transition-colors">
-                      <td className="px-3 py-2.5 min-w-[10rem] max-w-[14rem]">
-                        <Link
-                          href={`/leads/${lead.id}`}
-                          className="block truncate text-[12px] font-semibold text-foreground hover:text-accent"
-                        >
-                          {lead.full_name}
-                        </Link>
-                        <p className="truncate text-[10px] text-muted-foreground mt-0.5">
-                          {lead.source_campaign || '—'}
-                        </p>
-                      </td>
+                paginatedLeads.map((lead) => (
+                  <tr key={lead.id} className="hover:bg-secondary/30 transition-colors">
+                    <td className="px-3 py-2.5 min-w-[10rem] max-w-[16rem]">
+                      <Link
+                        href={`/leads/${lead.id}`}
+                        className="block truncate text-[12px] font-semibold text-foreground hover:text-accent"
+                      >
+                        {lead.full_name}
+                      </Link>
+                      <p className="truncate text-[10px] text-muted-foreground mt-0.5">
+                        {lead.source_campaign || '—'}
+                      </p>
+                    </td>
 
-                      <td className="px-3 py-2.5 font-mono text-[11px] text-muted-foreground whitespace-nowrap">
-                        {lead.whatsapp_number}
-                      </td>
+                    <td className="px-3 py-2.5 font-mono text-[11px] text-muted-foreground whitespace-nowrap">
+                      {lead.whatsapp_number}
+                    </td>
 
-                      <td className="px-3 py-2.5 text-[11px] text-muted-foreground whitespace-nowrap">
-                        {formatCellDate(lead.lead_entry_date)}
-                      </td>
-
-                      <td className="px-3 py-2.5 text-[11px] text-foreground/80 whitespace-nowrap max-w-[7rem] truncate">
-                        {lead.users?.name || '—'}
-                      </td>
-
-                      <td className="px-3 py-2.5 whitespace-nowrap">
-                        <span
-                          className={cn(
-                            'px-1.5 py-0.5 rounded-md text-[10px] font-semibold',
-                            getStageBadgeClasses(lead.current_status)
-                          )}
-                        >
-                          {lead.current_status}
-                        </span>
-                      </td>
-
-                      <td className="px-3 py-2.5 whitespace-nowrap max-w-[7rem]">
-                        <p className="truncate text-[11px] font-medium text-foreground">
-                          {lead.next_action || '—'}
-                        </p>
-                        {lead.next_follow_up_date && (
-                          <p className="text-[10px] text-muted-foreground">
-                            FU {formatCellDate(lead.next_follow_up_date)}
-                          </p>
+                    <td className="px-3 py-2.5 whitespace-nowrap">
+                      <span
+                        className={cn(
+                          'px-1.5 py-0.5 rounded-md text-[10px] font-semibold',
+                          getStageBadgeClasses(lead.current_status)
                         )}
-                      </td>
+                      >
+                        {lead.current_status}
+                      </span>
+                    </td>
 
-                      <td className="px-3 py-2.5 whitespace-nowrap">
-                        <span
-                          className={cn(
-                            'text-[11px] font-medium',
-                            daysSinceLastTouch(lead) >= 3 ? 'text-amber-700 dark:text-amber-300' : 'text-muted-foreground'
-                          )}
+                    <td className="px-3 py-2.5 whitespace-nowrap">
+                      <span
+                        className={cn(
+                          'text-[11px] font-medium',
+                          daysSinceLastTouch(lead) >= 3 ? 'text-amber-700 dark:text-amber-300' : 'text-muted-foreground'
+                        )}
+                      >
+                        {lastTouchLabel(lead)}
+                      </span>
+                    </td>
+
+                    <td className="px-3 py-2.5 whitespace-nowrap">
+                      <Link
+                        href={`/leads/${lead.id}/edit`}
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground hover:text-foreground hover:bg-secondary"
+                        title="Edit"
+                      >
+                        <Pencil size={15} />
+                      </Link>
+                    </td>
+
+                    <td className="px-3 py-2.5 whitespace-nowrap">
+                      {!isOwnerLike ? (
+                        <Link
+                          href={`/stage-1?lead=${lead.id}`}
+                          className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-[11px] font-semibold text-accent-foreground hover:opacity-90"
+                          title="Kerjakan Stage 1"
                         >
-                          {lastTouchLabel(lead)}
-                        </span>
-                      </td>
-
-                      <td className="px-3 py-2.5 whitespace-nowrap">
-                        {renderPaymentSummary(lead)}
-                      </td>
-
-                      <td className="px-2 py-2.5 text-right">
-                        <div
-                          className="relative inline-block"
-                          ref={menuOpen ? actionMenuRef : undefined}
-                        >
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setOpenActionId((prev) => (prev === lead.id ? null : lead.id))
-                            }
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground hover:text-foreground hover:bg-secondary"
-                            title="Aksi"
-                            aria-expanded={menuOpen}
-                          >
-                            <MoreHorizontal size={16} />
-                          </button>
-                          {menuOpen && (
-                            <div className="absolute right-0 top-full z-30 mt-1 w-40 overflow-hidden rounded-xl border border-border bg-card py-1 shadow-lg">
-                              <Link
-                                href={`/leads/${lead.id}`}
-                                className="block px-3 py-2 text-left text-[12px] font-medium text-foreground hover:bg-secondary"
-                                onClick={() => setOpenActionId(null)}
-                              >
-                                Detail
-                              </Link>
-                              <Link
-                                href={`/leads/${lead.id}/edit`}
-                                className="block px-3 py-2 text-left text-[12px] font-medium text-foreground hover:bg-secondary"
-                                onClick={() => setOpenActionId(null)}
-                              >
-                                Edit
-                              </Link>
-                              {!isOwnerLike && (
-                                <Link
-                                  href={`/stage-1?lead=${lead.id}`}
-                                  className="block px-3 py-2 text-left text-[12px] font-medium text-foreground hover:bg-secondary"
-                                  onClick={() => setOpenActionId(null)}
-                                >
-                                  Kerjakan
-                                </Link>
-                              )}
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setOpenActionId(null)
-                                  promptDelete(lead.id, lead.full_name)
-                                }}
-                                disabled={deletingId === lead.id}
-                                className="block w-full px-3 py-2 text-left text-[12px] font-medium text-red-600 hover:bg-red-500/10 disabled:opacity-50"
-                              >
-                                Hapus
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })
+                          <ClipboardCheck size={13} />
+                          Kerjakan
+                        </Link>
+                      ) : (
+                        <span className="text-[10px] text-muted-foreground/50">—</span>
+                      )}
+                    </td>
+                  </tr>
+                ))
               )}
             </tbody>
           </table>
