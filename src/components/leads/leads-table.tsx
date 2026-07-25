@@ -15,6 +15,7 @@ import { createClient } from '@/lib/supabase/client'
 import type { Lead, PaymentRow, PemetaanRow, ExpertConsultationRow } from '@/lib/supabase/types'
 import { CsvUploadModal } from './csv-upload-modal'
 import { NEEDS_ACTION_STATUSES } from '@/lib/funnel-framework'
+import { getStageBadgeClasses } from '@/lib/brand'
 
 type LeadWithRelations = Lead & {
   users?: { id: string; name: string } | null
@@ -277,8 +278,8 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
   function SortIcon({ field }: { field: typeof sortField }) {
     if (sortField !== field) return <ChevronUp size={12} className="text-white/20" />
     return sortDir === 'asc'
-      ? <ChevronUp size={12} className="text-purple-400" />
-      : <ChevronDown size={12} className="text-purple-400" />
+      ? <ChevronUp size={12} className="text-accent" />
+      : <ChevronDown size={12} className="text-accent" />
   }
 
   const quickCounts = useMemo(() => {
@@ -409,15 +410,14 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
           )}
           <button
             onClick={() => setCsvModalOpen(true)}
-            className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-slate-700 bg-white border border-slate-200 dark:text-slate-200 dark:bg-slate-900 dark:border-slate-800 transition-all hover:bg-slate-50 dark:hover:bg-slate-800 shadow-sm"
+            className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold text-foreground bg-card border border-border transition-colors hover:bg-secondary"
           >
             <FileUp size={14} />
             Import CSV
           </button>
           <Link
             href="/leads/new"
-            className="flex items-center justify-center px-4 py-2 rounded-xl text-xs font-bold text-white transition-all hover:glow-purple"
-            style={{ background: 'linear-gradient(135deg, hsl(250,84%,60%), hsl(280,60%,55%))' }}
+            className="flex items-center justify-center px-4 py-2 rounded-xl text-xs font-semibold text-accent-foreground bg-accent hover:opacity-90 transition-opacity"
           >
             + Tambah Lead
           </Link>
@@ -433,14 +433,21 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
               type="button"
               onClick={() => setQuick(key)}
               className={cn(
-                'inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-bold transition-all',
+                'inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-[11px] font-semibold transition-colors',
                 quickFilter === key
-                  ? 'border-purple-500/30 bg-purple-500/10 text-purple-600 dark:text-purple-300'
-                  : 'border-border bg-card text-muted-foreground hover:text-foreground hover:bg-slate-50 dark:hover:bg-white/5'
+                  ? 'border-primary bg-primary text-primary-foreground'
+                  : 'border-border bg-card text-muted-foreground hover:text-foreground hover:bg-secondary/70'
               )}
             >
               {quickFilterLabels[key]}
-              <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-foreground">
+              <span
+                className={cn(
+                  'rounded-md px-1.5 py-0.5 text-[10px]',
+                  quickFilter === key
+                    ? 'bg-primary-foreground/15 text-primary-foreground'
+                    : 'bg-muted text-foreground'
+                )}
+              >
                 {quickCounts[key]}
               </span>
             </button>
@@ -460,10 +467,10 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
           <button
             onClick={() => setShowFilters(!showFilters)}
             className={cn(
-              'flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all border cursor-pointer',
+              'flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-colors border cursor-pointer',
               showFilters
-                ? 'text-purple-600 dark:text-purple-400 bg-purple-50/70 dark:bg-purple-950/20 border-purple-100 dark:border-purple-900/30'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 bg-card border-border hover:bg-slate-50 dark:hover:bg-white/5'
+                ? 'text-primary bg-secondary border-border'
+                : 'text-muted-foreground hover:text-foreground bg-card border-border hover:bg-secondary/70'
             )}
           >
             <Filter size={14} />
@@ -621,7 +628,7 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
                       {/* Name & Campaign */}
                       <td className="px-4 py-3 whitespace-nowrap">
                         <div className="flex flex-col">
-                          <Link href={`/leads/${lead.id}`} className="font-bold text-foreground hover:text-purple-600 dark:hover:text-purple-400 transition-colors">
+                          <Link href={`/leads/${lead.id}`} className="font-semibold text-foreground hover:text-accent transition-colors">
                             {lead.full_name}
                           </Link>
                           <span className="text-[10px] text-muted-foreground mt-0.5">{lead.source_campaign || 'No Campaign'}</span>
@@ -657,7 +664,7 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
 
                       {/* Status Pipeline */}
                       <td className="px-4 py-3 whitespace-nowrap">
-                        <span className="px-2 py-0.5 rounded-full font-semibold bg-purple-50 dark:bg-purple-950/20 text-purple-600 dark:text-purple-400 border border-purple-100 dark:border-purple-900/30">
+                        <span className={cn('px-2 py-0.5 rounded-md text-[10px] font-semibold', getStageBadgeClasses(lead.current_status))}>
                           {lead.current_status}
                         </span>
                       </td>
@@ -787,7 +794,7 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
                 <Trash2 size={20} />
               </div>
               <div>
-                <h3 className="text-base font-black text-foreground">Hapus lead dari database?</h3>
+                <h3 className="font-display text-base font-semibold text-foreground">Hapus lead dari database?</h3>
                 <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
                   Lead <span className="font-bold text-foreground">{leadToDelete.name}</span> akan dihapus permanen. Gunakan ini hanya untuk data salah input, spam, atau duplikat.
                 </p>
@@ -835,7 +842,7 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
                 <Trash2 size={20} />
               </div>
               <div>
-                <h3 className="text-base font-black text-foreground">Hapus data WhatsApp duplikat?</h3>
+                <h3 className="font-display text-base font-semibold text-foreground">Hapus data WhatsApp duplikat?</h3>
                 <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
                   Sistem menemukan <span className="font-bold text-foreground">{duplicateGroups.length}</span> nomor dobel. Data paling awal akan disimpan, lalu <span className="font-bold text-foreground">{duplicateDeleteIds.length}</span> data duplikat yang lebih baru akan dihapus.
                 </p>
@@ -846,7 +853,7 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
               <div className="space-y-2">
                 {duplicateGroups.slice(0, 8).map(group => (
                   <div key={group.phone} className="rounded-xl border border-border bg-card px-3 py-2">
-                    <p className="text-xs font-black text-foreground">{group.phone}</p>
+                    <p className="text-xs font-semibold text-foreground">{group.phone}</p>
                     <p className="mt-1 text-[11px] text-muted-foreground">
                       Simpan: <span className="font-bold text-foreground">{group.keep.full_name}</span> | Hapus: {group.duplicates.map(lead => lead.full_name).join(', ')}
                     </p>

@@ -256,7 +256,7 @@ export function CsvUploadModal({ isOpen, onClose, pics }: CsvUploadModalProps) {
               </div>
               {failedRows.length > 0 && (
                 <div className="mx-auto max-w-2xl rounded-2xl border border-red-200 bg-red-50 p-4 text-left dark:border-red-500/20 dark:bg-red-500/10">
-                  <p className="text-xs font-black uppercase tracking-wide text-red-700 dark:text-red-300">Contoh baris gagal</p>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-red-700 dark:text-red-300">Contoh baris gagal</p>
                   <ul className="mt-2 space-y-1 text-xs leading-relaxed text-red-700 dark:text-red-300">
                     {failedRows.map(item => <li key={item}>{item}</li>)}
                   </ul>

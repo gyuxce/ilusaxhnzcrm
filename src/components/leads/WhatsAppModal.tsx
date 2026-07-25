@@ -132,9 +132,9 @@ export function WhatsAppModal({ isOpen, onClose, leadName, leadPhone, leadId, pi
         
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-border bg-slate-50/50 dark:bg-white/[0.02]">
-          <div className="flex items-center gap-2 text-purple-600 dark:text-purple-400">
+          <div className="flex items-center gap-2 text-accent">
             <MessageCircle size={18} />
-            <h3 className="font-bold text-foreground text-sm">Kirim Pesan WhatsApp</h3>
+            <h3 className="font-display font-semibold text-foreground text-sm">Kirim Pesan WhatsApp</h3>
           </div>
           <button
             onClick={onClose}
@@ -155,7 +155,7 @@ export function WhatsAppModal({ isOpen, onClose, leadName, leadPhone, leadId, pi
 
           {loading ? (
             <div className="flex items-center justify-center py-10">
-              <Loader2 className="animate-spin text-purple-500" size={24} />
+              <Loader2 className="animate-spin text-accent" size={24} />
             </div>
           ) : (
             <>
@@ -220,10 +220,7 @@ export function WhatsAppModal({ isOpen, onClose, leadName, leadPhone, leadId, pi
           <button
             onClick={handleSend}
             disabled={loading || !messageText}
-            className="px-5 py-2 text-xs font-semibold rounded-xl text-white hover:glow-purple transition-all duration-300 flex items-center gap-2 cursor-pointer"
-            style={{
-              background: 'linear-gradient(135deg, hsl(250,84%,60%), hsl(280,60%,55%))',
-            }}
+            className="px-5 py-2 text-xs font-semibold rounded-xl text-accent-foreground bg-accent hover:opacity-90 transition-opacity flex items-center gap-2 cursor-pointer disabled:opacity-50"
           >
             <MessageCircle size={14} />
             Buka WhatsApp

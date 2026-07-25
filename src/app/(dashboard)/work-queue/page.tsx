@@ -101,6 +101,23 @@ const QUEUE_FILTERS = [
 type QueueFilter = (typeof QUEUE_FILTERS)[number]['key']
 type WorkflowOutcome = 'active' | 'close'
 
+/** Training chrome — still one screen, not a multi-page wizard. */
+const WORK_STEPS_ACTIVE = [
+  { n: 1, title: 'Kondisi lead', hint: 'Posisi lead saat ini setelah dihubungi.' },
+  { n: 2, title: 'Kendala', hint: 'Keberatan utama yang menghambat.' },
+  { n: 3, title: 'Respon CRO', hint: 'Apa yang sudah kamu sampaikan / lakukan.' },
+  { n: 4, title: 'Next action', hint: 'Langkah kerja berikutnya.' },
+  { n: 5, title: 'Jadwal follow-up', hint: 'Kapan follow-up berikutnya (opsional).' },
+] as const
+
+const WORK_STEPS_CLOSE = [
+  { n: 1, title: 'Kondisi lead', hint: 'Posisi lead sebelum ditutup.' },
+  { n: 2, title: 'Kendala', hint: 'Keberatan yang membuat lead berhenti.' },
+  { n: 3, title: 'Respon CRO', hint: 'Apa yang sudah dicoba sebelum lost.' },
+  { n: 4, title: 'Status lost', hint: 'Not Interested atau Not Eligible.' },
+  { n: 5, title: 'Alasan lost', hint: 'Alasan utama untuk report & evaluasi.' },
+] as const
+
 function todayInput() {
   return getTodayInWIB()
 }
@@ -329,6 +346,18 @@ export default function WorkQueuePage() {
       : inferNextStatus(selectedLead.current_status, form.next_action)
     : '-'
 
+  const workSteps = isCloseFlow ? WORK_STEPS_CLOSE : WORK_STEPS_ACTIVE
+  const stepDone: Record<number, boolean> = {
+    1: Boolean(form.lead_condition),
+    2: Boolean(form.objection_category),
+    3: Boolean(form.solution_given),
+    4: isCloseFlow ? Boolean(closeStatus) : Boolean(form.next_action),
+    5: isCloseFlow ? Boolean(lostReason) : Boolean(form.next_follow_up_date),
+  }
+  const doneCount = Object.values(stepDone).filter(Boolean).length
+  const focusStep =
+    ([1, 2, 3, 4, 5] as const).find((n) => !stepDone[n]) ?? 5
+
   const updateForm = (field: keyof WorkForm, value: string | boolean) => {
     setForm((prev) => {
       const next = { ...prev, [field]: value }
@@ -466,14 +495,14 @@ export default function WorkQueuePage() {
     <>
       <Header
         title="Kerjaan Hari Ini"
-        subtitle="Hubungi → catat singkat → next action → simpan. Satu form, tanpa wizard panjang."
+        subtitle="5 langkah di satu layar: hubungi → catat → next action → simpan. Bukan wizard panjang."
       />
       <div className="w-full p-4 sm:p-6 animate-fade-in">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="font-display text-lg font-semibold text-foreground tracking-tight">Antrian kerja CRO</p>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Pilih lead kiri, isi form kanan. Detail lengkap tetap di halaman Lead.
+              Pilih lead kiri, ikuti langkah 1–5 di kanan. Detail lengkap tetap di halaman Lead.
             </p>
           </div>
           <Link href="/today" className="text-xs font-semibold text-accent hover:opacity-80">
@@ -607,35 +636,78 @@ export default function WorkQueuePage() {
                   </div>
                 )}
 
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setWorkflowOutcome('active')}
-                    className={cn(
-                      'px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors',
-                      !isCloseFlow
-                        ? 'bg-primary text-primary-foreground border-primary'
-                        : 'bg-card text-muted-foreground border-border'
-                    )}
-                  >
-                    Lanjut kerja
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setWorkflowOutcome('close')}
-                    className={cn(
-                      'px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors',
-                      isCloseFlow
-                        ? 'bg-destructive text-destructive-foreground border-destructive'
-                        : 'bg-card text-muted-foreground border-border'
-                    )}
-                  >
-                    Tandai Lost
-                  </button>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setWorkflowOutcome('active')}
+                      className={cn(
+                        'px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors',
+                        !isCloseFlow
+                          ? 'bg-primary text-primary-foreground border-primary'
+                          : 'bg-card text-muted-foreground border-border'
+                      )}
+                    >
+                      Lanjut kerja
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setWorkflowOutcome('close')}
+                      className={cn(
+                        'px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors',
+                        isCloseFlow
+                          ? 'bg-destructive text-destructive-foreground border-destructive'
+                          : 'bg-card text-muted-foreground border-border'
+                      )}
+                    >
+                      Tandai Lost
+                    </button>
+                  </div>
+                  <p className="text-[11px] font-medium text-muted-foreground">
+                    {doneCount}/5 langkah · mulai dari WA di atas
+                  </p>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <Field label="1. Kondisi lead">
+                <nav aria-label="Langkah kerja" className="flex flex-wrap gap-1.5">
+                  {workSteps.map((step) => {
+                    const done = stepDone[step.n]
+                    const current = step.n === focusStep
+                    return (
+                      <a
+                        key={step.n}
+                        href={`#wq-step-${step.n}`}
+                        className={cn(
+                          'inline-flex items-center gap-1.5 rounded-lg border px-2 py-1 text-[10px] font-semibold transition-colors',
+                          done
+                            ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-300'
+                            : current
+                              ? 'border-accent/40 bg-accent/10 text-foreground'
+                              : 'border-border bg-card text-muted-foreground hover:text-foreground'
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            'work-step-num',
+                            done && 'work-step-num-done',
+                            current && !done && 'work-step-num-current'
+                          )}
+                        >
+                          {done ? '✓' : step.n}
+                        </span>
+                        {step.title}
+                      </a>
+                    )
+                  })}
+                </nav>
+
+                <div className="space-y-3 animate-fade-in">
+                  <WorkStep
+                    n={1}
+                    title={workSteps[0].title}
+                    hint={workSteps[0].hint}
+                    done={stepDone[1]}
+                    current={focusStep === 1}
+                  >
                     <select
                       value={form.lead_condition}
                       onChange={(e) => updateForm('lead_condition', e.target.value)}
@@ -645,8 +717,15 @@ export default function WorkQueuePage() {
                         <option key={opt} value={opt}>{opt}</option>
                       ))}
                     </select>
-                  </Field>
-                  <Field label="2. Kendala / keberatan">
+                  </WorkStep>
+
+                  <WorkStep
+                    n={2}
+                    title={workSteps[1].title}
+                    hint={workSteps[1].hint}
+                    done={stepDone[2]}
+                    current={focusStep === 2}
+                  >
                     <select
                       value={form.objection_category}
                       onChange={(e) => updateForm('objection_category', e.target.value)}
@@ -657,8 +736,15 @@ export default function WorkQueuePage() {
                         <option key={opt} value={opt}>{opt}</option>
                       ))}
                     </select>
-                  </Field>
-                  <Field label="3. Solusi / respon CRO" className="sm:col-span-2">
+                  </WorkStep>
+
+                  <WorkStep
+                    n={3}
+                    title={workSteps[2].title}
+                    hint={workSteps[2].hint}
+                    done={stepDone[3]}
+                    current={focusStep === 3}
+                  >
                     <select
                       value={form.solution_given}
                       onChange={(e) => updateForm('solution_given', e.target.value)}
@@ -669,11 +755,17 @@ export default function WorkQueuePage() {
                         <option key={opt} value={opt}>{opt}</option>
                       ))}
                     </select>
-                  </Field>
+                  </WorkStep>
 
                   {!isCloseFlow ? (
                     <>
-                      <Field label="4. Next action">
+                      <WorkStep
+                        n={4}
+                        title={workSteps[3].title}
+                        hint={workSteps[3].hint}
+                        done={stepDone[4]}
+                        current={focusStep === 4}
+                      >
                         <select
                           value={form.next_action}
                           onChange={(e) => updateForm('next_action', e.target.value)}
@@ -683,22 +775,36 @@ export default function WorkQueuePage() {
                             <option key={opt} value={opt}>{opt}</option>
                           ))}
                         </select>
-                      </Field>
-                      <Field label="5. Jadwal follow-up">
+                      </WorkStep>
+                      <WorkStep
+                        n={5}
+                        title={workSteps[4].title}
+                        hint={workSteps[4].hint}
+                        done={stepDone[5]}
+                        current={focusStep === 5}
+                        optional
+                      >
                         <input
                           type="date"
                           value={form.next_follow_up_date}
                           onChange={(e) => updateForm('next_follow_up_date', e.target.value)}
                           className="field-input"
                         />
-                      </Field>
-                      <p className="sm:col-span-2 text-[11px] text-muted-foreground">
-                        Setelah simpan, status menjadi: <span className="font-semibold text-foreground">{nextStatus}</span>
+                      </WorkStep>
+                      <p className="text-[11px] text-muted-foreground px-1">
+                        Setelah simpan, status menjadi:{' '}
+                        <span className="font-semibold text-foreground">{nextStatus}</span>
                       </p>
                     </>
                   ) : (
                     <>
-                      <Field label="4. Status lost">
+                      <WorkStep
+                        n={4}
+                        title={workSteps[3].title}
+                        hint={workSteps[3].hint}
+                        done={stepDone[4]}
+                        current={focusStep === 4}
+                      >
                         <select
                           value={closeStatus}
                           onChange={(e) => setCloseStatus(e.target.value as LostStatus)}
@@ -707,8 +813,14 @@ export default function WorkQueuePage() {
                           <option value="Not Interested">Not Interested</option>
                           <option value="Not Eligible">Not Eligible</option>
                         </select>
-                      </Field>
-                      <Field label="5. Alasan lost">
+                      </WorkStep>
+                      <WorkStep
+                        n={5}
+                        title={workSteps[4].title}
+                        hint={workSteps[4].hint}
+                        done={stepDone[5]}
+                        current={focusStep === 5}
+                      >
                         <select
                           value={lostReason}
                           onChange={(e) => setLostReason(e.target.value)}
@@ -719,7 +831,7 @@ export default function WorkQueuePage() {
                             <option key={opt} value={opt}>{opt}</option>
                           ))}
                         </select>
-                      </Field>
+                      </WorkStep>
                     </>
                   )}
                 </div>
@@ -727,12 +839,22 @@ export default function WorkQueuePage() {
                 <details
                   open={showAdvanced}
                   onToggle={(e) => setShowAdvanced((e.target as HTMLDetailsElement).open)}
-                  className="rounded-xl border border-border bg-secondary/40 px-3 py-2"
+                  className="rounded-xl border border-dashed border-border bg-secondary/30 px-3 py-2.5"
                 >
-                  <summary className="cursor-pointer text-xs font-semibold text-muted-foreground">
-                    Opsi lanjutan (opsional)
+                  <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden">
+                    <div className="flex items-center justify-between gap-2">
+                      <div>
+                        <p className="text-xs font-semibold text-foreground">Opsi lanjutan</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                          Hasil chat, komersial, expert, catatan — tidak wajib untuk simpan.
+                        </p>
+                      </div>
+                      <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                        {showAdvanced ? 'Tutup' : 'Buka'}
+                      </span>
+                    </div>
                   </summary>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3 pb-1">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3 pb-1 animate-scale-in">
                     <Field label="Hasil chat">
                       <input
                         value={form.result}
@@ -824,6 +946,65 @@ export default function WorkQueuePage() {
       </div>
 
     </>
+  )
+}
+
+function WorkStep({
+  n,
+  title,
+  hint,
+  done,
+  current,
+  optional,
+  children,
+}: {
+  n: number
+  title: string
+  hint: string
+  done: boolean
+  current: boolean
+  optional?: boolean
+  children: ReactNode
+}) {
+  return (
+    <section
+      id={`wq-step-${n}`}
+      className={cn(
+        'rounded-xl border px-3 py-3 transition-colors scroll-mt-24',
+        done
+          ? 'border-emerald-200/80 bg-emerald-50/40 dark:border-emerald-500/20 dark:bg-emerald-500/5'
+          : current
+            ? 'border-accent/35 bg-accent/[0.06]'
+            : 'border-border bg-background/60'
+      )}
+    >
+      <div className="flex items-start gap-3">
+        <span
+          className={cn(
+            'work-step-num mt-0.5',
+            done && 'work-step-num-done',
+            current && !done && 'work-step-num-current'
+          )}
+          aria-hidden
+        >
+          {done ? '✓' : n}
+        </span>
+        <label className="min-w-0 flex-1 space-y-2">
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-semibold text-foreground">
+                {n}. {title}
+              </span>
+              {optional && (
+                <span className="text-[10px] font-medium text-muted-foreground">opsional</span>
+              )}
+            </div>
+            <p className="text-[10px] text-muted-foreground mt-0.5">{hint}</p>
+          </div>
+          {children}
+        </label>
+      </div>
+    </section>
   )
 }
 

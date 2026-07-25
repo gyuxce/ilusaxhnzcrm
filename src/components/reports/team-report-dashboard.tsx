@@ -1,9 +1,14 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useEffect, useMemo, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import {
+  fetchTeamReportData,
+  type ActivityRow,
+  type InterventionRow,
+  type UserRow,
+} from '@/lib/reports/team-report-data'
 import {
   Activity,
   CalendarDays,
@@ -18,53 +23,9 @@ import {
   Users,
 } from 'lucide-react'
 
-export type ActivityRow = {
-  id: string
-  lead_id: string
-  activity_type: string
-  description: string
-  created_by: string | null
-  created_at: string
-  users?: { id?: string; name?: string } | null
-  leads?: {
-    id: string
-    full_name: string
-    whatsapp_number: string
-    source_campaign: string
-    current_status: string
-  } | null
-}
+export type { ActivityRow, InterventionRow, UserRow }
 
-export type UserRow = {
-  id: string
-  name: string
-}
-
-export type InterventionRow = {
-  id: string
-  lead_id: string
-  created_by: string | null
-  lead_condition: string | null
-  objection_category: string | null
-  solution_given: string | null
-  expert_needed: boolean
-  expert_type: string | null
-  commercial_type: string | null
-  service_opportunity: string | null
-  next_action: string | null
-  next_follow_up_date: string | null
-  result: string | null
-  notes: string | null
-  created_at: string
-  users?: { id?: string; name?: string } | null
-  leads?: {
-    id: string
-    full_name: string
-    whatsapp_number: string
-    source_campaign: string
-    current_status: string
-  } | null
-}
+const LIST_PAGE_SIZE = 40
 
 type CroEodRow = {
   name: string
@@ -127,101 +88,26 @@ export function TeamReportDashboard({
   activities,
   interventions,
   users,
-  selectedDate,
-  selectedUser,
+  selectedDate: initialDate,
+  selectedUser: initialUser,
 }: TeamReportDashboardProps) {
-  const router = useRouter()
+  const [selectedDate, setSelectedDate] = useState(initialDate)
+  const [selectedUser, setSelectedUser] = useState(initialUser)
   const [clientActivities, setClientActivities] = useState<ActivityRow[]>(activities)
   const [clientInterventions, setClientInterventions] = useState<InterventionRow[]>(interventions)
   const [loadingReport, setLoadingReport] = useState(false)
   const [query, setQuery] = useState('')
   const [copied, setCopied] = useState(false)
-
-  const dateRange = useMemo(() => {
-    const start = new Date(`${selectedDate}T00:00:00+07:00`)
-    const end = new Date(start)
-    end.setDate(end.getDate() + 1)
-    return {
-      start: start.toISOString(),
-      end: end.toISOString(),
-    }
-  }, [selectedDate])
+  const [showAllInterventions, setShowAllInterventions] = useState(false)
+  const [showAllActivities, setShowAllActivities] = useState(false)
+  const [, startTransition] = useTransition()
 
   useEffect(() => {
+    setSelectedDate(initialDate)
+    setSelectedUser(initialUser)
     setClientActivities(activities)
     setClientInterventions(interventions)
-  }, [activities, interventions])
-
-  useEffect(() => {
-    let active = true
-
-    async function fetchClientReport() {
-      setLoadingReport(true)
-      const supabase = createClient()
-
-      let activitiesQuery = supabase
-        .from('lead_activities')
-        .select(`
-          id,
-          lead_id,
-          activity_type,
-          description,
-          created_by,
-          created_at,
-          users:created_by(id, name),
-          leads:lead_id(id, full_name, whatsapp_number, source_campaign, current_status)
-        `)
-        .gte('created_at', dateRange.start)
-        .lt('created_at', dateRange.end)
-        .order('created_at', { ascending: false })
-
-      let interventionsQuery = supabase
-        .from('lead_interventions')
-        .select(`
-          id,
-          lead_id,
-          created_by,
-          lead_condition,
-          objection_category,
-          solution_given,
-          expert_needed,
-          expert_type,
-          commercial_type,
-          service_opportunity,
-          next_action,
-          next_follow_up_date,
-          result,
-          notes,
-          created_at,
-          users:created_by(id, name),
-          leads:lead_id(id, full_name, whatsapp_number, source_campaign, current_status)
-        `)
-        .gte('created_at', dateRange.start)
-        .lt('created_at', dateRange.end)
-        .order('created_at', { ascending: false })
-
-      if (selectedUser) {
-        activitiesQuery = activitiesQuery.eq('created_by', selectedUser)
-        interventionsQuery = interventionsQuery.eq('created_by', selectedUser)
-      }
-
-      const [activitiesRes, interventionsRes] = await Promise.all([
-        activitiesQuery,
-        interventionsQuery,
-      ])
-
-      if (!active) return
-      if (!activitiesRes.error) setClientActivities((activitiesRes.data || []) as ActivityRow[])
-      if (!interventionsRes.error) setClientInterventions((interventionsRes.data || []) as InterventionRow[])
-      setLoadingReport(false)
-    }
-
-    fetchClientReport()
-
-    return () => {
-      active = false
-    }
-  }, [dateRange.start, dateRange.end, selectedUser])
+  }, [initialDate, initialUser, activities, interventions])
 
   const report = useMemo(() => {
     const byUser: Record<string, { name: string; activities: number; leads: Set<string>; payments: number; statuses: number; interventions: number }> = {}
@@ -354,11 +240,36 @@ export function TeamReportDashboard({
   })
 
   const updateFilter = (next: { date?: string; user?: string }) => {
+    const nextDate = next.date ?? selectedDate
+    const nextUser = next.user ?? selectedUser
+
+    setSelectedDate(nextDate)
+    setSelectedUser(nextUser)
+    setShowAllActivities(false)
+    setShowAllInterventions(false)
+
     const params = new URLSearchParams()
-    params.set('date', next.date ?? selectedDate)
-    const user = next.user ?? selectedUser
-    if (user) params.set('user', user)
-    router.push(`/reports?${params.toString()}`)
+    params.set('date', nextDate)
+    if (nextUser) params.set('user', nextUser)
+    // Soft URL update — avoid full RSC reload + double fetch.
+    window.history.replaceState(null, '', `/reports?${params.toString()}`)
+
+    startTransition(() => {
+      void (async () => {
+        setLoadingReport(true)
+        try {
+          const payload = await fetchTeamReportData(
+            createClient(),
+            { date: nextDate, user: nextUser },
+            { includeUsers: false }
+          )
+          setClientActivities(payload.activities)
+          setClientInterventions(payload.interventions)
+        } finally {
+          setLoadingReport(false)
+        }
+      })()
+    })
   }
 
   const formatDisplayDate = (value: string) => new Date(`${value}T00:00:00+07:00`).toLocaleDateString('id-ID', {
@@ -587,8 +498,15 @@ export function TeamReportDashboard({
 
   const maxType = Math.max(...report.typeRows.map(row => row.count), 1)
 
+  const visibleInterventions = showAllInterventions
+    ? filteredInterventions
+    : filteredInterventions.slice(0, LIST_PAGE_SIZE)
+  const visibleActivities = showAllActivities
+    ? filteredActivities
+    : filteredActivities.slice(0, LIST_PAGE_SIZE)
+
   return (
-    <div className="space-y-6">
+    <div className={`space-y-6 transition-opacity duration-200 ${loadingReport ? 'opacity-60' : 'opacity-100'}`}>
       <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
         <div className="flex flex-col sm:flex-row gap-3">
           <label className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-card border border-border text-sm text-muted-foreground">
@@ -616,7 +534,7 @@ export function TeamReportDashboard({
         <div className="flex flex-col sm:flex-row gap-3 w-full xl:w-auto">
           {loadingReport && (
             <div className="inline-flex items-center justify-center rounded-xl border border-border bg-card px-3 py-2.5 text-xs font-bold text-muted-foreground">
-              Sinkron report...
+              Memuat…
             </div>
           )}
           <div className="relative w-full xl:w-96">
@@ -754,7 +672,7 @@ export function TeamReportDashboard({
                 <tr>
                   <td colSpan={7} className="py-8 text-center text-xs text-muted-foreground">Belum ada catatan chat di tanggal ini.</td>
                 </tr>
-              ) : filteredInterventions.map(item => (
+              ) : visibleInterventions.map(item => (
                 <tr key={item.id} className="border-b border-border/70 last:border-b-0 align-top">
                   <td className="py-3 pr-4">
                     <p className="font-bold text-foreground">{item.users?.name || 'Unknown / sistem lama'}</p>
@@ -795,6 +713,15 @@ export function TeamReportDashboard({
             </tbody>
           </table>
         </div>
+        {!showAllInterventions && filteredInterventions.length > LIST_PAGE_SIZE && (
+          <button
+            type="button"
+            onClick={() => setShowAllInterventions(true)}
+            className="mt-3 text-xs font-bold text-primary hover:underline"
+          >
+            Tampilkan semua {filteredInterventions.length} catatan
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
@@ -900,7 +827,7 @@ export function TeamReportDashboard({
                 <ClipboardList className="mx-auto text-muted-foreground/50" size={28} />
                 <p className="mt-2 text-xs text-muted-foreground">Tidak ada aktivitas yang cocok.</p>
               </div>
-            ) : filteredActivities.map(activity => (
+            ) : visibleActivities.map(activity => (
               <div key={activity.id} className="py-3 flex items-start gap-3">
                 <div className="mt-1 h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ background: ACTIVITY_COLORS[activity.activity_type] || 'hsl(215,16%,47%)' }} />
                 <div className="min-w-0 flex-1">
@@ -926,6 +853,15 @@ export function TeamReportDashboard({
               </div>
             ))}
           </div>
+          {!showAllActivities && filteredActivities.length > LIST_PAGE_SIZE && (
+            <button
+              type="button"
+              onClick={() => setShowAllActivities(true)}
+              className="mt-3 text-xs font-bold text-primary hover:underline"
+            >
+              Tampilkan semua {filteredActivities.length} log
+            </button>
+          )}
         </div>
       </div>
     </div>
