@@ -660,6 +660,57 @@ export default function DashboardPage() {
       <Header title={c.title} subtitle={c.subtitle} />
       
       <div className="w-full p-6 space-y-6 animate-fade-in">
+        {/* Quick Zone Shortcuts */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Link
+            href="/work-queue"
+            className="group flex items-center justify-between p-4 rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-50/80 to-indigo-50/40 dark:border-blue-900/30 dark:from-blue-950/20 dark:to-indigo-950/10 transition-all hover:shadow-md hover:-translate-y-0.5"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-sm">
+                🔵
+              </div>
+              <div>
+                <p className="text-[10px] font-extrabold uppercase text-blue-700 dark:text-blue-300 tracking-wider">Zona Kerja Harian</p>
+                <p className="text-xs font-black text-foreground mt-0.5">Kerjaan Hari Ini</p>
+              </div>
+            </div>
+            <ArrowRight size={16} className="text-blue-500 group-hover:translate-x-1 transition-transform" />
+          </Link>
+
+          <Link
+            href="/leads"
+            className="group flex items-center justify-between p-4 rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50/80 to-orange-50/40 dark:border-amber-900/30 dark:from-amber-950/20 dark:to-orange-950/10 transition-all hover:shadow-md hover:-translate-y-0.5"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold text-sm">
+                🟡
+              </div>
+              <div>
+                <p className="text-[10px] font-extrabold uppercase text-amber-700 dark:text-amber-300 tracking-wider">Zona Kelola Data</p>
+                <p className="text-xs font-black text-foreground mt-0.5">Data Leads & Alur</p>
+              </div>
+            </div>
+            <ArrowRight size={16} className="text-amber-500 group-hover:translate-x-1 transition-transform" />
+          </Link>
+
+          <Link
+            href="/analytics"
+            className="group flex items-center justify-between p-4 rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-50/80 to-teal-50/40 dark:border-emerald-900/30 dark:from-emerald-950/20 dark:to-teal-950/10 transition-all hover:shadow-md hover:-translate-y-0.5"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold text-sm">
+                🟢
+              </div>
+              <div>
+                <p className="text-[10px] font-extrabold uppercase text-emerald-700 dark:text-emerald-300 tracking-wider">Zona Pantau & Analisis</p>
+                <p className="text-xs font-black text-foreground mt-0.5">Performa & Report</p>
+              </div>
+            </div>
+            <ArrowRight size={16} className="text-emerald-500 group-hover:translate-x-1 transition-transform" />
+          </Link>
+        </div>
+
         {/* Top Section: Revenue & Campaign Snapshot */}
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
           

@@ -496,11 +496,31 @@ export default function WorkQueuePage() {
     <>
       <Header title="Kerjaan Hari Ini" subtitle="Tempat utama CRO bekerja: hubungi lead, catat hasil chat, pilih langkah berikutnya, lalu simpan." />
       <div className="w-full p-6 animate-fade-in">
-        <div className="mb-4 rounded-2xl border border-emerald-500/15 bg-emerald-500/5 px-5 py-4">
-          <p className="text-sm font-extrabold text-foreground">Kerjaan Hari Ini = tempat utama CRO bekerja</p>
-          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-            Ikuti step dari kiri ke kanan: buka WhatsApp, catat kondisi dan kendala lead, pilih langkah berikutnya, lalu simpan. Data yang disimpan otomatis masuk ke Report Harian, Alasan Gagal, follow-up, dan Butuh Dibantu bila relevan.
-          </p>
+        <div className="mb-4 rounded-2xl border border-blue-500/20 bg-blue-50/60 p-4 dark:border-blue-900/30 dark:bg-blue-950/20">
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <div>
+              <p className="text-xs font-black uppercase text-blue-700 dark:text-blue-300">🔵 Zona Kerja Harian CRO — Alur Kerja 4 Step</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">Semua hasil chat & follow-up langsung tersimpan dan terhitung ke Laporan Harian & Analisis.</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-center text-xs font-extrabold">
+            <div className="rounded-xl border border-blue-200 bg-white p-2.5 dark:border-blue-800 dark:bg-slate-900 shadow-xs">
+              <span className="text-blue-600 dark:text-blue-400 text-[10px]">1️⃣ STEP 1</span>
+              <p className="text-xs text-foreground font-bold mt-0.5">Hubungi Lead (WA)</p>
+            </div>
+            <div className="rounded-xl border border-blue-200 bg-white p-2.5 dark:border-blue-800 dark:bg-slate-900 shadow-xs">
+              <span className="text-blue-600 dark:text-blue-400 text-[10px]">2️⃣ STEP 2</span>
+              <p className="text-xs text-foreground font-bold mt-0.5">Catat Kendala & Solusi</p>
+            </div>
+            <div className="rounded-xl border border-blue-200 bg-white p-2.5 dark:border-blue-800 dark:bg-slate-900 shadow-xs">
+              <span className="text-blue-600 dark:text-blue-400 text-[10px]">3️⃣ STEP 3</span>
+              <p className="text-xs text-foreground font-bold mt-0.5">Next Action & Jadwal FU</p>
+            </div>
+            <div className="rounded-xl border border-blue-200 bg-white p-2.5 dark:border-blue-800 dark:bg-slate-900 shadow-xs">
+              <span className="text-blue-600 dark:text-blue-400 text-[10px]">4️⃣ STEP 4</span>
+              <p className="text-xs text-foreground font-bold mt-0.5">Simpan & Update Status</p>
+            </div>
+          </div>
         </div>
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-[24rem_minmax(0,1fr)]">
           <aside className="rounded-2xl border border-border bg-card shadow-xs overflow-hidden">

@@ -14,23 +14,24 @@ import {
   Tags,
   UserRoundCheck,
   ClipboardCheck,
+  AlertCircle,
+  Clock3,
 } from 'lucide-react'
-import { cn } from '@/lib/utils'
-import { createClient } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
-import { useLayoutStore } from '@/lib/store'
-import { useEffect } from 'react'
-import { useLanguage } from '@/lib/language'
 
-const mainNav: { href: string; label: string; icon: React.ComponentType<{ size?: number; className?: string }> }[] = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+const harianNav = [
   { href: '/work-queue', label: 'Kerjaan Hari Ini', icon: ClipboardCheck },
+  { href: '/needs-action', label: 'Needs Action', icon: AlertCircle },
+  { href: '/follow-ups', label: 'Jadwal Follow-Up', icon: Clock3 },
+  { href: '/expert-queue', label: 'Butuh Dibantu', icon: UserRoundCheck },
+]
+
+const dataNav = [
   { href: '/leads', label: 'Data Leads', icon: Users },
   { href: '/pipeline', label: 'Alur Leads', icon: KanbanSquare },
 ]
 
-const toolsNav: { href: string; label: string; icon: React.ComponentType<{ size?: number; className?: string }> }[] = [
-  { href: '/expert-queue', label: 'Butuh Dibantu', icon: UserRoundCheck },
+const insightNav = [
+  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/reports', label: 'Report Harian', icon: ClipboardList },
   { href: '/analytics', label: 'Performa', icon: BarChart3 },
   { href: '/playbook', label: 'Alasan Gagal', icon: Tags },
@@ -38,13 +39,16 @@ const toolsNav: { href: string; label: string; icon: React.ComponentType<{ size?
 
 const SIDEBAR_COPY = {
   en: {
-    sectionMain: 'Main Menu',
-    sectionTools: 'CRO Tools',
+    sectionHarian: '🔵 CRO Daily Work',
+    sectionData: '🟡 Data Management',
+    sectionInsight: '🟢 Insights & Analytics',
     settings: 'Settings',
     logout: 'Logout',
     labels: {
       Dashboard: 'Dashboard',
       'Kerjaan Hari Ini': 'Today Work',
+      'Needs Action': 'Needs Action',
+      'Jadwal Follow-Up': 'Follow-Up Schedule',
       'Data Leads': 'Lead Data',
       'Alur Leads': 'Lead Flow',
       'Butuh Dibantu': 'Help Needed',
@@ -54,8 +58,9 @@ const SIDEBAR_COPY = {
     } as Record<string, string>,
   },
   id: {
-    sectionMain: 'Menu Utama',
-    sectionTools: 'Tools CRO',
+    sectionHarian: '🔵 Kerja Harian CRO',
+    sectionData: '🟡 Kelola Data',
+    sectionInsight: '🟢 Pantau & Analisis',
     settings: 'Pengaturan',
     logout: 'Keluar',
     labels: {} as Record<string, string>,
@@ -159,12 +164,12 @@ export function Sidebar() {
 
         {/* Nav */}
         <nav className="flex-1 px-3 py-4 space-y-5 overflow-y-auto">
-          {/* Main Menu */}
+          {/* Zona Kerja Harian CRO */}
           <div className="space-y-0.5">
-            <p className="text-[9px] font-extrabold text-muted-foreground/60 uppercase tracking-[0.15em] px-3 mb-2">
-              {copy.sectionMain}
+            <p className="text-[9px] font-extrabold text-blue-600 dark:text-blue-400 uppercase tracking-[0.15em] px-3 mb-2 flex items-center justify-between">
+              <span>{copy.sectionHarian}</span>
             </p>
-            {mainNav.map((item) => (
+            {harianNav.map((item) => (
               <NavItem key={item.href} {...item} />
             ))}
           </div>
@@ -172,12 +177,25 @@ export function Sidebar() {
           {/* Divider */}
           <div className="border-t border-border" />
 
-          {/* Tools */}
+          {/* Zona Kelola Data */}
           <div className="space-y-0.5">
-            <p className="text-[9px] font-extrabold text-muted-foreground/60 uppercase tracking-[0.15em] px-3 mb-2">
-              {copy.sectionTools}
+            <p className="text-[9px] font-extrabold text-amber-600 dark:text-amber-400 uppercase tracking-[0.15em] px-3 mb-2">
+              {copy.sectionData}
             </p>
-            {toolsNav.map((item) => (
+            {dataNav.map((item) => (
+              <NavItem key={item.href} {...item} />
+            ))}
+          </div>
+
+          {/* Divider */}
+          <div className="border-t border-border" />
+
+          {/* Zona Pantau & Analisis */}
+          <div className="space-y-0.5">
+            <p className="text-[9px] font-extrabold text-emerald-600 dark:text-emerald-400 uppercase tracking-[0.15em] px-3 mb-2">
+              {copy.sectionInsight}
+            </p>
+            {insightNav.map((item) => (
               <NavItem key={item.href} {...item} />
             ))}
           </div>
