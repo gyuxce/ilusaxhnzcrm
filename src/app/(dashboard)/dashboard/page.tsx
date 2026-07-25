@@ -82,7 +82,7 @@ interface IntelligenceStats {
   potentialPaidPending: number
   topObjection: string
   topObjectionCount: number
-  biggestDrop: { from: string; to: string; count: number; pct: number } | null
+  biggestDrop: { from: string; to: string; count: number; pct: number; targetStatus: string } | null
 }
 
 const EMPTY_INTELLIGENCE: IntelligenceStats = {
@@ -404,16 +404,31 @@ export default function DashboardPage() {
 
     const statusRank: Record<string, number> = {
       'New Lead': 0,
+      'Contacted': 0,
       'Pitching': 1,
       'Interested': 2,
       'Pemetaan Scheduled': 3,
+      'Pemetaan Done': 3,
       'Waiting Result': 3,
+      'Result Ready': 3,
       'Sent Result Pemetaan': 3,
+      'Placement Test Scheduled': 3,
+      'Placement Test Done': 3,
       'Expert Consultation Scheduled': 4,
+      'Expert Consultation Done': 4,
       'Seat Lock Offered': 5,
+      'Belum Berhasil Closing': 5,
       'Seat Lock Paid': 6,
       'Onboarding': 6,
       'Class Started': 6,
+    }
+    const stageToDefaultStatus: Record<string, string> = {
+      'Lead In': 'New Lead',
+      'Pitching': 'Pitching',
+      'Interested': 'Interested',
+      'Mapping': 'Pemetaan Scheduled',
+      'Expert': 'Expert Consultation Scheduled',
+      'Seat Lock': 'Seat Lock Offered',
     }
     const funnelDefinitions = [
       { label: 'Lead In', rank: 0 },
@@ -442,6 +457,7 @@ export default function DashboardPage() {
         to: next.label,
         count,
         pct: stage.reached > 0 ? Math.round((count / stage.reached) * 100) : 0,
+        targetStatus: stageToDefaultStatus[stage.label] || 'all',
       }
     })
     const biggestDrop = funnelDrops.sort((a, b) => b.count - a.count)[0] || null
@@ -827,7 +843,10 @@ export default function DashboardPage() {
           </div>
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <div className="rounded-2xl border border-red-200 bg-red-50/70 p-4 dark:border-red-500/20 dark:bg-red-500/[0.06]">
+            <Link
+              href={`/leads?status=${encodeURIComponent(intelligence.biggestDrop?.targetStatus || 'all')}`}
+              className="group rounded-2xl border border-red-200 bg-red-50/70 p-4 transition-all hover:bg-red-100/70 hover:shadow-md dark:border-red-500/20 dark:bg-red-500/[0.06] dark:hover:bg-red-500/10 block"
+            >
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-extrabold uppercase text-red-700 dark:text-red-300">{c.biggestDrop}</span>
                 <AlertTriangle size={16} className="text-red-500" />
@@ -838,7 +857,10 @@ export default function DashboardPage() {
                   ? `${funnelLabelMap[intelligence.biggestDrop.from] || intelligence.biggestDrop.from} → ${funnelLabelMap[intelligence.biggestDrop.to] || intelligence.biggestDrop.to} (${intelligence.biggestDrop.pct}%)`
                   : c.noFunnelData}
               </p>
-            </div>
+              <p className="mt-2 flex items-center gap-1 text-[10px] font-bold text-red-600 dark:text-red-300 group-hover:underline">
+                Cek Data Lead Drop-off <ArrowRight size={11} />
+              </p>
+            </Link>
 
             <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4 dark:border-amber-500/20 dark:bg-amber-500/[0.06]">
               <div className="flex items-center justify-between">

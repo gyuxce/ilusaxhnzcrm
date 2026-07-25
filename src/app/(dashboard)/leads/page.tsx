@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import { Header } from '@/components/layout/header'
 import { LeadsTable } from '@/components/leads/leads-table'
 import { createClient } from '@/lib/supabase/server'
@@ -21,7 +22,7 @@ export default async function LeadsPage() {
         expert_consultations(*)
       `)
       .order('lead_entry_date', { ascending: false })
-      .limit(1000),
+      .limit(5000),
     supabase
       .from('users')
       .select('id, name, email')
@@ -40,10 +41,12 @@ export default async function LeadsPage() {
             Pakai halaman ini untuk cek histori, import CSV, edit, atau hapus data. Untuk menghubungi lead, mencatat kendala, dan menentukan langkah berikutnya, buka Kerjaan Hari Ini.
           </p>
         </div>
-        <LeadsTable
-          initialLeads={leads || []}
-          pics={pics || []}
-        />
+        <Suspense fallback={<div className="p-8 text-center text-xs text-muted-foreground animate-pulse">Memuat data leads...</div>}>
+          <LeadsTable
+            initialLeads={leads || []}
+            pics={pics || []}
+          />
+        </Suspense>
       </div>
     </>
   )

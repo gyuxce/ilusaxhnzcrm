@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import {
   Search, Filter,
   ChevronUp, ChevronDown,
@@ -89,8 +89,17 @@ function normalizePhone(value: string | null | undefined) {
 
 export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [search, setSearch] = useState('')
-  const [filterStatus, setFilterStatus] = useState('all')
+  const [filterStatus, setFilterStatus] = useState(searchParams.get('status') || 'all')
+
+  useEffect(() => {
+    const statusParam = searchParams.get('status')
+    if (statusParam) {
+      setFilterStatus(statusParam)
+      setShowFilters(true)
+    }
+  }, [searchParams])
   const [filterPic, setFilterPic] = useState('all')
   const [filterCampaign, setFilterCampaign] = useState('all')
   const [filterPayment, setFilterPayment] = useState('all')
