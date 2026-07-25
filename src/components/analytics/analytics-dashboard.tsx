@@ -3,26 +3,28 @@
 import { useMemo } from 'react'
 import { TrendingUp, Users, DollarSign, Award, Target, BarChart3, AlertCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { FUNNEL_STATUS_OPTIONS } from '@/lib/funnel-framework'
 import { LOST_STATUSES } from '@/lib/lost-reasons'
 
-const PIPELINE_STAGES = [
-  'New Lead', 'Interested', 'Payment Pemetaan Pending', 'Payment Pemetaan Paid',
-  'Pemetaan Form Submitted', 'Pemetaan Scheduled', 'Pemetaan Done', 'Sent Result Pemetaan',
-  'Waiting Result', 'Result Ready', 'Expert Consultation Scheduled',
-  'Expert Consultation Done', 'Seat Lock Offered', 'Seat Lock Paid',
-  'Onboarding', 'Class Started',
-]
+const PIPELINE_STAGES = FUNNEL_STATUS_OPTIONS.filter(s => !['Not Interested', 'Not Eligible'].includes(s))
 const STAGE_COLORS: Record<string, string> = {
   'New Lead': '#64748b',
-  'Interested': '#3b82f6',
-  'Payment Pemetaan Paid': '#8b5cf6',
+  'Contacted': '#94a3b8',
+  'Pitching': '#3b82f6',
+  'Interested': '#2563eb',
   'Pemetaan Scheduled': '#8b5cf6',
-  'Pemetaan Done': '#f59e0b',
+  'Pemetaan Done': '#7c3aed',
+  'Waiting Result': '#a78bfa',
+  'Result Ready': '#c084fc',
   'Sent Result Pemetaan': '#f59e0b',
-  'Expert Consultation Done': '#10b981',
+  'Placement Test Scheduled': '#d97706',
+  'Placement Test Done': '#b45309',
+  'Expert Consultation Scheduled': '#10b981',
+  'Expert Consultation Done': '#059669',
+  'Seat Lock Offered': '#f43f5e',
+  'Belum Berhasil Closing': '#e11d48',
   'Seat Lock Paid': '#22c55e',
   'Onboarding': '#06b6d4',
-  'Class Started': '#2563eb',
 }
 
 interface AnalyticsDashboardProps {

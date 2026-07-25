@@ -336,17 +336,25 @@ export default function DashboardPage() {
     let total = 0
     const sc: Record<string, number> = {
       'New Lead': 0,
+      'Contacted': 0,
       'Pitching': 0,
       'Interested': 0,
       'Not Interested': 0,
       'Not Eligible': 0,
       'Pemetaan Scheduled': 0,
+      'Pemetaan Done': 0,
       'Waiting Result': 0,
+      'Result Ready': 0,
       'Sent Result Pemetaan': 0,
+      'Placement Test Scheduled': 0,
+      'Placement Test Done': 0,
       'Expert Consultation Scheduled': 0,
+      'Expert Consultation Done': 0,
       'Seat Lock Offered': 0,
+      'Belum Berhasil Closing': 0,
       'Seat Lock Paid': 0,
       'Onboarding': 0,
+      'Class Started': 0,
     }
 
     if (leadRows.length > 0) {
@@ -540,18 +548,19 @@ export default function DashboardPage() {
 
     setStats({
       totalLeads: total,
-      newLeads: sc['New Lead'] || 0,
+      newLeads: (sc['New Lead'] || 0) + (sc['Contacted'] || 0),
       pitching: sc['Pitching'] || 0,
       interestedLeads: sc['Interested'] || 0,
       notInterested: sc['Not Interested'] || 0,
       notEligible: sc['Not Eligible'] || 0,
-      pemetaanScheduled: sc['Pemetaan Scheduled'] || 0,
-      waitingResult: sc['Waiting Result'] || 0,
+      pemetaanScheduled: (sc['Pemetaan Scheduled'] || 0) + (sc['Pemetaan Done'] || 0),
+      waitingResult: (sc['Waiting Result'] || 0) + (sc['Result Ready'] || 0)
+        + (sc['Placement Test Scheduled'] || 0) + (sc['Placement Test Done'] || 0),
       sentResultPemetaan: sc['Sent Result Pemetaan'] || 0,
-      expertScheduled: sc['Expert Consultation Scheduled'] || 0,
-      seatLockOffered: sc['Seat Lock Offered'] || 0,
+      expertScheduled: (sc['Expert Consultation Scheduled'] || 0) + (sc['Expert Consultation Done'] || 0),
+      seatLockOffered: (sc['Seat Lock Offered'] || 0) + (sc['Belum Berhasil Closing'] || 0),
       seatLockPaid: sc['Seat Lock Paid'] || 0,
-      onboarding: sc['Onboarding'] || 0,
+      onboarding: (sc['Onboarding'] || 0) + (sc['Class Started'] || 0),
       revenuePemetaan: revPemetaan,
       revenueSeatLock: revSeatLock,
       revenueCombined: revPemetaan + revSeatLock

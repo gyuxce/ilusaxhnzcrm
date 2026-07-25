@@ -29,7 +29,7 @@ export default async function ConversionsPage({ searchParams }: PageProps) {
     .eq('verification_status', 'verified')
     .order('payment_date', { ascending: false })
     .order('created_at', { ascending: false })
-    .limit(1000)) as { data: PaymentWithLead[] | null }
+    .limit(5000)) as { data: PaymentWithLead[] | null }
 
   return (
     <>

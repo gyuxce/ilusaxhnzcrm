@@ -15,7 +15,7 @@ export default async function PipelinePage() {
       users:assigned_cro_id(id, name)
     `)
     .order('updated_at', { ascending: false })
-    .limit(500)
+    .limit(5000)
 
   return (
     <>
