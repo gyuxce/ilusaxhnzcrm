@@ -37,6 +37,23 @@ type InterventionSummary = Pick<
 
 type StalePreview = { id: string; name: string; status: string; days: number }
 
+type DashboardStatsCache = {
+  at: number
+  leads: LeadSummary[]
+  newToday: number
+  workCount: number
+  stuckCount: number
+  winWeek: number
+  lostWeek: number
+  stalePreview: StalePreview[]
+  topObjections: { label: string; count: number }[]
+  revenue: { map: number; seat: number; total: number }
+}
+
+/** Keep Overview snappy when toggling Laporan tabs. */
+let dashboardStatsCache: DashboardStatsCache | null = null
+const DASHBOARD_CACHE_MS = 30_000
+
 const COPY = {
   en: {
     title: 'Reports',
@@ -129,7 +146,25 @@ export default function DashboardPage() {
   const [topObjections, setTopObjections] = useState<{ label: string; count: number }[]>([])
   const [revenue, setRevenue] = useState({ map: 0, seat: 0, total: 0 })
 
+  const applyCache = useCallback((cache: DashboardStatsCache) => {
+    setLeads(cache.leads)
+    setNewToday(cache.newToday)
+    setWorkCount(cache.workCount)
+    setStuckCount(cache.stuckCount)
+    setWinWeek(cache.winWeek)
+    setLostWeek(cache.lostWeek)
+    setStalePreview(cache.stalePreview)
+    setTopObjections(cache.topObjections)
+    setRevenue(cache.revenue)
+    setLoading(false)
+  }, [])
+
   const fetchStats = useCallback(async () => {
+    if (dashboardStatsCache && Date.now() - dashboardStatsCache.at < DASHBOARD_CACHE_MS) {
+      applyCache(dashboardStatsCache)
+      return
+    }
+
     setLoading(true)
     const today = getTodayInWIB()
     const weekStart = startOfWeekWIB(today)
@@ -138,7 +173,7 @@ export default function DashboardPage() {
       supabase
         .from('leads')
         .select('id, full_name, current_status, source_campaign, updated_at, lead_entry_date')
-        .limit(5000),
+        .limit(3000),
       supabase
         .from('follow_ups')
         .select('*', { count: 'exact', head: true })
@@ -153,40 +188,31 @@ export default function DashboardPage() {
         .from('lead_interventions')
         .select('lead_id, objection_category, result, created_at')
         .order('created_at', { ascending: false })
-        .limit(3000),
+        .limit(1500),
     ])
 
     const leadRows = (leadsRes.data || []) as LeadSummary[]
-    setLeads(leadRows)
 
     const stuck = leadRows.filter((l) => NEEDS_ACTION_STATUSES.includes(l.current_status)).length
     const fresh = leadRows.filter((l) => l.current_status === 'New Lead').length
     const fuDue = fuRes.count || 0
-    setStuckCount(stuck)
-    setWorkCount(fresh + stuck + fuDue)
+    const nextWorkCount = fresh + stuck + fuDue
+    const nextNewToday = leadRows.filter((l) => (l.lead_entry_date || '').slice(0, 10) === today).length
 
-    setNewToday(
-      leadRows.filter((l) => (l.lead_entry_date || '').slice(0, 10) === today).length
-    )
+    const nextWinWeek = leadRows.filter((l) => {
+      if (!isWonStatus(l.current_status)) return false
+      const stamp = (l.updated_at || l.lead_entry_date || '').slice(0, 10)
+      return stamp >= weekStart
+    }).length
 
-    setWinWeek(
-      leadRows.filter((l) => {
-        if (!isWonStatus(l.current_status)) return false
-        const stamp = (l.updated_at || l.lead_entry_date || '').slice(0, 10)
-        return stamp >= weekStart
-      }).length
-    )
-
-    setLostWeek(
-      leadRows.filter((l) => {
-        if (!isLostOutcomeStatus(l.current_status)) return false
-        const stamp = (l.updated_at || l.lead_entry_date || '').slice(0, 10)
-        return stamp >= weekStart
-      }).length
-    )
+    const nextLostWeek = leadRows.filter((l) => {
+      if (!isLostOutcomeStatus(l.current_status)) return false
+      const stamp = (l.updated_at || l.lead_entry_date || '').slice(0, 10)
+      return stamp >= weekStart
+    }).length
 
     const now = Date.now()
-    const stale = leadRows
+    const nextStale = leadRows
       .filter((l) => !isWonStatus(l.current_status) && !isLostOutcomeStatus(l.current_status))
       .map((l) => {
         const last = l.updated_at || l.lead_entry_date
@@ -195,19 +221,17 @@ export default function DashboardPage() {
       })
       .filter((row) => row.days >= 3)
       .sort((a, b) => b.days - a.days)
-    setStalePreview(stale.slice(0, 6))
+      .slice(0, 6)
 
     const objectionCounts: Record<string, number> = {}
     ;((interventionsRes.data || []) as InterventionSummary[]).forEach((item) => {
       if (!item.objection_category) return
       objectionCounts[item.objection_category] = (objectionCounts[item.objection_category] || 0) + 1
     })
-    setTopObjections(
-      Object.entries(objectionCounts)
-        .map(([label, count]) => ({ label, count }))
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 5)
-    )
+    const nextObjections = Object.entries(objectionCounts)
+      .map(([label, count]) => ({ label, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5)
 
     let map = 0
     let seat = 0
@@ -216,9 +240,23 @@ export default function DashboardPage() {
       if (p.payment_type === 'pemetaan' || p.payment_type === 'roadmap_session') map += amt
       else if (p.payment_type === 'seat_lock') seat += amt
     })
-    setRevenue({ map, seat, total: map + seat })
-    setLoading(false)
-  }, [supabase])
+    const nextRevenue = { map, seat, total: map + seat }
+
+    const cache: DashboardStatsCache = {
+      at: Date.now(),
+      leads: leadRows,
+      newToday: nextNewToday,
+      workCount: nextWorkCount,
+      stuckCount: stuck,
+      winWeek: nextWinWeek,
+      lostWeek: nextLostWeek,
+      stalePreview: nextStale,
+      topObjections: nextObjections,
+      revenue: nextRevenue,
+    }
+    dashboardStatsCache = cache
+    applyCache(cache)
+  }, [applyCache, supabase])
 
   useEffect(() => {
     fetchStats()

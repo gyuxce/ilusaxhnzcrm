@@ -11,11 +11,13 @@ export default async function AnalyticsPage() {
   const [leadsRes, paymentsRes, usersRes] = await Promise.all([
     supabase
       .from('leads')
-      .select('source_campaign, current_status, lead_type, lead_entry_date, assigned_cro_id, lost_reason'),
+      .select('source_campaign, current_status, lead_type, lead_entry_date, assigned_cro_id, lost_reason')
+      .limit(3000),
     supabase
       .from('payments')
       .select('payment_type, amount, verification_status, payment_date')
-      .eq('verification_status', 'verified'),
+      .eq('verification_status', 'verified')
+      .limit(3000),
     supabase
       .from('users')
       .select('id, name'),
