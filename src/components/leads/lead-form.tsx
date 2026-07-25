@@ -2,15 +2,16 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
-import { CheckCircle2, Loader2, Phone, User, Calendar, MessageSquare, Mail, TrendingUp } from 'lucide-react'
+import { CheckCircle2, Loader2, Phone, User, Calendar, MessageSquare, Mail, TrendingUp, AlertCircle } from 'lucide-react'
 import { LOST_REASON_OPTIONS, LOST_STATUSES } from '@/lib/lost-reasons'
-import {
-  FUNNEL_STATUS_OPTIONS,
-} from '@/lib/funnel-framework'
+import { FUNNEL_STATUS_OPTIONS } from '@/lib/funnel-framework'
 import { parseRpcResult, type RpcResult } from '@/lib/rpc'
 import { isJsonRecord } from '@/types/crm'
+import { leadSchema, type LeadFormValues, normalizeWhatsApp } from '@/lib/validations/lead'
 
 interface LeadFormProps {
   pics: { id: string; name: string }[]
@@ -43,39 +44,36 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
-  const [form, setForm] = useState({
-    whatsapp_number: defaultValues?.whatsapp_number || '',
-    full_name: defaultValues?.full_name || '',
-    email: defaultValues?.email || '',
-    source_campaign: defaultValues?.source_campaign || '',
-    lead_type: defaultValues?.lead_type || 'inbound',
-    current_status: defaultValues?.current_status || 'New Lead',
-    assigned_cro_id: defaultValues?.assigned_cro_id || '',
-    notes: defaultValues?.notes || '',
-    lead_entry_date: defaultValues?.lead_entry_date?.split('T')[0] || new Date().toISOString().split('T')[0],
-    referral_source: defaultValues?.referral_source || '',
-    lost_reason: defaultValues?.lost_reason || '',
-    lead_quality: defaultValues?.lead_quality || '',
-    lead_segment: defaultValues?.lead_segment || '',
-    entry_channel: defaultValues?.entry_channel || 'Manual Input',
-    next_action: defaultValues?.next_action || '',
-    next_follow_up_date: defaultValues?.next_follow_up_date?.split('T')[0] || '',
-    funnel_notes: defaultValues?.funnel_notes || '',
+
+  const {
+    register,
+    handleSubmit: handleFormSubmit,
+    setValue,
+    watch,
+    formState: { errors },
+  } = useForm<LeadFormValues>({
+    resolver: zodResolver(leadSchema),
+    defaultValues: {
+      whatsapp_number: defaultValues?.whatsapp_number || '',
+      full_name: defaultValues?.full_name || '',
+      email: defaultValues?.email || '',
+      source_campaign: defaultValues?.source_campaign || '',
+      lead_type: (defaultValues?.lead_type as 'inbound' | 'outbound') || 'inbound',
+      current_status: defaultValues?.current_status || 'New Lead',
+      assigned_cro_id: defaultValues?.assigned_cro_id || '',
+      notes: defaultValues?.notes || '',
+      lead_entry_date: defaultValues?.lead_entry_date?.split('T')[0] || new Date().toISOString().split('T')[0],
+      lost_reason: defaultValues?.lost_reason || '',
+      lead_quality: defaultValues?.lead_quality || '',
+      lead_segment: defaultValues?.lead_segment || '',
+      entry_channel: defaultValues?.entry_channel || 'Manual Input',
+      next_action: defaultValues?.next_action || '',
+      next_follow_up_date: defaultValues?.next_follow_up_date?.split('T')[0] || '',
+      funnel_notes: defaultValues?.funnel_notes || '',
+    },
   })
 
-  function update(field: string, value: string) {
-    setForm(prev => ({ ...prev, [field]: value }))
-  }
-
-  function normalizePhone(value: string) {
-    let cleanPhone = value.replace(/\D/g, '')
-    if (cleanPhone.startsWith('0')) {
-      cleanPhone = '62' + cleanPhone.slice(1)
-    } else if (cleanPhone.startsWith('8')) {
-      cleanPhone = '62' + cleanPhone
-    }
-    return cleanPhone
-  }
+  const currentStatus = watch('current_status')
 
   function rpcErrorMessage(result: RpcResult | null | undefined, fallback = 'Terjadi kesalahan saat menyimpan lead.') {
     if (result?.duplicate_lead && isJsonRecord(result.duplicate_lead)) {
@@ -85,19 +83,8 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
     return result?.message || fallback
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    if (!form.whatsapp_number) return setError('Nomor WhatsApp wajib diisi')
-    
-    const cleanPhone = normalizePhone(form.whatsapp_number)
-
-    // Validate phone number digits
-    if (cleanPhone.length < 9 || cleanPhone.length > 15) {
-      return setError('Nomor WhatsApp tidak valid (harus antara 9 sampai 15 digit angka)')
-    }
-
-    if (!form.full_name) return setError('Nama Lengkap wajib diisi')
-    if (!form.source_campaign) return setError('Source Campaign wajib diisi')
+  async function onSubmit(dataValues: LeadFormValues) {
+    const cleanPhone = normalizeWhatsApp(dataValues.whatsapp_number)
 
     setLoading(true)
     setError('')
@@ -106,26 +93,26 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
     const supabase = createClient()
 
     const params = {
-      p_full_name: form.full_name,
+      p_full_name: dataValues.full_name,
       p_whatsapp_number: cleanPhone,
-      p_email: form.email || null,
-      p_source_campaign: form.source_campaign,
-      p_current_status: form.current_status,
-      p_assigned_cro_id: form.assigned_cro_id || null,
-      p_notes: form.notes || null,
+      p_email: dataValues.email || null,
+      p_source_campaign: dataValues.source_campaign || 'General',
+      p_current_status: dataValues.current_status,
+      p_assigned_cro_id: dataValues.assigned_cro_id || null,
+      p_notes: dataValues.notes || null,
     }
 
     const { data, error: rpcErr } = leadId
       ? await supabase.rpc('update_lead_core_fast', {
           p_lead_id: leadId,
           ...params,
-          p_lost_reason: LOST_STATUSES.includes(form.current_status) ? form.lost_reason : null,
-          p_lead_entry_date: form.lead_entry_date ? new Date(form.lead_entry_date).toISOString() : null,
+          p_lost_reason: LOST_STATUSES.includes(dataValues.current_status) ? dataValues.lost_reason : null,
+          p_lead_entry_date: dataValues.lead_entry_date ? new Date(dataValues.lead_entry_date).toISOString() : null,
         })
       : await supabase.rpc('create_lead_fast', {
           ...params,
-          p_lead_type: form.lead_type,
-          p_lead_entry_date: form.lead_entry_date ? new Date(form.lead_entry_date).toISOString() : new Date().toISOString(),
+          p_lead_type: dataValues.lead_type,
+          p_lead_entry_date: dataValues.lead_entry_date ? new Date(dataValues.lead_entry_date).toISOString() : new Date().toISOString(),
         })
 
     if (rpcErr) {
@@ -154,7 +141,7 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
   const statusOptions = FUNNEL_STATUS_OPTIONS
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleFormSubmit(onSubmit)} className="space-y-6">
       {!isEditMode && (
         <div className="rounded-2xl border border-primary/15 bg-primary/5 p-4">
           <h2 className="text-sm font-extrabold text-foreground">Quick Add Lead</h2>
@@ -176,13 +163,16 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
             <User size={12} /> Nama Lengkap <span className="text-red-500">*</span>
           </label>
           <input
-            value={form.full_name}
-            onChange={e => update('full_name', e.target.value)}
+            {...register('full_name')}
             placeholder="Nama lengkap lead..."
-            required
-            className={inputClass}
+            className={cn(inputClass, errors.full_name && 'border-red-500 focus:border-red-500 focus:ring-red-500')}
             style={inputStyle}
           />
+          {errors.full_name && (
+            <p className="mt-1 flex items-center gap-1 text-xs font-bold text-red-500">
+              <AlertCircle size={11} /> {errors.full_name.message}
+            </p>
+          )}
         </div>
 
         {/* WhatsApp & Email */}
@@ -193,13 +183,16 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
             </label>
             <input
               type="tel"
-              value={form.whatsapp_number}
-              onChange={e => update('whatsapp_number', e.target.value.replace(/\D/g, ''))}
+              {...register('whatsapp_number')}
               placeholder="Contoh: 08123456789"
-              required
-              className={inputClass}
+              className={cn(inputClass, errors.whatsapp_number && 'border-red-500 focus:border-red-500 focus:ring-red-500')}
               style={inputStyle}
             />
+            {errors.whatsapp_number && (
+              <p className="mt-1 flex items-center gap-1 text-xs font-bold text-red-500">
+                <AlertCircle size={11} /> {errors.whatsapp_number.message}
+              </p>
+            )}
           </div>
 
           {isEditMode && (
@@ -209,12 +202,16 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
               </label>
               <input
                 type="email"
-                value={form.email}
-                onChange={e => update('email', e.target.value)}
+                {...register('email')}
                 placeholder="nama@domain.com"
-                className={inputClass}
+                className={cn(inputClass, errors.email && 'border-red-500 focus:border-red-500 focus:ring-red-500')}
                 style={inputStyle}
               />
+              {errors.email && (
+                <p className="mt-1 flex items-center gap-1 text-xs font-bold text-red-500">
+                  <AlertCircle size={11} /> {errors.email.message}
+                </p>
+              )}
             </div>
           )}
         </div>
@@ -232,20 +229,23 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
             <TrendingUp size={12} /> Source Campaign <span className="text-red-500">*</span>
           </label>
           <input
-            value={form.source_campaign}
-            onChange={e => update('source_campaign', e.target.value)}
+            {...register('source_campaign')}
             placeholder="Contoh: Campaign Construction, Webinar Regular, Organic..."
-            required
-            className={inputClass}
+            className={cn(inputClass, errors.source_campaign && 'border-red-500 focus:border-red-500 focus:ring-red-500')}
             style={inputStyle}
           />
+          {errors.source_campaign && (
+            <p className="mt-1 flex items-center gap-1 text-xs font-bold text-red-500">
+              <AlertCircle size={11} /> {errors.source_campaign.message}
+            </p>
+          )}
         </div>
 
         {/* PIC & Status */}
         <div className={cn('grid grid-cols-1 gap-4', isEditMode && 'sm:grid-cols-2')}>
           <div>
             <label className="block text-xs font-bold text-muted-foreground mb-2">PIC CRO</label>
-            <select value={form.assigned_cro_id} onChange={e => update('assigned_cro_id', e.target.value)} className={inputClass} style={inputStyle}>
+            <select {...register('assigned_cro_id')} className={inputClass} style={inputStyle}>
               <option value="" className="bg-card text-foreground">Pilih PIC</option>
               {pics.map(p => <option key={p.id} value={p.id} className="bg-card text-foreground">{p.name}</option>)}
             </select>
@@ -254,20 +254,19 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
           {isEditMode && (
             <div>
               <label className="block text-xs font-bold text-muted-foreground mb-2">Status Pipeline</label>
-              <select value={form.current_status} onChange={e => update('current_status', e.target.value)} className={inputClass} style={inputStyle}>
+              <select {...register('current_status')} className={inputClass} style={inputStyle}>
                 {statusOptions.map(s => <option key={s} value={s} className="bg-card text-foreground">{s}</option>)}
               </select>
             </div>
           )}
         </div>
 
-        {LOST_STATUSES.includes(form.current_status) && (
+        {LOST_STATUSES.includes(currentStatus || '') && (
           <div>
-            <label className="block text-xs font-bold text-muted-foreground mb-2">Kategori Alasan Penolakan</label>
+            <label className="block text-xs font-bold text-muted-foreground mb-2">Kategori Alasan Penolakan <span className="text-red-500">*</span></label>
             <select
-              value={form.lost_reason}
-              onChange={e => update('lost_reason', e.target.value)}
-              className={inputClass}
+              {...register('lost_reason')}
+              className={cn(inputClass, errors.lost_reason && 'border-red-500 focus:border-red-500 focus:ring-red-500')}
               style={inputStyle}
             >
               <option value="" className="bg-card text-foreground">Pilih kategori alasan...</option>
@@ -275,6 +274,11 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
                 <option key={reason} value={reason} className="bg-card text-foreground">{reason}</option>
               ))}
             </select>
+            {errors.lost_reason && (
+              <p className="mt-1 flex items-center gap-1 text-xs font-bold text-red-500">
+                <AlertCircle size={11} /> {errors.lost_reason.message}
+              </p>
+            )}
             <p className="mt-1.5 text-[11px] text-muted-foreground">
               Dipakai untuk membaca pola penolakan dan menentukan strategi follow up berikutnya.
             </p>
@@ -283,33 +287,6 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
 
         <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-xs font-bold text-emerald-700 dark:text-emerald-300">
           Tipe lead: Inbound
-        </div>
-
-        {/* Lead Type */}
-        <div className="hidden">
-          <label className="block text-xs font-bold text-muted-foreground mb-2">Tipe Lead</label>
-          <div className="flex gap-2">
-            {[
-              { value: 'inbound', label: '📥 Inbound', desc: 'Lead yang datang sendiri (submit form, DM, dll)' },
-              { value: 'outbound', label: '📤 Outbound', desc: 'Lead yang dicari/dihubungi tim CRO' },
-            ].map(opt => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => update('lead_type', opt.value)}
-                className={cn(
-                  'flex-1 py-2.5 px-3 rounded-xl text-xs font-bold text-left border transition-all cursor-pointer',
-                  form.lead_type === opt.value
-                    ? opt.value === 'inbound'
-                      ? 'bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900/30 text-emerald-600 dark:text-emerald-400'
-                      : 'bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-900/30 text-blue-600 dark:text-blue-400'
-                    : 'bg-card border-border text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5'
-                )}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
         </div>
       </div>
 
@@ -327,8 +304,7 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
             </label>
             <input
               type="date"
-              value={form.lead_entry_date}
-              onChange={e => update('lead_entry_date', e.target.value)}
+              {...register('lead_entry_date')}
               className={inputClass}
               style={inputStyle}
             />
@@ -341,8 +317,7 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
             <MessageSquare size={12} /> Catatan Tambahan
           </label>
           <textarea
-            value={form.notes}
-            onChange={e => update('notes', e.target.value)}
+            {...register('notes')}
             placeholder="Tulis informasi tambahan atau kualifikasi awal..."
             rows={3}
             className={inputClass}
@@ -352,7 +327,8 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
       </div>
 
       {error && (
-        <div className="px-4 py-2.5 rounded-xl text-sm bg-red-50 border border-red-100 text-red-700 dark:bg-red-500/10 dark:border-red-500/20 dark:text-red-400 font-bold">
+        <div className="px-4 py-2.5 rounded-xl text-sm bg-red-50 border border-red-100 text-red-700 dark:bg-red-500/10 dark:border-red-500/20 dark:text-red-400 font-bold flex items-center gap-2">
+          <AlertCircle size={16} />
           {error}
         </div>
       )}
