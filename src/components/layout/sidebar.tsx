@@ -8,67 +8,48 @@ import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { useLayoutStore } from '@/lib/store'
 import { useLanguage } from '@/lib/language'
+import { PRODUCT } from '@/lib/brand'
+import { PRIMARY_NAV, OWNER_PRIMARY_NAV, isNavActive } from '@/lib/navigation'
+import { useCurrentRole } from '@/lib/use-current-role'
 import {
   LayoutDashboard,
   Users,
   Settings,
   LogOut,
   KanbanSquare,
-  BarChart3,
-  ClipboardList,
-  Tags,
-  UserRoundCheck,
   ClipboardCheck,
-  AlertCircle,
-  Clock3,
+  Wallet,
+  FileText,
+  type LucideIcon,
 } from 'lucide-react'
 
-const harianNav = [
-  { href: '/work-queue', label: 'Kerjaan Hari Ini', icon: ClipboardCheck },
-  { href: '/needs-action', label: 'Needs Action', icon: AlertCircle },
-  { href: '/follow-ups', label: 'Jadwal Follow-Up', icon: Clock3 },
-  { href: '/expert-queue', label: 'Butuh Dibantu', icon: UserRoundCheck },
-]
+const NAV_ICONS: Record<string, LucideIcon> = {
+  '/today': ClipboardCheck,
+  '/leads': Users,
+  '/pipeline': KanbanSquare,
+  '/conversions': Wallet,
+  '/dashboard': LayoutDashboard,
+  '/client-report': FileText,
+}
 
-const dataNav = [
-  { href: '/leads', label: 'Data Leads', icon: Users },
-  { href: '/pipeline', label: 'Alur Leads', icon: KanbanSquare },
-]
-
-const insightNav = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/reports', label: 'Report Harian', icon: ClipboardList },
-  { href: '/analytics', label: 'Performa', icon: BarChart3 },
-  { href: '/playbook', label: 'Alasan Gagal', icon: Tags },
-]
-
-const SIDEBAR_COPY = {
+const COPY = {
   en: {
-    sectionHarian: '🔵 CRO Daily Work',
-    sectionData: '🟡 Data Management',
-    sectionInsight: '🟢 Insights & Analytics',
     settings: 'Settings',
     logout: 'Logout',
-    labels: {
-      Dashboard: 'Dashboard',
-      'Kerjaan Hari Ini': 'Today Work',
-      'Needs Action': 'Needs Action',
-      'Jadwal Follow-Up': 'Follow-Up Schedule',
-      'Data Leads': 'Lead Data',
-      'Alur Leads': 'Lead Flow',
-      'Butuh Dibantu': 'Help Needed',
-      'Report Harian': 'Daily Report',
-      Performa: 'Performance',
-      'Alasan Gagal': 'Lost Reasons',
-    } as Record<string, string>,
+    legend: 'Where to work',
+    legendCro: 'Input in Today or Lead detail. Pipeline & Reports are for monitoring.',
+    legendOwner: 'Client Report is the clean summary. Team tools stay available under Leads/Pipeline.',
+    roleOwner: 'Owner view',
+    roleCro: 'CRO view',
   },
   id: {
-    sectionHarian: '🔵 Kerja Harian CRO',
-    sectionData: '🟡 Kelola Data',
-    sectionInsight: '🟢 Pantau & Analisis',
     settings: 'Pengaturan',
     logout: 'Keluar',
-    labels: {} as Record<string, string>,
+    legend: 'Data ini ke mana?',
+    legendCro: 'Input di Hari Ini atau Detail Lead. Pipeline & Laporan untuk pantau.',
+    legendOwner: 'Laporan Klien = ringkas untuk owner. Detail operasional di Leads/Pipeline.',
+    roleOwner: 'Tampilan owner',
+    roleCro: 'Tampilan CRO',
   },
 } as const
 
@@ -77,10 +58,11 @@ export function Sidebar() {
   const router = useRouter()
   const { sidebarOpen, closeSidebar } = useLayoutStore()
   const { lang } = useLanguage()
-  const copy = SIDEBAR_COPY[lang]
+  const copy = COPY[lang]
   const supabase = createClient()
+  const { isOwnerLike, role } = useCurrentRole()
+  const navItems = isOwnerLike ? OWNER_PRIMARY_NAV : PRIMARY_NAV
 
-  // Automatically close sidebar on mobile when pathname changes
   useEffect(() => {
     closeSidebar()
   }, [pathname, closeSidebar])
@@ -91,140 +73,117 @@ export function Sidebar() {
     closeSidebar()
   }
 
-  function NavItem({
-    href,
-    label,
-    icon: Icon,
-  }: {
-    href: string
-    label: string
-    icon: React.ComponentType<{ size?: number; className?: string }>
-  }) {
-    const isActive = pathname === href || pathname.startsWith(href + '/')
-
-    return (
-      <Link
-        href={href}
-        prefetch={true}
-        onClick={closeSidebar}
-        className={cn(
-          'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 group relative border border-transparent',
-          isActive
-            ? 'text-purple-600 dark:text-purple-400 bg-purple-50/70 dark:bg-purple-950/20 border-purple-100/50 dark:border-purple-900/30'
-            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100/50 dark:hover:bg-white/5'
-        )}
-      >
-        <Icon
-          size={16}
-          className={cn(
-            'transition-colors flex-shrink-0',
-            isActive ? 'text-purple-600 dark:text-purple-400' : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-400'
-          )}
-        />
-        <span className="truncate text-[13px] mr-1">{copy.labels[label] || label}</span>
-        {/* spacer pushes active indicator to right edge */}
-        <span className="flex-1" />
-        {isActive && (
-          <span
-            className="absolute right-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-l-full bg-purple-600 dark:bg-purple-400"
-          />
-        )}
-      </Link>
-    )
-  }
-
   return (
     <>
-      {/* Backdrop for mobile */}
       {sidebarOpen && (
         <div
           onClick={closeSidebar}
-          className="fixed inset-0 z-20 bg-black/60 backdrop-blur-sm lg:hidden"
+          className="fixed inset-0 z-20 lg:hidden"
+          style={{ background: 'rgba(27, 42, 74, 0.35)' }}
         />
       )}
 
       <aside
         className={cn(
-          'fixed left-0 top-0 h-full w-[260px] flex flex-col z-30 transition-transform duration-200 bg-card border-r border-border',
+          'fixed left-0 top-0 h-full w-[268px] flex flex-col z-30 transition-transform duration-200 app-shell-surface',
           sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         )}
       >
-        {/* Logo */}
         <div className="flex items-center gap-3 px-5 py-5 border-b border-border">
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 bg-white border border-border overflow-hidden">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-card border border-border overflow-hidden">
             <Image
               src="/harunokaze-logo.jpg"
-              alt="Harunokaze"
-              width={36}
-              height={36}
+              alt={PRODUCT.shortName}
+              width={40}
+              height={40}
               className="h-full w-full object-contain p-0.5"
               priority
             />
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-extrabold text-foreground leading-none tracking-tight">CRM Harunokaze</p>
-            <p className="text-[10px] text-muted-foreground mt-0.5 truncate">HNZ x Wiwitan — CRO v2.0</p>
+            <p className="font-display text-[15px] font-semibold text-foreground leading-tight tracking-tight">
+              {PRODUCT.name}
+            </p>
+            <p className="text-[10px] text-muted-foreground mt-0.5 truncate">
+              {PRODUCT.partnership}
+              {role ? ` · ${isOwnerLike ? copy.roleOwner : copy.roleCro}` : ''}
+            </p>
           </div>
         </div>
 
-        {/* Nav */}
-        <nav className="flex-1 px-3 py-4 space-y-5 overflow-y-auto">
-          {/* Zona Kerja Harian CRO */}
-          <div className="space-y-0.5">
-            <p className="text-[9px] font-extrabold text-blue-600 dark:text-blue-400 uppercase tracking-[0.15em] px-3 mb-2 flex items-center justify-between">
-              <span>{copy.sectionHarian}</span>
+        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+          <p className="px-3 mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+            Menu utama
+          </p>
+          {navItems.map((item) => {
+            const Icon = NAV_ICONS[item.href] || Users
+            const active = isNavActive(pathname, item.href)
+            const label = lang === 'en' ? item.labelEn : item.labelId
+            const hint = lang === 'en' ? item.hintEn : item.hintId
+
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                prefetch={true}
+                onClick={closeSidebar}
+                className={cn(
+                  'flex items-start gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors border',
+                  active
+                    ? 'text-primary bg-secondary border-border'
+                    : 'text-muted-foreground border-transparent hover:text-foreground hover:bg-secondary/70'
+                )}
+              >
+                <Icon
+                  size={16}
+                  className={cn(
+                    'mt-0.5 flex-shrink-0',
+                    active ? 'text-accent' : 'text-muted-foreground/80'
+                  )}
+                />
+                <span className="min-w-0">
+                  <span className={cn('block text-[13px] font-medium', active && 'text-foreground')}>
+                    {label}
+                  </span>
+                  <span className="block text-[10px] text-muted-foreground leading-snug mt-0.5">
+                    {hint}
+                  </span>
+                </span>
+                {active && (
+                  <span className="ml-auto mt-1 w-0.5 h-5 rounded-l-full bg-accent flex-shrink-0" />
+                )}
+              </Link>
+            )
+          })}
+
+          <div className="mt-5 mx-1 rounded-xl border border-border bg-secondary/50 px-3 py-3">
+            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-accent">
+              {copy.legend}
             </p>
-            {harianNav.map((item) => (
-              <NavItem key={item.href} {...item} />
-            ))}
-          </div>
-
-          {/* Divider */}
-          <div className="border-t border-border" />
-
-          {/* Zona Kelola Data */}
-          <div className="space-y-0.5">
-            <p className="text-[9px] font-extrabold text-amber-600 dark:text-amber-400 uppercase tracking-[0.15em] px-3 mb-2">
-              {copy.sectionData}
+            <p className="text-[11px] text-muted-foreground mt-1.5 leading-relaxed">
+              {isOwnerLike ? copy.legendOwner : copy.legendCro}
             </p>
-            {dataNav.map((item) => (
-              <NavItem key={item.href} {...item} />
-            ))}
-          </div>
-
-          {/* Divider */}
-          <div className="border-t border-border" />
-
-          {/* Zona Pantau & Analisis */}
-          <div className="space-y-0.5">
-            <p className="text-[9px] font-extrabold text-emerald-600 dark:text-emerald-400 uppercase tracking-[0.15em] px-3 mb-2">
-              {copy.sectionInsight}
-            </p>
-            {insightNav.map((item) => (
-              <NavItem key={item.href} {...item} />
-            ))}
           </div>
         </nav>
 
-        {/* Bottom */}
         <div className="px-3 py-4 border-t border-border space-y-0.5">
           <Link
             href="/settings"
             prefetch={true}
             onClick={closeSidebar}
             className={cn(
-              'flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium transition-all duration-150 border border-transparent',
+              'flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium transition-colors border',
               pathname.startsWith('/settings')
-                ? 'text-purple-600 dark:text-purple-400 bg-purple-50/70 dark:bg-purple-950/20 border-purple-100/50 dark:border-purple-900/30'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100/50 dark:hover:bg-white/5'
+                ? 'text-primary bg-secondary border-border'
+                : 'text-muted-foreground border-transparent hover:text-foreground hover:bg-secondary/70'
             )}
           >
-            <Settings size={16} className="text-slate-400 dark:text-slate-500 flex-shrink-0" />
+            <Settings size={16} className="text-muted-foreground flex-shrink-0" />
             {copy.settings}
           </Link>
           <button
             onClick={handleSignOut}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium text-slate-600 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all duration-150"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/5 transition-colors"
           >
             <LogOut size={16} className="flex-shrink-0" />
             {copy.logout}

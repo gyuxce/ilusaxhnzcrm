@@ -1,571 +1,222 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase/client'
 import {
-  Users,
-  Flame,
-  TrendingUp,
-  DollarSign,
-  Award,
-  AlertTriangle,
-  Clock3,
-  Target,
-  BriefcaseBusiness,
   ArrowRight,
+  ClipboardCheck,
+  AlertTriangle,
+  Trophy,
+  UserX,
+  Users,
+  Wallet,
 } from 'lucide-react'
-import { getTodayInWIB } from '@/lib/utils'
 import { Header } from '@/components/layout/header'
-import type { BatchTargetRow, LeadInterventionRow, LeadRow, PaymentRow } from '@/lib/supabase/types'
+import { LaporanSubnav } from '@/components/layout/laporan-subnav'
+import { createClient } from '@/lib/supabase/client'
 import { useLanguage, type Language } from '@/lib/language'
+import {
+  FUNNEL_STAGES,
+  countLeadsByFunnelStage,
+  isLostOutcomeStatus,
+  isWonStatus,
+} from '@/lib/brand'
+import { NEEDS_ACTION_STATUSES } from '@/lib/funnel-framework'
+import { getTodayInWIB } from '@/lib/utils'
+import type { LeadInterventionRow, LeadRow, PaymentRow } from '@/lib/supabase/types'
 
-interface DashboardStats {
-  totalLeads: number
-  newLeads: number
-  pitching: number
-  interestedLeads: number
-  notInterested: number
-  notEligible: number
-  pemetaanScheduled: number
-  waitingResult: number
-  sentResultPemetaan: number
-  expertScheduled: number
-  seatLockOffered: number
-  seatLockPaid: number
-  onboarding: number
-  
-  revenuePemetaan: number
-  revenueSeatLock: number
-  revenueCombined: number
-}
+type LeadSummary = Pick<
+  LeadRow,
+  'id' | 'full_name' | 'current_status' | 'source_campaign' | 'updated_at' | 'lead_entry_date'
+>
 
-type DashboardLeadSummary = Pick<LeadRow, 'id' | 'full_name' | 'current_status' | 'source_campaign' | 'updated_at' | 'lead_entry_date'>
+type InterventionSummary = Pick<
+  LeadInterventionRow,
+  'lead_id' | 'objection_category' | 'result' | 'created_at'
+>
 
-type RecentLeadSummary = Pick<LeadRow, 'id' | 'full_name' | 'source_campaign' | 'current_status' | 'lead_entry_date' | 'lead_type'>
+type StalePreview = { id: string; name: string; status: string; days: number }
 
-type InterventionSummary = Pick<LeadInterventionRow, 'lead_id' | 'objection_category' | 'expert_needed' | 'expert_type' | 'commercial_type' | 'result' | 'created_at'>
-
-type PaymentSummary = Pick<PaymentRow, 'payment_type' | 'amount'>
-
-interface CampaignProgress {
-  name: string
-  totalLeads: number
-  seatLocks: number
-  targetSeatLock: number
-  progressPct: number
-  closingDate: string | null
-  notes: string | null
-  hasManualTarget: boolean
-}
-
-interface FunnelInsight {
-  label: string
-  reached: number
-  conversion: number
-}
-
-interface CampaignInsight {
-  name: string
-  total: number
-  qualified: number
-  seatLocks: number
-  conversion: number
-}
-
-interface IntelligenceStats {
-  funnel: FunnelInsight[]
-  campaigns: CampaignInsight[]
-  staleLeads: number
-  stalePreview: { id: string; name: string; status: string; days: number }[]
-  expertPending: number
-  potentialPaidPending: number
-  topObjection: string
-  topObjectionCount: number
-  biggestDrop: { from: string; to: string; count: number; pct: number; targetStatus: string } | null
-}
-
-const EMPTY_INTELLIGENCE: IntelligenceStats = {
-  funnel: [],
-  campaigns: [],
-  staleLeads: 0,
-  stalePreview: [],
-  expertPending: 0,
-  potentialPaidPending: 0,
-  topObjection: '-',
-  topObjectionCount: 0,
-  biggestDrop: null,
-}
-
-const DASHBOARD_COPY = {
+const COPY = {
   en: {
-    title: 'Dashboard',
-    subtitle: 'Track lead progress, revenue, and CRO performance',
-    language: 'Language',
-    revenueMapping: 'Mapping Revenue',
-    revenueSeatLock: 'Seat Lock Revenue',
-    revenueCombined: 'Total Revenue',
-    revenueMappingDesc: 'Verified mapping session payments',
-    revenueSeatLockDesc: 'Verified seat lock payments',
-    revenueCombinedDesc: 'Total accumulated revenue',
-    viewDetail: 'View details',
-    activeCampaign: 'Active Campaigns',
-    activeCampaignDesc: 'Campaigns from active lead data',
-    activeCampaignHint: 'Full campaign details are shown in the table below.',
-    summaryPipeline: 'Pipeline Summary',
-    acquisition: 'Acquisition',
-    mappingProcess: 'Mapping Process',
-    expertConsultation: 'Expert Consultation',
-    closingClass: 'Closing & Class',
-    totalLeads: 'Total Leads',
-    newLeads: 'New Leads',
-    pitching: 'Pitching',
-    interestedLeads: 'Interested Leads',
-    notInterested: 'Not Interested / Lost',
-    notEligible: 'Not Eligible',
-    pemetaanScheduled: 'Mapping Scheduled',
-    waitingResult: 'Waiting Result',
-    sentResult: 'Mapping Result Sent',
-    expertScheduled: 'Expert Scheduled',
-    seatLockOffered: 'Seat Lock Offered',
-    seatLockPaid: 'Seat Lock Paid',
-    onboarding: 'Onboarding',
-    funnelIntelligence: 'Funnel Intelligence',
-    funnelDesc: 'Decision indicators from the latest pipeline and handling activity.',
-    openAnalytics: 'Open Analytics',
-    funnelPercentHint: 'Percentage estimates how many leads reached each stage from total incoming leads.',
-    biggestDrop: 'Biggest Drop-off',
-    noFunnelData: 'No funnel data yet',
-    topObstacle: 'Top Obstacle',
-    chatNotes: 'chat notes',
-    needsHelp: 'Needs Help',
-    openHelp: 'Open Help Queue',
-    paidPotential: 'Paid Potential',
-    paidPotentialDesc: 'Service opportunities without final result yet',
-    campaignQuality: 'Campaign Quality',
-    campaignQualityDesc: 'Sorted by highest seat lock conversion.',
-    staleLeads: 'Untouched Leads',
-    staleLeadsDesc: 'No update for at least 3 days.',
-    staleEmpty: 'All active leads are still monitored.',
-    viewAllLeads: 'View all leads',
-    days: 'days',
+    title: 'Reports',
+    subtitle: 'Five numbers that matter — then the funnel and what needs attention.',
+    kpiToday: 'New leads today',
+    kpiTodayHint: 'Entered today (WIB)',
+    kpiWork: 'Need contact today',
+    kpiWorkHint: 'Open Today workspace',
+    kpiStuck: 'Stuck / needs action',
+    kpiStuckHint: 'Waiting on schedule or result',
+    kpiWin: 'Seat lock this week',
+    kpiWinHint: 'Paid / onboarding this week',
+    kpiLost: 'Lost this week',
+    kpiLostHint: 'Not interested / not eligible',
+    funnelTitle: 'Funnel stages 1–6',
+    funnelHint: 'Click a stage to open matching leads in Pipeline / Leads.',
+    attentionTitle: 'Needs attention',
+    attentionHint: 'Active leads with no update for 3+ days.',
+    attentionEmpty: 'No stale leads right now.',
+    lostTitle: 'Top lost reasons',
+    lostHint: 'From recent CRO handling notes.',
+    lostEmpty: 'No lost-reason patterns yet.',
+    revenueTitle: 'Revenue (secondary)',
+    revenueHint: 'Verified payments — details in Payments.',
+    revenueMap: 'Mapping',
+    revenueSeat: 'Seat lock',
+    revenueTotal: 'Total',
+    viewPayments: 'Open payments',
+    days: 'd',
+    openToday: 'Go to Today',
   },
   id: {
-    title: 'Dashboard',
-    subtitle: 'Pantau progress lead, revenue, dan performa CRO',
-    language: 'Bahasa',
-    revenueMapping: 'Revenue Pemetaan',
-    revenueSeatLock: 'Revenue Seat Lock',
-    revenueCombined: 'Total Revenue',
-    revenueMappingDesc: 'Pembayaran pemetaan yang sudah verified',
-    revenueSeatLockDesc: 'Pembayaran seat lock yang sudah verified',
-    revenueCombinedDesc: 'Total akumulasi pendapatan',
-    viewDetail: 'Lihat detail',
-    activeCampaign: 'Campaign Aktif',
-    activeCampaignDesc: 'Campaign dari data lead aktif',
-    activeCampaignHint: 'Detail campaign tampil lengkap di tabel bawah.',
-    summaryPipeline: 'Ringkasan Pipeline',
-    acquisition: 'Akuisisi Lead',
-    mappingProcess: 'Proses Pemetaan',
-    expertConsultation: 'Konsultasi Expert',
-    closingClass: 'Closing & Kelas',
-    totalLeads: 'Total Lead',
-    newLeads: 'Lead Baru',
-    pitching: 'Pitching',
-    interestedLeads: 'Lead Interested',
-    notInterested: 'Not Interested / Lost',
-    notEligible: 'Not Eligible',
-    pemetaanScheduled: 'Pemetaan Dijadwalkan',
-    waitingResult: 'Menunggu Hasil',
-    sentResult: 'Hasil Pemetaan Dikirim',
-    expertScheduled: 'Expert Dijadwalkan',
-    seatLockOffered: 'Seat Lock Ditawarkan',
-    seatLockPaid: 'Seat Lock Paid',
-    onboarding: 'Onboarding',
-    funnelIntelligence: 'Funnel Intelligence',
-    funnelDesc: 'Indikator keputusan dari posisi pipeline dan aktivitas handling terbaru.',
-    openAnalytics: 'Buka Performa',
-    funnelPercentHint: 'Persentase menunjukkan estimasi lead yang sudah mencapai tahap dibanding total lead masuk.',
-    biggestDrop: 'Drop-off Terbesar',
-    noFunnelData: 'Belum ada data funnel',
-    topObstacle: 'Kendala Dominan',
-    chatNotes: 'catatan chat',
-    needsHelp: 'Butuh Dibantu',
-    openHelp: 'Buka Bantuan',
-    paidPotential: 'Bisa Berbayar',
-    paidPotentialDesc: 'Peluang layanan yang belum punya hasil',
-    campaignQuality: 'Kualitas Campaign',
-    campaignQualityDesc: 'Diurutkan dari konversi seat lock tertinggi.',
-    staleLeads: 'Lead Belum Disentuh',
-    staleLeadsDesc: 'Tidak diperbarui minimal 3 hari.',
-    staleEmpty: 'Semua lead aktif masih terpantau.',
-    viewAllLeads: 'Lihat semua lead',
-    days: 'hari',
+    title: 'Laporan',
+    subtitle: 'Lima angka penting — lalu funnel dan yang perlu perhatian.',
+    kpiToday: 'Lead masuk hari ini',
+    kpiTodayHint: 'Masuk hari ini (WIB)',
+    kpiWork: 'Perlu dihubungi',
+    kpiWorkHint: 'Buka workspace Hari Ini',
+    kpiStuck: 'Stuck / needs action',
+    kpiStuckHint: 'Menunggu jadwal atau hasil',
+    kpiWin: 'Seat lock minggu ini',
+    kpiWinHint: 'Paid / onboarding minggu ini',
+    kpiLost: 'Lost minggu ini',
+    kpiLostHint: 'Not interested / not eligible',
+    funnelTitle: 'Funnel tahap 1–6',
+    funnelHint: 'Klik tahap untuk melihat lead terkait.',
+    attentionTitle: 'Butuh perhatian',
+    attentionHint: 'Lead aktif tanpa update ≥ 3 hari.',
+    attentionEmpty: 'Tidak ada lead stale saat ini.',
+    lostTitle: 'Top alasan gagal',
+    lostHint: 'Dari catatan handling CRO terbaru.',
+    lostEmpty: 'Belum ada pola alasan gagal.',
+    revenueTitle: 'Revenue (sekunder)',
+    revenueHint: 'Pembayaran verified — detail di menu Pembayaran.',
+    revenueMap: 'Pemetaan',
+    revenueSeat: 'Seat lock',
+    revenueTotal: 'Total',
+    viewPayments: 'Buka pembayaran',
+    days: 'hr',
+    openToday: 'Ke Hari Ini',
   },
 } as const
 
-function MetricSkeleton({ className = 'h-8 w-32' }: { className?: string }) {
-  return <div className={`${className} animate-pulse rounded-lg bg-slate-200 dark:bg-white/10`} />
+function startOfWeekWIB(today: string): string {
+  const [y, m, d] = today.split('-').map(Number)
+  const date = new Date(Date.UTC(y, m - 1, d))
+  const day = date.getUTCDay() // 0 Sun
+  const mondayOffset = day === 0 ? 6 : day - 1
+  date.setUTCDate(date.getUTCDate() - mondayOffset)
+  return date.toISOString().slice(0, 10)
+}
+
+function MetricSkeleton() {
+  return <div className="h-8 w-16 animate-pulse rounded-lg bg-muted" />
 }
 
 export default function DashboardPage() {
-  const [stats, setStats] = useState<DashboardStats>({
-    totalLeads: 0,
-    newLeads: 0,
-    pitching: 0,
-    interestedLeads: 0,
-    notInterested: 0,
-    notEligible: 0,
-      pemetaanScheduled: 0,
-      waitingResult: 0,
-      sentResultPemetaan: 0,
-      expertScheduled: 0,
-    seatLockOffered: 0,
-    seatLockPaid: 0,
-    onboarding: 0,
-    revenuePemetaan: 0,
-    revenueSeatLock: 0,
-    revenueCombined: 0
-  })
-  
-  const [batchTarget, setBatchTarget] = useState<BatchTargetRow | null>(null)
-  const [campaignProgress, setCampaignProgress] = useState<CampaignProgress[]>([])
-  const [_loading, setLoading] = useState(true)
-  const [_userRole, setUserRole] = useState<string>('cro')
-  const [_recentLeads, setRecentLeads] = useState<RecentLeadSummary[]>([])
-  const [_fuTodayCount, setFuTodayCount] = useState(0)
-  const [intelligence, setIntelligence] = useState<IntelligenceStats>(EMPTY_INTELLIGENCE)
   const { lang } = useLanguage()
-  
-  // Edit Batch Target Modal
-  const [isEditingTarget, setIsEditingTarget] = useState(false)
-  const [newTarget, setNewTarget] = useState(0)
-  const [newBatchName, setNewBatchName] = useState('')
-  const [newStartDate, setNewStartDate] = useState('')
-  const [newEndDate, setNewEndDate] = useState('')
-  const [newNotes, setNewNotes] = useState('')
-
+  const c = COPY[lang as Language]
   const supabase = createClient()
-  const c = DASHBOARD_COPY[lang as Language]
+
+  const [loading, setLoading] = useState(true)
+  const [leads, setLeads] = useState<LeadSummary[]>([])
+  const [newToday, setNewToday] = useState(0)
+  const [workCount, setWorkCount] = useState(0)
+  const [stuckCount, setStuckCount] = useState(0)
+  const [winWeek, setWinWeek] = useState(0)
+  const [lostWeek, setLostWeek] = useState(0)
+  const [stalePreview, setStalePreview] = useState<StalePreview[]>([])
+  const [topObjections, setTopObjections] = useState<{ label: string; count: number }[]>([])
+  const [revenue, setRevenue] = useState({ map: 0, seat: 0, total: 0 })
 
   const fetchStats = useCallback(async () => {
     setLoading(true)
-
     const today = getTodayInWIB()
-    const rolePromise = (async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return null
-      const { data: profile } = await supabase
-        .from('users')
-        .select('role')
-        .eq('id', user.id)
-        .maybeSingle()
-      return profile?.role || null
-    })()
+    const weekStart = startOfWeekWIB(today)
 
-    const leadsPromise = supabase
-      .from('leads')
-      .select('id, full_name, current_status, source_campaign, updated_at, lead_entry_date')
-      .limit(5000)
-
-    const interventionsPromise = supabase
-      .from('lead_interventions')
-      .select('lead_id, objection_category, expert_needed, expert_type, commercial_type, result, created_at')
-      .order('created_at', { ascending: false })
-      .limit(3000)
-
-    const paymentsPromise = supabase
-      .from('payments')
-      .select('payment_type, amount')
-      .eq('verification_status', 'verified')
-      .limit(3000)
-
-    const targetsPromise = supabase
-      .from('batch_targets')
-      .select('*')
-      .order('created_at', { ascending: false })
-
-    const recentPromise = supabase
-      .from('leads')
-      .select('id, full_name, source_campaign, current_status, lead_entry_date, lead_type')
-      .order('lead_entry_date', { ascending: false })
-      .limit(6)
-
-    const fuCountPromise = supabase
-      .from('follow_ups')
-      .select('*', { count: 'exact', head: true })
-      .eq('is_done', false)
-      .lte('scheduled_date', today)
-
-    const [role, leadsResult, interventionsResult, paymentsResult, targetsResult, recentResult, fuCountResult] = await Promise.all([
-      rolePromise,
-      leadsPromise,
-      interventionsPromise,
-      paymentsPromise,
-      targetsPromise,
-      recentPromise,
-      fuCountPromise,
+    const [leadsRes, fuRes, paymentsRes, interventionsRes] = await Promise.all([
+      supabase
+        .from('leads')
+        .select('id, full_name, current_status, source_campaign, updated_at, lead_entry_date')
+        .limit(5000),
+      supabase
+        .from('follow_ups')
+        .select('*', { count: 'exact', head: true })
+        .eq('is_done', false)
+        .lte('scheduled_date', today),
+      supabase
+        .from('payments')
+        .select('payment_type, amount')
+        .eq('verification_status', 'verified')
+        .limit(3000),
+      supabase
+        .from('lead_interventions')
+        .select('lead_id, objection_category, result, created_at')
+        .order('created_at', { ascending: false })
+        .limit(3000),
     ])
 
-    if (role) setUserRole(role)
-    setRecentLeads((recentResult.data || []) as RecentLeadSummary[])
-    setFuTodayCount(fuCountResult.count || 0)
+    const leadRows = (leadsRes.data || []) as LeadSummary[]
+    setLeads(leadRows)
 
-    const leads = leadsResult.data
-    const interventions = interventionsResult.data
-    const payments = paymentsResult.data
-    const targets = targetsResult.data
+    const stuck = leadRows.filter((l) => NEEDS_ACTION_STATUSES.includes(l.current_status)).length
+    const fresh = leadRows.filter((l) => l.current_status === 'New Lead').length
+    const fuDue = fuRes.count || 0
+    setStuckCount(stuck)
+    setWorkCount(fresh + stuck + fuDue)
 
-    const leadRows = (leads || []) as DashboardLeadSummary[]
-    const interventionRows = (interventions || []) as InterventionSummary[]
-    const paymentRows = (payments || []) as PaymentSummary[]
-    const targetRows = (targets || []) as BatchTargetRow[]
+    setNewToday(
+      leadRows.filter((l) => (l.lead_entry_date || '').slice(0, 10) === today).length
+    )
 
-    const latestTarget = targetRows.length > 0 ? targetRows[0] : null
-    setBatchTarget(latestTarget)
-    
-    if (latestTarget) {
-      setNewTarget(latestTarget.target_seat_lock)
-      setNewBatchName(latestTarget.batch_name)
-      setNewStartDate(latestTarget.start_date)
-      setNewEndDate(latestTarget.closing_date)
-      setNewNotes(latestTarget.notes || '')
-    }
+    setWinWeek(
+      leadRows.filter((l) => {
+        if (!isWonStatus(l.current_status)) return false
+        const stamp = (l.updated_at || l.lead_entry_date || '').slice(0, 10)
+        return stamp >= weekStart
+      }).length
+    )
 
-    // Count states
-    let total = 0
-    const sc: Record<string, number> = {
-      'New Lead': 0,
-      'Contacted': 0,
-      'Pitching': 0,
-      'Interested': 0,
-      'Not Interested': 0,
-      'Not Eligible': 0,
-      'Pemetaan Scheduled': 0,
-      'Pemetaan Done': 0,
-      'Waiting Result': 0,
-      'Result Ready': 0,
-      'Sent Result Pemetaan': 0,
-      'Placement Test Scheduled': 0,
-      'Placement Test Done': 0,
-      'Expert Consultation Scheduled': 0,
-      'Expert Consultation Done': 0,
-      'Seat Lock Offered': 0,
-      'Belum Berhasil Closing': 0,
-      'Seat Lock Paid': 0,
-      'Onboarding': 0,
-      'Class Started': 0,
-    }
-
-    if (leadRows.length > 0) {
-      total = leadRows.length
-      leadRows.forEach(lead => {
-        const s = lead.current_status
-        sc[s] = (sc[s] || 0) + 1
-      })
-    }
-
-    const targetByName = new Map<string, BatchTargetRow>()
-    targetRows.forEach(target => {
-      targetByName.set(target.batch_name, target)
-    })
-
-    const campaignMap = new Map<string, { totalLeads: number; seatLocks: number }>()
-    leadRows.forEach(lead => {
-      const campaignName = lead.source_campaign?.trim() || 'No Campaign'
-      const current = campaignMap.get(campaignName) || { totalLeads: 0, seatLocks: 0 }
-      current.totalLeads += 1
-
-      if (['Seat Lock Paid', 'Onboarding', 'Class Started'].includes(lead.current_status)) {
-        current.seatLocks += 1
-      }
-
-      campaignMap.set(campaignName, current)
-    })
-
-    targetRows.forEach(target => {
-      if (!campaignMap.has(target.batch_name)) {
-        campaignMap.set(target.batch_name, { totalLeads: 0, seatLocks: 0 })
-      }
-    })
-
-    const progressRows = Array.from(campaignMap.entries())
-      .map(([name, value]) => {
-        const target = targetByName.get(name)
-        const targetSeatLock = target?.target_seat_lock || Math.max(value.totalLeads, 1)
-        const progressPct = Math.min(Math.round((value.seatLocks / targetSeatLock) * 100), 100)
-
-        return {
-          name,
-          totalLeads: value.totalLeads,
-          seatLocks: value.seatLocks,
-          targetSeatLock,
-          progressPct,
-          closingDate: target?.closing_date || null,
-          notes: target?.notes || null,
-          hasManualTarget: Boolean(target),
-        }
-      })
-      .sort((a, b) => b.totalLeads - a.totalLeads || a.name.localeCompare(b.name))
-
-    setCampaignProgress(progressRows)
-
-    const statusRank: Record<string, number> = {
-      'New Lead': 0,
-      'Contacted': 0,
-      'Pitching': 1,
-      'Interested': 2,
-      'Pemetaan Scheduled': 3,
-      'Pemetaan Done': 3,
-      'Waiting Result': 3,
-      'Result Ready': 3,
-      'Sent Result Pemetaan': 3,
-      'Placement Test Scheduled': 3,
-      'Placement Test Done': 3,
-      'Expert Consultation Scheduled': 4,
-      'Expert Consultation Done': 4,
-      'Seat Lock Offered': 5,
-      'Belum Berhasil Closing': 5,
-      'Seat Lock Paid': 6,
-      'Onboarding': 6,
-      'Class Started': 6,
-    }
-    const stageToDefaultStatus: Record<string, string> = {
-      'Lead In': 'New Lead',
-      'Pitching': 'Pitching',
-      'Interested': 'Interested',
-      'Mapping': 'Pemetaan Scheduled',
-      'Expert': 'Expert Consultation Scheduled',
-      'Seat Lock': 'Seat Lock Offered',
-    }
-    const funnelDefinitions = [
-      { label: 'Lead In', rank: 0 },
-      { label: 'Pitching', rank: 1 },
-      { label: 'Interested', rank: 2 },
-      { label: 'Mapping', rank: 3 },
-      { label: 'Expert', rank: 4 },
-      { label: 'Seat Lock', rank: 5 },
-    ]
-    const activeLeads = leadRows.filter(lead => !['Not Interested', 'Not Eligible'].includes(lead.current_status))
-    const funnel = funnelDefinitions.map(stage => {
-      const reached = stage.rank === 0
-        ? leadRows.length
-        : activeLeads.filter(lead => (statusRank[lead.current_status] ?? -1) >= stage.rank).length
-      return {
-        label: stage.label,
-        reached,
-        conversion: total > 0 ? Math.round((reached / total) * 100) : 0,
-      }
-    })
-    const funnelDrops = funnel.slice(0, -1).map((stage, index) => {
-      const next = funnel[index + 1]
-      const count = Math.max(stage.reached - next.reached, 0)
-      return {
-        from: stage.label,
-        to: next.label,
-        count,
-        pct: stage.reached > 0 ? Math.round((count / stage.reached) * 100) : 0,
-        targetStatus: stageToDefaultStatus[stage.label] || 'all',
-      }
-    })
-    const biggestDrop = funnelDrops.sort((a, b) => b.count - a.count)[0] || null
-
-    const campaignInsights = Array.from(campaignMap.entries())
-      .map(([name, value]) => {
-        const campaignLeads = leadRows.filter(lead => (lead.source_campaign?.trim() || 'No Campaign') === name)
-        const qualified = campaignLeads.filter(lead => (statusRank[lead.current_status] ?? -1) >= 2).length
-        return {
-          name,
-          total: value.totalLeads,
-          qualified,
-          seatLocks: value.seatLocks,
-          conversion: value.totalLeads > 0 ? Math.round((value.seatLocks / value.totalLeads) * 100) : 0,
-        }
-      })
-      .filter(row => row.total > 0)
-      .sort((a, b) => b.conversion - a.conversion || b.qualified - a.qualified || b.total - a.total)
-      .slice(0, 5)
+    setLostWeek(
+      leadRows.filter((l) => {
+        if (!isLostOutcomeStatus(l.current_status)) return false
+        const stamp = (l.updated_at || l.lead_entry_date || '').slice(0, 10)
+        return stamp >= weekStart
+      }).length
+    )
 
     const now = Date.now()
-    const terminalStatuses = ['Not Interested', 'Not Eligible', 'Seat Lock Paid', 'Onboarding', 'Class Started']
-    type StaleRow = { id: string; name: string; status: string; days: number }
-    const staleRows: StaleRow[] = leadRows
-      .filter(lead => !terminalStatuses.includes(lead.current_status))
-      .map(lead => {
-        const lastUpdate = lead.updated_at || lead.lead_entry_date
-        const days = lastUpdate ? Math.floor((now - new Date(lastUpdate).getTime()) / 86400000) : 0
-        return { id: lead.id, name: lead.full_name, status: lead.current_status, days }
+    const stale = leadRows
+      .filter((l) => !isWonStatus(l.current_status) && !isLostOutcomeStatus(l.current_status))
+      .map((l) => {
+        const last = l.updated_at || l.lead_entry_date
+        const days = last ? Math.floor((now - new Date(last).getTime()) / 86400000) : 0
+        return { id: l.id, name: l.full_name, status: l.current_status, days }
       })
-      .filter(row => row.days >= 3)
+      .filter((row) => row.days >= 3)
       .sort((a, b) => b.days - a.days)
+    setStalePreview(stale.slice(0, 6))
 
-    const latestInterventionByLead = new Map<string, InterventionSummary>()
-    interventionRows.forEach(item => {
-      if (!latestInterventionByLead.has(item.lead_id)) latestInterventionByLead.set(item.lead_id, item)
-    })
-    const latestInterventions = Array.from(latestInterventionByLead.values())
     const objectionCounts: Record<string, number> = {}
-    interventionRows.forEach(item => {
-      if (item.objection_category) {
-        objectionCounts[item.objection_category] = (objectionCounts[item.objection_category] || 0) + 1
-      }
+    ;((interventionsRes.data || []) as InterventionSummary[]).forEach((item) => {
+      if (!item.objection_category) return
+      objectionCounts[item.objection_category] = (objectionCounts[item.objection_category] || 0) + 1
     })
+    setTopObjections(
+      Object.entries(objectionCounts)
+        .map(([label, count]) => ({ label, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5)
+    )
 
-    let topObjection = '-'
-    let topObjectionCount = 0
-    for (const [category, count] of Object.entries(objectionCounts)) {
-      if (count > topObjectionCount) {
-        topObjection = category
-        topObjectionCount = count
-      }
-    }
-
-    setIntelligence({
-      funnel,
-      campaigns: campaignInsights,
-      staleLeads: staleRows.length,
-      stalePreview: staleRows.slice(0, 4),
-      expertPending: latestInterventions.filter(item => (item.expert_needed || item.expert_type) && !item.result).length,
-      potentialPaidPending: latestInterventions.filter(item => (item.commercial_type || '').toLowerCase().includes('paid') && !item.result).length,
-      topObjection,
-      topObjectionCount,
-      biggestDrop,
+    let map = 0
+    let seat = 0
+    ;((paymentsRes.data || []) as Pick<PaymentRow, 'payment_type' | 'amount'>[]).forEach((p) => {
+      const amt = Number(p.amount) || 0
+      if (p.payment_type === 'pemetaan' || p.payment_type === 'roadmap_session') map += amt
+      else if (p.payment_type === 'seat_lock') seat += amt
     })
-
-    // Calculate revenue
-    let revPemetaan = 0
-    let revSeatLock = 0
-    if (paymentRows.length > 0) {
-      paymentRows.forEach(p => {
-        const amt = Number(p.amount)
-        if (p.payment_type === 'pemetaan' || p.payment_type === 'roadmap_session') {
-          revPemetaan += amt
-        } else if (p.payment_type === 'seat_lock') {
-          revSeatLock += amt
-        }
-      })
-    }
-
-    setStats({
-      totalLeads: total,
-      newLeads: (sc['New Lead'] || 0) + (sc['Contacted'] || 0),
-      pitching: sc['Pitching'] || 0,
-      interestedLeads: sc['Interested'] || 0,
-      notInterested: sc['Not Interested'] || 0,
-      notEligible: sc['Not Eligible'] || 0,
-      pemetaanScheduled: (sc['Pemetaan Scheduled'] || 0) + (sc['Pemetaan Done'] || 0),
-      waitingResult: (sc['Waiting Result'] || 0) + (sc['Result Ready'] || 0)
-        + (sc['Placement Test Scheduled'] || 0) + (sc['Placement Test Done'] || 0),
-      sentResultPemetaan: sc['Sent Result Pemetaan'] || 0,
-      expertScheduled: (sc['Expert Consultation Scheduled'] || 0) + (sc['Expert Consultation Done'] || 0),
-      seatLockOffered: (sc['Seat Lock Offered'] || 0) + (sc['Belum Berhasil Closing'] || 0),
-      seatLockPaid: sc['Seat Lock Paid'] || 0,
-      onboarding: (sc['Onboarding'] || 0) + (sc['Class Started'] || 0),
-      revenuePemetaan: revPemetaan,
-      revenueSeatLock: revSeatLock,
-      revenueCombined: revPemetaan + revSeatLock
-    })
-
+    setRevenue({ map, seat, total: map + seat })
     setLoading(false)
   }, [supabase])
 
@@ -573,529 +224,266 @@ export default function DashboardPage() {
     fetchStats()
   }, [fetchStats])
 
-  // Update target in Supabase
-  const handleSaveTarget = async () => {
-    if (!batchTarget) {
-      // Create new
-      const { error } = await supabase
-        .from('batch_targets')
-        .insert({
-          batch_name: newBatchName || 'Batch 1',
-          target_seat_lock: newTarget,
-          start_date: newStartDate || new Date().toISOString().split('T')[0],
-          closing_date: newEndDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-          notes: newNotes
-        })
-      if (!error) fetchStats()
-    } else {
-      // Update existing
-      const { error } = await supabase
-        .from('batch_targets')
-        .update({
-          batch_name: newBatchName,
-          target_seat_lock: newTarget,
-          start_date: newStartDate,
-          closing_date: newEndDate,
-          notes: newNotes,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', batchTarget.id)
-      if (!error) fetchStats()
-    }
-    setIsEditingTarget(false)
-  }
+  const stageCounts = useMemo(() => countLeadsByFunnelStage(leads), [leads])
+  const maxStage = Math.max(1, ...stageCounts.map((s) => s.count))
 
-  const funnelPhases = [
+  const kpis = [
     {
-      title: c.acquisition,
-      color: '#a78bfa',
-      stages: [
-        { label: c.totalLeads, value: stats.totalLeads, color: '#a78bfa' },
-        { label: c.newLeads, value: stats.newLeads, color: '#60a5fa' },
-        { label: c.pitching, value: stats.pitching, color: '#8b5cf6' },
-        { label: c.interestedLeads, value: stats.interestedLeads, color: '#34d399' },
-        { label: c.notInterested, value: stats.notInterested, color: '#f87171' },
-        { label: c.notEligible, value: stats.notEligible, color: '#94a3b8' },
-      ]
+      key: 'today',
+      label: c.kpiToday,
+      hint: c.kpiTodayHint,
+      value: newToday,
+      href: '/leads',
+      icon: Users,
     },
     {
-      title: c.mappingProcess,
-      color: '#f59e0b',
-      stages: [
-        { label: c.pemetaanScheduled, value: stats.pemetaanScheduled, color: '#f59e0b' },
-        { label: c.waitingResult, value: stats.waitingResult, color: '#06b6d4' },
-        { label: c.sentResult, value: stats.sentResultPemetaan, color: '#10b981' },
-      ]
+      key: 'work',
+      label: c.kpiWork,
+      hint: c.kpiWorkHint,
+      value: workCount,
+      href: '/today',
+      icon: ClipboardCheck,
     },
     {
-      title: c.expertConsultation,
-      color: '#8b5cf6',
-      stages: [
-        { label: c.expertScheduled, value: stats.expertScheduled, color: '#8b5cf6' },
-      ]
+      key: 'stuck',
+      label: c.kpiStuck,
+      hint: c.kpiStuckHint,
+      value: stuckCount,
+      href: '/needs-action',
+      icon: AlertTriangle,
     },
     {
-      title: c.closingClass,
-      color: '#10b981',
-      stages: [
-        { label: c.seatLockOffered, value: stats.seatLockOffered, color: '#f43f5e' },
-        { label: c.seatLockPaid, value: stats.seatLockPaid, color: '#10b981' },
-        { label: c.onboarding, value: stats.onboarding, color: '#d97706' },
-      ]
-    }
+      key: 'win',
+      label: c.kpiWin,
+      hint: c.kpiWinHint,
+      value: winWeek,
+      href: '/conversions?type=seat_lock',
+      icon: Trophy,
+    },
+    {
+      key: 'lost',
+      label: c.kpiLost,
+      hint: c.kpiLostHint,
+      value: lostWeek,
+      href: '/playbook',
+      icon: UserX,
+    },
   ]
-  const funnelLabelMap: Record<string, string> = lang === 'id'
-    ? {
-        'Lead In': 'Lead Masuk',
-        Pitching: 'Pitching',
-        Interested: 'Interested',
-        Mapping: 'Pemetaan',
-        Expert: 'Expert',
-        'Seat Lock': 'Seat Lock',
-      }
-    : {}
 
   return (
     <>
       <Header title={c.title} subtitle={c.subtitle} />
-      
       <div className="w-full p-6 space-y-6 animate-fade-in">
-        {/* Quick Zone Shortcuts */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Link
-            href="/work-queue"
-            className="group flex items-center justify-between p-4 rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-50/80 to-indigo-50/40 dark:border-blue-900/30 dark:from-blue-950/20 dark:to-indigo-950/10 transition-all hover:shadow-md hover:-translate-y-0.5"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-sm">
-                🔵
-              </div>
-              <div>
-                <p className="text-[10px] font-extrabold uppercase text-blue-700 dark:text-blue-300 tracking-wider">Zona Kerja Harian</p>
-                <p className="text-xs font-black text-foreground mt-0.5">Kerjaan Hari Ini</p>
-              </div>
-            </div>
-            <ArrowRight size={16} className="text-blue-500 group-hover:translate-x-1 transition-transform" />
-          </Link>
+        <LaporanSubnav />
 
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="font-display text-xl font-semibold tracking-tight text-foreground">
+              {c.title}
+            </h2>
+            <p className="text-sm text-muted-foreground mt-1">{c.subtitle}</p>
+          </div>
           <Link
-            href="/leads"
-            className="group flex items-center justify-between p-4 rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50/80 to-orange-50/40 dark:border-amber-900/30 dark:from-amber-950/20 dark:to-orange-950/10 transition-all hover:shadow-md hover:-translate-y-0.5"
+            href="/today"
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold bg-accent text-accent-foreground hover:opacity-90 transition-opacity"
           >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold text-sm">
-                🟡
-              </div>
-              <div>
-                <p className="text-[10px] font-extrabold uppercase text-amber-700 dark:text-amber-300 tracking-wider">Zona Kelola Data</p>
-                <p className="text-xs font-black text-foreground mt-0.5">Data Leads & Alur</p>
-              </div>
-            </div>
-            <ArrowRight size={16} className="text-amber-500 group-hover:translate-x-1 transition-transform" />
-          </Link>
-
-          <Link
-            href="/analytics"
-            className="group flex items-center justify-between p-4 rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-50/80 to-teal-50/40 dark:border-emerald-900/30 dark:from-emerald-950/20 dark:to-teal-950/10 transition-all hover:shadow-md hover:-translate-y-0.5"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold text-sm">
-                🟢
-              </div>
-              <div>
-                <p className="text-[10px] font-extrabold uppercase text-emerald-700 dark:text-emerald-300 tracking-wider">Zona Pantau & Analisis</p>
-                <p className="text-xs font-black text-foreground mt-0.5">Performa & Report</p>
-              </div>
-            </div>
-            <ArrowRight size={16} className="text-emerald-500 group-hover:translate-x-1 transition-transform" />
+            <ClipboardCheck size={14} />
+            {c.openToday}
           </Link>
         </div>
 
-        {/* Top Section: Revenue & Campaign Snapshot */}
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-          
-          {/* Revenue Cards */}
-          <div className="xl:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-4">
-            
-            {/* Revenue Pemetaan */}
-            <div className="glass-card rounded-2xl p-5 border border-border relative overflow-hidden flex flex-col justify-between transition-all duration-200 hover:-translate-y-1 hover:z-30 hover:border-purple-300 hover:shadow-xl active:scale-[0.98] focus-within:z-30 cursor-pointer">
+        {/* 5 KPIs */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
+          {kpis.map((kpi) => {
+            const Icon = kpi.icon
+            return (
               <Link
-                href="/conversions?type=pemetaan"
-                aria-label="Lihat detail revenue pemetaan"
-                className="absolute inset-0 z-20 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2"
-              />
-              <div className="relative z-10 flex items-center justify-between mb-2 pointer-events-none">
-                <span className="text-muted-foreground text-xs font-medium">{c.revenueMapping}</span>
-                <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-600 dark:text-purple-400">
-                  <DollarSign size={15} />
-                </div>
-              </div>
-              <div className="relative z-10 pointer-events-none">
-                {_loading ? (
-                  <MetricSkeleton />
-                ) : (
-                  <p className="text-2xl font-bold text-foreground tracking-tight">
-                    Rp {stats.revenuePemetaan.toLocaleString('id-ID')}
-                  </p>
-                )}
-                <p className="text-[10px] text-muted-foreground/80 mt-1">{c.revenueMappingDesc}</p>
-                <p className="text-[10px] font-semibold text-purple-600 dark:text-purple-300 mt-2">{c.viewDetail}</p>
-              </div>
-            </div>
-
-            {/* Revenue Seat Lock */}
-            <div className="glass-card rounded-2xl p-5 border border-border relative overflow-hidden flex flex-col justify-between transition-all duration-200 hover:-translate-y-1 hover:z-30 hover:border-emerald-300 hover:shadow-xl active:scale-[0.98] focus-within:z-30 cursor-pointer">
-              <Link
-                href="/conversions?type=seat_lock"
-                aria-label="Lihat detail revenue seat lock"
-                className="absolute inset-0 z-20 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
-              />
-              <div className="relative z-10 flex items-center justify-between mb-2 pointer-events-none">
-                <span className="text-muted-foreground text-xs font-medium">{c.revenueSeatLock}</span>
-                <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
-                  <DollarSign size={15} />
-                </div>
-              </div>
-              <div className="relative z-10 pointer-events-none">
-                {_loading ? (
-                  <MetricSkeleton />
-                ) : (
-                  <p className="text-2xl font-bold text-foreground tracking-tight">
-                    Rp {stats.revenueSeatLock.toLocaleString('id-ID')}
-                  </p>
-                )}
-                <p className="text-[10px] text-muted-foreground/80 mt-1">{c.revenueSeatLockDesc}</p>
-                <p className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-300 mt-2">{c.viewDetail}</p>
-              </div>
-            </div>
-
-            {/* Combined Revenue */}
-            <div className="glass-card rounded-2xl p-5 border border-purple-200 dark:border-purple-500/10 relative overflow-hidden flex flex-col justify-between transition-all duration-200 hover:-translate-y-1 hover:z-30 hover:border-purple-300 hover:shadow-xl active:scale-[0.98] focus-within:z-30 cursor-pointer" style={{ background: 'linear-gradient(135deg, rgba(139,92,246,0.05), rgba(168,85,247,0.02))' }}>
-              <Link
-                href="/conversions"
-                aria-label="Lihat semua detail revenue"
-                className="absolute inset-0 z-20 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2"
-              />
-              <div className="relative z-10 flex items-center justify-between mb-2 pointer-events-none">
-                <span className="text-purple-600 dark:text-purple-300 text-xs font-bold">{c.revenueCombined}</span>
-                <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center text-purple-600 dark:text-purple-300">
-                  <TrendingUp size={15} />
-                </div>
-              </div>
-              <div className="relative z-10 pointer-events-none">
-                {_loading ? (
-                  <MetricSkeleton />
-                ) : (
-                  <p className="text-2xl font-black text-purple-600 dark:text-purple-300 tracking-tight">
-                    Rp {stats.revenueCombined.toLocaleString('id-ID')}
-                  </p>
-                )}
-                <p className="text-[10px] text-purple-600/60 dark:text-purple-300/40 mt-1 font-medium">{c.revenueCombinedDesc}</p>
-                <p className="text-[10px] font-semibold text-purple-600 dark:text-purple-300 mt-2">{c.viewDetail}</p>
-              </div>
-            </div>
-
-          </div>
-
-          {/* Campaign Snapshot */}
-          <div className="glass-card rounded-2xl p-5 border border-border relative overflow-hidden flex flex-col justify-between">
-            <div className="flex items-center justify-between mb-2">
-              <div>
-                <span className="text-muted-foreground text-xs font-medium">{c.activeCampaign}</span>
-              </div>
-              <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-600 dark:text-blue-400">
-                <Users size={15} />
-              </div>
-            </div>
-
-            <div>
-              {_loading ? (
-                <MetricSkeleton className="h-8 w-16" />
-              ) : (
-                <p className="text-2xl font-bold text-foreground tracking-tight">
-                  {campaignProgress.length.toLocaleString('id-ID')}
-                </p>
-              )}
-              <p className="text-[10px] text-muted-foreground/80 mt-1">
-                {c.activeCampaignDesc}
-              </p>
-              <p className="text-[10px] text-muted-foreground/70 mt-2">
-                {c.activeCampaignHint}
-              </p>
-            </div>
-          </div>
-
-        </div>
-
-        {/* Grouped Funnel Summary Cards */}
-        <div>
-          <h2 className="text-foreground font-extrabold text-sm uppercase tracking-wider mb-4 flex items-center gap-2">
-            <Award size={16} className="text-purple-600 dark:text-purple-400" />
-            {c.summaryPipeline}
-          </h2>
-          
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {funnelPhases.map(phase => (
-              <div 
-                key={phase.title} 
-                className="glass-card rounded-2xl p-5 border border-border flex flex-col justify-between hover:scale-[1.02] transition-all duration-200"
+                key={kpi.key}
+                href={kpi.href}
+                className="rounded-2xl border border-border bg-card p-4 hover:bg-secondary/40 transition-colors group"
               >
-                <div>
-                  <div className="flex items-center gap-2 border-b border-border pb-3 mb-3">
-                    <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: phase.color }} />
-                    <h3 className="text-xs font-extrabold text-foreground uppercase tracking-wider">{phase.title}</h3>
-                  </div>
-                  
-                  <div className="space-y-3">
-                    {phase.stages.map(stage => (
-                      <div key={stage.label} className="flex items-center justify-between text-xs py-0.5">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: stage.color }} />
-                          <span className="text-muted-foreground font-medium truncate">{stage.label}</span>
-                        </div>
-                        {_loading ? (
-                          <span className="h-5 w-8 animate-pulse rounded-lg bg-slate-200 dark:bg-white/10" />
-                        ) : (
-                          <span className="font-extrabold text-foreground bg-slate-50 dark:bg-white/[0.04] px-2 py-0.5 rounded-lg border border-border/50">
-                            {stage.value}
-                          </span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-[11px] font-semibold text-muted-foreground leading-snug pr-2">
+                    {kpi.label}
+                  </span>
+                  <Icon size={15} className="text-accent flex-shrink-0" />
                 </div>
-              </div>
-            ))}
-          </div>
+                {loading ? (
+                  <MetricSkeleton />
+                ) : (
+                  <p className="font-display text-3xl font-semibold tracking-tight text-foreground">
+                    {kpi.value}
+                  </p>
+                )}
+                <p className="text-[10px] text-muted-foreground mt-2 flex items-center gap-1">
+                  {kpi.hint}
+                  <ArrowRight size={10} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                </p>
+              </Link>
+            )
+          })}
         </div>
 
-        {/* Funnel Intelligence */}
-        <section className="space-y-4">
-          <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <h2 className="flex items-center gap-2 text-sm font-extrabold uppercase tracking-wider text-foreground">
-                <Target size={16} className="text-blue-600 dark:text-blue-400" />
-                {c.funnelIntelligence}
-              </h2>
-              <p className="mt-1 text-xs text-muted-foreground">{c.funnelDesc}</p>
-            </div>
-            <Link href="/analytics" className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline">
-              {c.openAnalytics} <ArrowRight size={13} />
-            </Link>
+        {/* Funnel 1–6 */}
+        <section className="rounded-2xl border border-border bg-card p-5">
+          <div className="mb-4">
+            <h3 className="text-sm font-semibold text-foreground">{c.funnelTitle}</h3>
+            <p className="text-xs text-muted-foreground mt-1">{c.funnelHint}</p>
           </div>
-
-          <div className="glass-card rounded-2xl border border-border p-5">
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
-              {intelligence.funnel.map((stage, index) => (
-                <div key={stage.label} className="relative rounded-xl border border-border bg-slate-50/60 p-3 dark:bg-white/[0.03]">
-                  <div className="mb-2 flex items-center justify-between gap-2">
-                    <span className="text-[10px] font-extrabold uppercase text-muted-foreground">{funnelLabelMap[stage.label] || stage.label}</span>
-                    {index > 0 && <span className="text-[10px] font-black text-primary">{stage.conversion}%</span>}
+          <div className="space-y-3">
+            {FUNNEL_STAGES.map((stage) => {
+              const count = stageCounts.find((s) => s.stageId === stage.id)?.count || 0
+              const pct = Math.round((count / maxStage) * 100)
+              const label = lang === 'en' ? stage.labelEn : stage.labelId
+              const href =
+                stage.id === 6
+                  ? '/conversions?type=seat_lock'
+                  : `/leads?status=${encodeURIComponent(stage.statuses[0])}`
+              return (
+                <Link key={stage.id} href={href} className="block group">
+                  <div className="flex items-center gap-3 mb-1">
+                    <span
+                      className="w-6 h-6 rounded-md text-[11px] font-bold flex items-center justify-center text-white"
+                      style={{ background: stage.color }}
+                    >
+                      {stage.id}
+                    </span>
+                    <span className="text-sm font-medium text-foreground flex-1">{label}</span>
+                    <span className="text-sm font-semibold text-foreground tabular-nums">
+                      {loading ? '—' : count}
+                    </span>
                   </div>
-                  <p className="text-xl font-black text-foreground">{stage.reached}</p>
-                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-200 dark:bg-white/10">
-                    <div className="h-full rounded-full bg-primary" style={{ width: `${Math.max(stage.conversion, stage.reached > 0 ? 3 : 0)}%` }} />
+                  <div className="h-2 rounded-full bg-secondary overflow-hidden ml-9">
+                    <div
+                      className="h-full rounded-full transition-all duration-500"
+                      style={{
+                        width: loading ? '0%' : `${Math.max(pct, count > 0 ? 6 : 0)}%`,
+                        background: stage.color,
+                      }}
+                    />
                   </div>
-                </div>
-              ))}
-            </div>
-            <p className="mt-3 text-[10px] text-muted-foreground">{c.funnelPercentHint}</p>
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <Link
-              href={`/leads?status=${encodeURIComponent(intelligence.biggestDrop?.targetStatus || 'all')}`}
-              className="group rounded-2xl border border-red-200 bg-red-50/70 p-4 transition-all hover:bg-red-100/70 hover:shadow-md dark:border-red-500/20 dark:bg-red-500/[0.06] dark:hover:bg-red-500/10 block"
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-extrabold uppercase text-red-700 dark:text-red-300">{c.biggestDrop}</span>
-                <AlertTriangle size={16} className="text-red-500" />
-              </div>
-              <p className="mt-3 text-lg font-black text-foreground">{intelligence.biggestDrop?.count || 0} lead</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {intelligence.biggestDrop
-                  ? `${funnelLabelMap[intelligence.biggestDrop.from] || intelligence.biggestDrop.from} → ${funnelLabelMap[intelligence.biggestDrop.to] || intelligence.biggestDrop.to} (${intelligence.biggestDrop.pct}%)`
-                  : c.noFunnelData}
-              </p>
-              <p className="mt-2 flex items-center gap-1 text-[10px] font-bold text-red-600 dark:text-red-300 group-hover:underline">
-                Cek Data Lead Drop-off <ArrowRight size={11} />
-              </p>
-            </Link>
-
-            <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4 dark:border-amber-500/20 dark:bg-amber-500/[0.06]">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-extrabold uppercase text-amber-700 dark:text-amber-300">{c.topObstacle}</span>
-                <Flame size={16} className="text-amber-500" />
-              </div>
-              <p className="mt-3 truncate text-lg font-black text-foreground">{intelligence.topObjection}</p>
-              <p className="mt-1 text-xs text-muted-foreground">{intelligence.topObjectionCount} {c.chatNotes}</p>
-            </div>
-
-            <Link href="/expert-queue" className="rounded-2xl border border-violet-200 bg-violet-50/70 p-4 transition-colors hover:bg-violet-100/70 dark:border-violet-500/20 dark:bg-violet-500/[0.06] dark:hover:bg-violet-500/10">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-extrabold uppercase text-violet-700 dark:text-violet-300">{c.needsHelp}</span>
-                <Users size={16} className="text-violet-500" />
-              </div>
-              <p className="mt-3 text-lg font-black text-foreground">{intelligence.expertPending}</p>
-              <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">{c.openHelp} <ArrowRight size={12} /></p>
-            </Link>
-
-            <div className="rounded-2xl border border-blue-200 bg-blue-50/70 p-4 dark:border-blue-500/20 dark:bg-blue-500/[0.06]">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-extrabold uppercase text-blue-700 dark:text-blue-300">{c.paidPotential}</span>
-                <BriefcaseBusiness size={16} className="text-blue-500" />
-              </div>
-              <p className="mt-3 text-lg font-black text-foreground">{intelligence.potentialPaidPending}</p>
-              <p className="mt-1 text-xs text-muted-foreground">{c.paidPotentialDesc}</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 xl:grid-cols-5">
-            <div className="glass-card rounded-2xl border border-border p-5 xl:col-span-3">
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <div>
-                  <h3 className="text-xs font-extrabold uppercase text-foreground">{c.campaignQuality}</h3>
-                  <p className="mt-1 text-[10px] text-muted-foreground">{c.campaignQualityDesc}</p>
-                </div>
-                <span className="text-[10px] text-muted-foreground">Top 5</span>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[34rem] text-left text-xs">
-                  <thead>
-                    <tr className="border-b border-border text-[10px] uppercase text-muted-foreground">
-                      <th className="pb-2 font-extrabold">Campaign</th>
-                      <th className="pb-2 text-right font-extrabold">Lead</th>
-                      <th className="pb-2 text-right font-extrabold">Qualified</th>
-                      <th className="pb-2 text-right font-extrabold">Seat Lock</th>
-                      <th className="pb-2 text-right font-extrabold">Conversion</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {intelligence.campaigns.map(campaign => (
-                      <tr key={campaign.name} className="border-b border-border/60 last:border-b-0">
-                        <td className="max-w-56 truncate py-3 font-bold text-foreground">{campaign.name}</td>
-                        <td className="py-3 text-right text-muted-foreground">{campaign.total}</td>
-                        <td className="py-3 text-right text-muted-foreground">{campaign.qualified}</td>
-                        <td className="py-3 text-right text-muted-foreground">{campaign.seatLocks}</td>
-                        <td className="py-3 text-right font-black text-primary">{campaign.conversion}%</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <div className="glass-card rounded-2xl border border-border p-5 xl:col-span-2">
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <div>
-                  <h3 className="flex items-center gap-2 text-xs font-extrabold uppercase text-foreground">
-                    <Clock3 size={14} className="text-orange-500" /> {c.staleLeads}
-                  </h3>
-                  <p className="mt-1 text-[10px] text-muted-foreground">{c.staleLeadsDesc}</p>
-                </div>
-                <span className="rounded-full bg-orange-100 px-2 py-1 text-xs font-black text-orange-700 dark:bg-orange-500/15 dark:text-orange-300">{intelligence.staleLeads}</span>
-              </div>
-              <div className="space-y-2">
-                {intelligence.stalePreview.length === 0 ? (
-                  <p className="py-8 text-center text-xs text-muted-foreground">{c.staleEmpty}</p>
-                ) : intelligence.stalePreview.map(lead => (
-                  <Link key={lead.id} href={`/leads/${lead.id}`} className="flex items-center justify-between gap-3 rounded-xl border border-border px-3 py-2.5 transition-colors hover:bg-slate-50 dark:hover:bg-white/[0.04]">
-                    <div className="min-w-0">
-                      <p className="truncate text-xs font-bold text-foreground">{lead.name}</p>
-                      <p className="truncate text-[10px] text-muted-foreground">{lead.status}</p>
-                    </div>
-                    <span className="shrink-0 text-[10px] font-extrabold text-orange-600 dark:text-orange-300">{lead.days} {c.days}</span>
-                  </Link>
-                ))}
-              </div>
-              {intelligence.staleLeads > intelligence.stalePreview.length && (
-                <Link href="/leads" className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline">
-                  {c.viewAllLeads} <ArrowRight size={12} />
+                  <p className="text-[10px] text-muted-foreground mt-1 ml-9 group-hover:text-foreground transition-colors">
+                    {stage.meaningId}
+                  </p>
                 </Link>
-              )}
-            </div>
+              )
+            })}
           </div>
         </section>
 
-      </div>
-
-      {/* Edit Target Modal */}
-      {isEditingTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 backdrop-blur-xs">
-          <div className="relative w-full max-w-md bg-card border border-border rounded-2xl p-6 shadow-2xl">
-            <h3 className="text-lg font-bold text-foreground mb-4">Edit Target Progres Batch</h3>
-
-            <div className="space-y-4 mb-6">
-              <div>
-                <label className="block text-xs text-muted-foreground mb-1">Nama Batch</label>
-                <input
-                  type="text"
-                  value={newBatchName}
-                  onChange={(e) => setNewBatchName(e.target.value)}
-                  className="w-full px-3 py-2 text-sm text-foreground bg-card border border-border outline-none rounded-xl focus:ring-1 focus:ring-primary focus:border-primary"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs text-muted-foreground mb-1">Target Seat Lock</label>
-                <input
-                  type="number"
-                  value={newTarget}
-                  onChange={(e) => setNewTarget(Number(e.target.value))}
-                  className="w-full px-3 py-2 text-sm text-foreground bg-card border border-border outline-none rounded-xl focus:ring-1 focus:ring-primary focus:border-primary"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs text-muted-foreground mb-1">Tanggal Mulai</label>
-                  <input
-                    type="date"
-                    value={newStartDate}
-                    onChange={(e) => setNewStartDate(e.target.value)}
-                    className="w-full px-3 py-2 text-sm text-foreground bg-card border border-border outline-none rounded-xl focus:ring-1 focus:ring-primary focus:border-primary"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-muted-foreground mb-1">Tanggal Selesai</label>
-                  <input
-                    type="date"
-                    value={newEndDate}
-                    onChange={(e) => setNewEndDate(e.target.value)}
-                    className="w-full px-3 py-2 text-sm text-foreground bg-card border border-border outline-none rounded-xl focus:ring-1 focus:ring-primary focus:border-primary"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs text-muted-foreground mb-1">Catatan Tambahan</label>
-                <textarea
-                  placeholder="Catatan tambahan target..."
-                  value={newNotes}
-                  onChange={(e) => setNewNotes(e.target.value)}
-                  className="w-full px-3 py-2 text-sm text-foreground bg-card border border-border outline-none rounded-xl h-20 focus:ring-1 focus:ring-primary focus:border-primary"
-                />
-              </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* Needs attention */}
+          <section className="rounded-2xl border border-border bg-card p-5">
+            <div className="mb-4">
+              <h3 className="text-sm font-semibold text-foreground">{c.attentionTitle}</h3>
+              <p className="text-xs text-muted-foreground mt-1">{c.attentionHint}</p>
             </div>
+            {loading ? (
+              <div className="space-y-2">
+                <MetricSkeleton />
+                <MetricSkeleton />
+              </div>
+            ) : stalePreview.length === 0 ? (
+              <p className="text-sm text-muted-foreground">{c.attentionEmpty}</p>
+            ) : (
+              <ul className="space-y-2">
+                {stalePreview.map((row) => (
+                  <li key={row.id}>
+                    <Link
+                      href={`/leads/${row.id}`}
+                      className="flex items-center justify-between gap-3 rounded-xl border border-border px-3 py-2.5 hover:bg-secondary/50 transition-colors"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">{row.name}</p>
+                        <p className="text-[10px] text-muted-foreground truncate">{row.status}</p>
+                      </div>
+                      <span className="text-xs font-semibold text-accent tabular-nums flex-shrink-0">
+                        {row.days}
+                        {c.days}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
 
-            <div className="flex items-center justify-end gap-3 border-t border-border pt-4">
-              <button
-                onClick={() => setIsEditingTarget(false)}
-                className="px-4 py-2 text-xs font-semibold rounded-xl text-muted-foreground hover:text-foreground hover:bg-slate-100 dark:hover:bg-white/5 transition-all"
-              >
-                Batal
-              </button>
-              <button
-                onClick={handleSaveTarget}
-                className="px-4 py-2 text-xs font-bold rounded-xl text-white hover:glow-purple transition-all duration-300"
-                style={{ background: 'linear-gradient(135deg, hsl(250,84%,60%), hsl(280,60%,55%))' }}
-              >
-                Simpan Target
-              </button>
+          {/* Top lost / objections */}
+          <section className="rounded-2xl border border-border bg-card p-5">
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">{c.lostTitle}</h3>
+                <p className="text-xs text-muted-foreground mt-1">{c.lostHint}</p>
+              </div>
+              <Link href="/playbook" className="text-[11px] font-semibold text-accent hover:opacity-80">
+                Detail
+              </Link>
             </div>
-          </div>
+            {loading ? (
+              <div className="space-y-2">
+                <MetricSkeleton />
+                <MetricSkeleton />
+              </div>
+            ) : topObjections.length === 0 ? (
+              <p className="text-sm text-muted-foreground">{c.lostEmpty}</p>
+            ) : (
+              <ul className="space-y-2">
+                {topObjections.map((row) => (
+                  <li
+                    key={row.label}
+                    className="flex items-center justify-between gap-3 rounded-xl border border-border px-3 py-2.5"
+                  >
+                    <p className="text-sm text-foreground truncate">{row.label}</p>
+                    <span className="text-sm font-semibold tabular-nums text-foreground">{row.count}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
         </div>
-      )}
+
+        {/* Secondary revenue */}
+        <section className="rounded-2xl border border-dashed border-border bg-secondary/30 p-5">
+          <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
+            <div>
+              <h3 className="text-sm font-semibold text-foreground inline-flex items-center gap-2">
+                <Wallet size={14} className="text-accent" />
+                {c.revenueTitle}
+              </h3>
+              <p className="text-xs text-muted-foreground mt-1">{c.revenueHint}</p>
+            </div>
+            <Link
+              href="/conversions"
+              className="text-[11px] font-semibold text-accent hover:opacity-80 inline-flex items-center gap-1"
+            >
+              {c.viewPayments}
+              <ArrowRight size={11} />
+            </Link>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {[
+              { label: c.revenueMap, value: revenue.map, href: '/conversions?type=pemetaan' },
+              { label: c.revenueSeat, value: revenue.seat, href: '/conversions?type=seat_lock' },
+              { label: c.revenueTotal, value: revenue.total, href: '/conversions' },
+            ].map((item) => (
+              <Link
+                key={item.label}
+                href={item.href}
+                className="rounded-xl border border-border bg-card px-4 py-3 hover:bg-card/80 transition-colors"
+              >
+                <p className="text-[11px] text-muted-foreground font-medium">{item.label}</p>
+                {loading ? (
+                  <MetricSkeleton />
+                ) : (
+                  <p className="text-lg font-semibold text-foreground mt-1 tabular-nums">
+                    Rp {item.value.toLocaleString('id-ID')}
+                  </p>
+                )}
+              </Link>
+            ))}
+          </div>
+        </section>
+      </div>
     </>
   )
 }

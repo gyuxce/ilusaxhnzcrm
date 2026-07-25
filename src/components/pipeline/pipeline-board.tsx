@@ -3,7 +3,11 @@
 import { useState, useCallback } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { PIPELINE_STAGES } from '@/lib/funnel-framework'
+import {
+  PIPELINE_BOARD_COLUMNS,
+  getStageBadgeClasses,
+  resolveBoardDropStatus,
+} from '@/lib/brand'
 import { MessageCircle, ExternalLink, GripVertical, Users } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -38,60 +42,58 @@ export function PipelineBoard({ initialLeads }: PipelineBoardProps) {
   const supabase = createClient()
 
   const filtered = searchQuery
-    ? leads.filter(l =>
-        l.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        l.source_campaign?.toLowerCase().includes(searchQuery.toLowerCase())
+    ? leads.filter(
+        (l) =>
+          l.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          l.source_campaign?.toLowerCase().includes(searchQuery.toLowerCase())
       )
     : leads
 
-  function getLeadsByStage(stageKey: string) {
-    const stage = PIPELINE_STAGES.find(s => s.key === stageKey)
-    if (!stage) return []
-    return filtered.filter(l => stage.statuses.includes(l.current_status))
+  function getLeadsByColumn(columnKey: string) {
+    const column = PIPELINE_BOARD_COLUMNS.find((c) => c.key === columnKey)
+    if (!column) return []
+    return filtered.filter((l) => column.statuses.includes(l.current_status))
   }
 
-  function getVisibleCount(stageKey: string) {
-    return visibleCounts[stageKey] || INITIAL_VISIBLE_PER_COLUMN
+  function getVisibleCount(columnKey: string) {
+    return visibleCounts[columnKey] || INITIAL_VISIBLE_PER_COLUMN
   }
 
-  function loadMore(stageKey: string) {
-    setVisibleCounts(prev => ({
+  function loadMore(columnKey: string) {
+    setVisibleCounts((prev) => ({
       ...prev,
-      [stageKey]: (prev[stageKey] || INITIAL_VISIBLE_PER_COLUMN) + LOAD_MORE_STEP,
+      [columnKey]: (prev[columnKey] || INITIAL_VISIBLE_PER_COLUMN) + LOAD_MORE_STEP,
     }))
   }
 
-  async function moveLeadToStage(leadId: string, stageKey: string) {
-    const stage = PIPELINE_STAGES.find(s => s.key === stageKey)
-    if (!stage) return
-
-    const lead = leads.find(l => l.id === leadId)
+  async function moveLeadToColumn(leadId: string, columnKey: string) {
+    const lead = leads.find((l) => l.id === leadId)
     if (!lead) return
 
-    const newStatus = stage.statuses.includes(lead.current_status)
-      ? lead.current_status
-      : stage.defaultStatus
-
-    if (lead.current_status === newStatus) return
+    const newStatus = resolveBoardDropStatus(lead.current_status, columnKey)
+    if (!newStatus || lead.current_status === newStatus) return
 
     const previousLeads = leads
     setMoveError('')
-    setLeads(prev => prev.map(l => l.id === leadId ? { ...l, current_status: newStatus } : l))
+    setLeads((prev) => prev.map((l) => (l.id === leadId ? { ...l, current_status: newStatus } : l)))
 
     try {
       const { data: authData } = await supabase.auth.getUser()
       const actorId = authData.user?.id || null
 
       const [updateRes, activityRes] = await Promise.all([
-        supabase.from('leads').update({
-          current_status: newStatus,
-          updated_at: new Date().toISOString(),
-          updated_by: actorId,
-        }).eq('id', leadId),
+        supabase
+          .from('leads')
+          .update({
+            current_status: newStatus,
+            updated_at: new Date().toISOString(),
+            updated_by: actorId,
+          })
+          .eq('id', leadId),
         supabase.from('lead_activities').insert({
           lead_id: leadId,
           activity_type: 'Status changed',
-          description: `Status changed to ${newStatus} via Pipeline Board drag-and-drop`,
+          description: `Status changed to ${newStatus} via Pipeline Board (tahap mapping)`,
           created_by: actorId,
         }),
       ])
@@ -112,15 +114,15 @@ export function PipelineBoard({ initialLeads }: PipelineBoardProps) {
     e.dataTransfer.effectAllowed = 'move'
   }
 
-  function onDragOver(e: React.DragEvent, stageKey: string) {
+  function onDragOver(e: React.DragEvent, columnKey: string) {
     e.preventDefault()
     e.dataTransfer.dropEffect = 'move'
-    setDragOverStage(stageKey)
+    setDragOverStage(columnKey)
   }
 
-  function onDrop(e: React.DragEvent, stageKey: string) {
+  function onDrop(e: React.DragEvent, columnKey: string) {
     e.preventDefault()
-    if (dragging) moveLeadToStage(dragging, stageKey)
+    if (dragging) void moveLeadToColumn(dragging, columnKey)
     setDragging(null)
     setDragOverStage(null)
   }
@@ -132,130 +134,141 @@ export function PipelineBoard({ initialLeads }: PipelineBoardProps) {
 
   const openWA = useCallback((phone: string) => {
     const clean = phone.replace(/\D/g, '')
-    const num = clean.startsWith('0') ? '62' + clean.slice(1) : clean.startsWith('62') ? clean : '62' + clean
+    const num = clean.startsWith('0')
+      ? '62' + clean.slice(1)
+      : clean.startsWith('62')
+        ? clean
+        : '62' + clean
     window.open(`https://wa.me/${num}`, '_blank')
   }, [])
 
   return (
     <div className="space-y-4">
-      {/* Toolbar */}
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs text-muted-foreground border border-border bg-card">
             <Users size={13} />
-            <span>{leads.length} Total Leads</span>
+            <span>{leads.length} lead</span>
           </div>
           <input
             type="text"
-            placeholder="Cari nama atau source..."
+            placeholder="Cari nama atau campaign..."
             value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
+            onChange={(e) => setSearchQuery(e.target.value)}
             className="px-3 py-1.5 rounded-xl text-xs text-foreground placeholder-muted-foreground bg-card border border-border outline-none w-52 focus:ring-1 focus:ring-primary focus:border-primary"
           />
         </div>
-        <p className="text-[10px] text-muted-foreground/50 hidden md:block">Drag & drop kartu untuk pindah stage</p>
+        <p className="text-[10px] text-muted-foreground hidden md:block">
+          Kolom = tahap 1–6 (Menang/Lost dipisah agar aman). Drag untuk pindah status.
+        </p>
       </div>
 
       {moveError && (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-xs font-semibold text-red-700 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400">
+        <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-2 text-xs font-semibold text-destructive">
           {moveError}
         </div>
       )}
 
-      {/* Board */}
-      <div className="flex gap-4 overflow-x-auto pb-4 h-[calc(100vh-170px)]">
-        {PIPELINE_STAGES.map(stage => {
-          const stageLeads = getLeadsByStage(stage.key)
-          const visibleCount = getVisibleCount(stage.key)
+      <div className="flex gap-3 overflow-x-auto pb-4 h-[calc(100vh-170px)]">
+        {PIPELINE_BOARD_COLUMNS.map((column) => {
+          const stageLeads = getLeadsByColumn(column.key)
+          const visibleCount = getVisibleCount(column.key)
           const visibleLeads = stageLeads.slice(0, visibleCount)
           const hiddenCount = Math.max(0, stageLeads.length - visibleLeads.length)
-          const isOver = dragOverStage === stage.key
+          const isOver = dragOverStage === column.key
 
           return (
             <div
-              key={stage.key}
-              className="flex-shrink-0 w-[220px] flex flex-col rounded-2xl transition-all duration-150 h-full"
+              key={column.key}
+              className="flex-shrink-0 w-[200px] flex flex-col rounded-2xl transition-colors duration-150 h-full border"
               style={{
-                background: isOver ? stage.bg : 'hsl(var(--secondary))',
-                border: `1px solid ${isOver ? stage.border : 'hsl(var(--border))'}`,
+                background: isOver ? column.soft : 'hsl(var(--secondary))',
+                borderColor: isOver ? column.color : 'hsl(var(--border))',
               }}
-              onDragOver={e => onDragOver(e, stage.key)}
-              onDrop={e => onDrop(e, stage.key)}
+              onDragOver={(e) => onDragOver(e, column.key)}
+              onDrop={(e) => onDrop(e, column.key)}
               onDragLeave={() => setDragOverStage(null)}
             >
-              {/* Column Header */}
               <div className="px-3 pt-3 pb-2 flex items-center justify-between flex-shrink-0">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: stage.color }} />
-                    <span className="text-[11px] font-extrabold text-foreground truncate leading-tight">{stage.label}</span>
-                  </div>
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: column.color }} />
+                  <span className="text-[11px] font-bold text-foreground truncate leading-tight">
+                    {column.label}
+                  </span>
                 </div>
                 <span
-                  className="text-[10px] font-extrabold rounded-full px-1.5 py-0.5 min-w-[20px] text-center"
-                  style={{ background: stage.bg, color: stage.color, border: `1px solid ${stage.border}` }}
+                  className="text-[10px] font-bold rounded-md px-1.5 py-0.5 min-w-[20px] text-center"
+                  style={{ background: column.soft, color: column.color }}
                 >
                   {stageLeads.length}
                 </span>
               </div>
 
-              {/* Cards */}
               <div className="flex-1 px-2 pb-2 space-y-2 overflow-y-auto pr-1">
                 {stageLeads.length === 0 ? (
                   <div
-                    className="h-20 rounded-xl border-2 border-dashed flex items-center justify-center text-[10px] text-muted-foreground/30 transition-all"
-                    style={{ borderColor: isOver ? stage.border : 'transparent' }}
+                    className="h-20 rounded-xl border-2 border-dashed flex items-center justify-center text-[10px] text-muted-foreground/40"
+                    style={{ borderColor: isOver ? column.color : 'transparent' }}
                   >
-                    {isOver ? 'Lepas di sini' : ''}
+                    {isOver ? 'Lepas di sini' : 'Kosong'}
                   </div>
                 ) : (
                   <>
-                    {visibleLeads.map(lead => (
+                    {visibleLeads.map((lead) => (
                       <div
                         key={lead.id}
                         draggable
-                        onDragStart={e => onDragStart(e, lead.id)}
+                        onDragStart={(e) => onDragStart(e, lead.id)}
                         onDragEnd={onDragEnd}
                         className={cn(
-                          'p-3 rounded-xl border border-border bg-card shadow-xs hover:shadow-md cursor-grab active:cursor-grabbing transition-all duration-150 group',
+                          'p-3 rounded-xl border border-border bg-card hover:border-primary/20 cursor-grab active:cursor-grabbing transition-all duration-150',
                           dragging === lead.id ? 'opacity-40 scale-95' : ''
                         )}
                       >
-                        {/* Drag handle + name */}
                         <div className="flex items-start gap-1.5">
                           <GripVertical size={12} className="text-muted-foreground/40 mt-0.5 flex-shrink-0" />
                           <div className="min-w-0 flex-1">
-                            <p className="text-xs font-bold text-foreground leading-tight line-clamp-2">{lead.full_name}</p>
-                            <p className="text-[9px] text-muted-foreground mt-0.5 truncate">{lead.source_campaign}</p>
-                            <p className="text-[8px] text-muted-foreground/70 mt-0.5 truncate">{lead.current_status}</p>
+                            <p className="text-xs font-semibold text-foreground leading-tight line-clamp-2">
+                              {lead.full_name}
+                            </p>
+                            <p className="text-[9px] text-muted-foreground mt-0.5 truncate">
+                              {lead.source_campaign}
+                            </p>
+                            <span
+                              className={cn(
+                                'inline-block mt-1 text-[8px] px-1.5 py-0.5 rounded-md',
+                                getStageBadgeClasses(lead.current_status)
+                              )}
+                            >
+                              {lead.current_status}
+                            </span>
                           </div>
                         </div>
 
-                        {/* Meta */}
                         <div className="flex items-center gap-1 mt-2 flex-wrap">
                           {lead.lead_type === 'outbound' && (
-                            <span className="text-[8px] px-1.5 py-0.5 rounded-full font-bold" style={{ background: 'rgba(59,130,246,0.15)', color: '#3b82f6' }}>
+                            <span className="text-[8px] px-1.5 py-0.5 rounded-md font-bold bg-secondary text-muted-foreground">
                               OUT
                             </span>
                           )}
                           {lead.users?.name && (
-                            <span className="text-[8px] px-1.5 py-0.5 rounded-full font-bold truncate max-w-[80px]" style={{ background: 'rgba(139,92,246,0.1)', color: '#a78bfa' }}>
+                            <span className="text-[8px] px-1.5 py-0.5 rounded-md font-bold truncate max-w-[80px] bg-secondary text-foreground">
                               {lead.users.name.split(' ')[0]}
                             </span>
                           )}
                         </div>
 
-                        {/* Actions */}
                         <div className="flex items-center gap-1 mt-2 pt-2 border-t border-border">
                           <button
+                            type="button"
                             onClick={() => openWA(lead.whatsapp_number)}
-                            className="flex-1 flex items-center justify-center gap-1 py-1 rounded-lg text-[9px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 transition-all cursor-pointer"
+                            className="flex-1 flex items-center justify-center gap-1 py-1 rounded-lg text-[9px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20"
                           >
                             <MessageCircle size={10} /> WA
                           </button>
                           <Link
                             href={`/leads/${lead.id}`}
-                            className="flex-1 flex items-center justify-center gap-1 py-1 rounded-lg text-[9px] font-semibold text-purple-600 dark:text-purple-400 bg-purple-500/10 hover:bg-purple-500/20 transition-all"
+                            className="flex-1 flex items-center justify-center gap-1 py-1 rounded-lg text-[9px] font-semibold text-primary bg-secondary hover:bg-secondary/80"
                           >
                             <ExternalLink size={10} /> Detail
                           </Link>
@@ -266,10 +279,10 @@ export function PipelineBoard({ initialLeads }: PipelineBoardProps) {
                     {hiddenCount > 0 && (
                       <button
                         type="button"
-                        onClick={() => loadMore(stage.key)}
-                        className="w-full rounded-xl border border-border bg-card px-3 py-2 text-[10px] font-extrabold text-muted-foreground transition-all hover:text-foreground hover:bg-slate-50 dark:hover:bg-white/5"
+                        onClick={() => loadMore(column.key)}
+                        className="w-full rounded-xl border border-border bg-card px-3 py-2 text-[10px] font-bold text-muted-foreground hover:text-foreground"
                       >
-                        Load {Math.min(LOAD_MORE_STEP, hiddenCount)} more ({hiddenCount} tersisa)
+                        Muat {Math.min(LOAD_MORE_STEP, hiddenCount)} lagi ({hiddenCount})
                       </button>
                     )}
                   </>

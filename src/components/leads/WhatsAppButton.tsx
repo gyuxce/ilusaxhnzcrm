@@ -28,11 +28,11 @@ export function WhatsAppButton({ leadName, leadPhone, leadId, picName, iconOnly 
       ) : (
         <button
           onClick={() => setOpen(true)}
-          className="w-full flex items-center gap-3 p-3 rounded-xl transition-all hover:scale-[1.02] text-left outline-none cursor-pointer border border-emerald-250/20 dark:border-emerald-500/20 bg-emerald-50/50 dark:bg-emerald-500/10"
+          className="w-full flex items-center gap-3 p-3 rounded-xl transition-colors text-left outline-none cursor-pointer border border-emerald-500/20 bg-emerald-500/10 hover:bg-emerald-500/15"
         >
-          <MessageCircle size={18} className="text-emerald-600 dark:text-emerald-405 flex-shrink-0" />
+          <MessageCircle size={18} className="text-emerald-700 dark:text-emerald-400 flex-shrink-0" />
           <div>
-            <p className="text-sm font-medium text-emerald-650 dark:text-emerald-400">Buka WhatsApp</p>
+            <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">WhatsApp</p>
             <p className="text-xs text-muted-foreground">Kirim template pesan</p>
           </div>
         </button>

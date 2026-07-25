@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Eye, EyeOff, Loader2 } from 'lucide-react'
+import { PRODUCT } from '@/lib/brand'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -32,42 +33,53 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-background text-foreground transition-all duration-300">
-      {/* Background decoration */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+    <div className="relative min-h-screen flex items-center justify-center p-4 overflow-hidden">
+      <div className="absolute inset-0 pointer-events-none">
         <div
-          className="absolute -top-40 -right-40 w-96 h-96 rounded-full opacity-[0.06] dark:opacity-20 blur-3xl"
-          style={{ background: 'hsl(250,84%,65%)' }}
+          className="absolute -top-32 right-[-10%] w-[28rem] h-[28rem] rounded-full blur-3xl opacity-40"
+          style={{ background: 'var(--surface-glow)' }}
         />
         <div
-          className="absolute -bottom-40 -left-40 w-96 h-96 rounded-full opacity-[0.04] dark:opacity-10 blur-3xl"
-          style={{ background: 'hsl(280,60%,55%)' }}
+          className="absolute -bottom-40 left-[-8%] w-[26rem] h-[26rem] rounded-full blur-3xl opacity-50"
+          style={{ background: 'var(--surface-glow-accent)' }}
+        />
+        <div
+          className="absolute inset-0 opacity-[0.035]"
+          style={{
+            backgroundImage:
+              'linear-gradient(hsl(var(--foreground)) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--foreground)) 1px, transparent 1px)',
+            backgroundSize: '48px 48px',
+          }}
         />
       </div>
 
-      <div className="relative w-full max-w-md">
-        {/* Card */}
-        <div className="rounded-2xl p-8 bg-card text-card-foreground border border-border dark:border-white/10 shadow-2xl relative w-full max-w-md">
-          {/* Logo */}
-          <div className="flex flex-col items-center mb-8">
-            <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 bg-white border border-border shadow-md overflow-hidden">
+      <div className="relative w-full max-w-md animate-fade-in">
+        <div className="rounded-2xl p-8 sm:p-9 bg-card text-card-foreground border border-border shadow-sm">
+          <div className="flex flex-col items-center mb-8 text-center">
+            <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 bg-card border border-border overflow-hidden">
               <Image
                 src="/harunokaze-logo.jpg"
-                alt="Harunokaze"
+                alt={PRODUCT.shortName}
                 width={64}
                 height={64}
                 className="h-full w-full object-contain p-1"
                 priority
               />
             </div>
-            <h1 className="text-2xl font-extrabold text-foreground">CRM Harunokaze</h1>
-            <p className="text-sm text-muted-foreground mt-1 font-medium">Harunokaze × Wiwitan</p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-accent mb-2">
+              {PRODUCT.partnership}
+            </p>
+            <h1 className="font-display text-3xl font-semibold tracking-tight text-foreground">
+              {PRODUCT.name}
+            </h1>
+            <p className="text-sm text-muted-foreground mt-2 max-w-xs leading-relaxed">
+              {PRODUCT.taglineId}
+            </p>
           </div>
 
-          {/* Form */}
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-muted-foreground mb-1.5">
+              <label className="block text-sm font-medium text-foreground/80 mb-1.5">
                 Email
               </label>
               <input
@@ -75,14 +87,14 @@ export default function LoginPage() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="nama@ilusa.com"
+                placeholder="nama@harunokaze.com"
                 required
-                className="w-full px-4 py-2.5 rounded-xl text-sm bg-background text-foreground border border-border outline-none transition-all placeholder:text-muted-foreground/45 focus:ring-1 focus:ring-primary focus:border-primary dark:bg-slate-800/20 dark:border-white/10"
+                className="w-full px-4 py-2.5 rounded-xl text-sm bg-background text-foreground border border-border outline-none transition-colors placeholder:text-muted-foreground/50 focus:ring-2 focus:ring-primary/20 focus:border-primary"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-muted-foreground mb-1.5">
+              <label className="block text-sm font-medium text-foreground/80 mb-1.5">
                 Password
               </label>
               <div className="relative">
@@ -93,7 +105,7 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   required
-                  className="w-full px-4 py-2.5 pr-11 rounded-xl text-sm bg-background text-foreground border border-border outline-none transition-all placeholder:text-muted-foreground/45 focus:ring-1 focus:ring-primary focus:border-primary dark:bg-slate-800/20 dark:border-white/10"
+                  className="w-full px-4 py-2.5 pr-11 rounded-xl text-sm bg-background text-foreground border border-border outline-none transition-colors placeholder:text-muted-foreground/50 focus:ring-2 focus:ring-primary/20 focus:border-primary"
                 />
                 <button
                   type="button"
@@ -106,7 +118,7 @@ export default function LoginPage() {
             </div>
 
             {error && (
-              <div className="px-4 py-2.5 rounded-xl text-sm bg-red-50 border border-red-100 text-red-700 dark:bg-red-500/10 dark:border-red-500/20 dark:text-red-400">
+              <div className="px-4 py-2.5 rounded-xl text-sm bg-destructive/8 border border-destructive/20 text-destructive">
                 {error}
               </div>
             )}
@@ -114,14 +126,14 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-2.5 rounded-xl text-sm font-semibold text-primary-foreground bg-primary hover:opacity-90 transition-all disabled:bg-muted disabled:text-muted-foreground disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-2 shadow-xs cursor-pointer"
+              className="w-full py-2.5 rounded-xl text-sm font-semibold text-primary-foreground bg-primary hover:opacity-92 transition-opacity disabled:bg-muted disabled:text-muted-foreground disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-2 cursor-pointer"
             >
               {loading && <Loader2 size={15} className="animate-spin" />}
-              {loading ? 'Masuk...' : 'Masuk'}
+              {loading ? 'Masuk...' : 'Masuk ke workspace'}
             </button>
           </form>
 
-          <p className="text-center text-xs text-muted-foreground/60 mt-6 font-medium">
+          <p className="text-center text-xs text-muted-foreground mt-6 leading-relaxed">
             Butuh akses? Hubungi admin tim CRO
           </p>
         </div>

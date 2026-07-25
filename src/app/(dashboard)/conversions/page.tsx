@@ -33,7 +33,7 @@ export default async function ConversionsPage({ searchParams }: PageProps) {
 
   return (
     <>
-      <Header title="Detail Pembayaran" subtitle="Daftar pembayaran verified dari sumber angka revenue dashboard." />
+      <Header title="Pembayaran" subtitle="Daftar pembayaran verified. Angka revenue di Laporan diambil dari sini." />
       <ConversionDetailClient payments={data || []} initialType={params?.type || 'all'} />
     </>
   )

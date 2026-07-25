@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { Header } from '@/components/layout/header'
+import { LaporanSubnav } from '@/components/layout/laporan-subnav'
 import { createClient } from '@/lib/supabase/server'
 import {
   AlertTriangle,
@@ -160,6 +161,7 @@ export default async function PlaybookPage() {
       />
 
       <div className="w-full space-y-6 p-6 animate-fade-in">
+        <LaporanSubnav />
         {error && (
           <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300">
             Gagal memuat analisis alasan gagal: {error.message}
