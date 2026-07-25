@@ -8,7 +8,7 @@ import {
   Loader2, User as UserIcon, BookOpen, Users, Target, Trash2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { FUNNEL_STAGES } from '@/lib/brand'
+import { FUNNEL_STAGES, SIMPLE_FUNNEL_FLOW } from '@/lib/brand'
 import { FUNNEL_STATUS_OPTIONS } from '@/lib/funnel-framework'
 import { LOST_REASON_OPTIONS } from '@/lib/lost-reasons'
 
@@ -433,10 +433,31 @@ export default function SettingsPage() {
           {activeTab === 'vocab' && (
             <div className="space-y-4">
               <div className="rounded-2xl border border-border bg-card p-5">
+                <h2 className="font-display text-base font-semibold tracking-tight text-foreground">
+                  {SIMPLE_FUNNEL_FLOW.titleId}
+                </h2>
+                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                  Bahasa sederhana untuk tim & klien. Sumber tunggal dari kode — form, pipeline, dan laporan selalu sama.
+                </p>
+                <ol className="mt-4 space-y-2">
+                  {SIMPLE_FUNNEL_FLOW.stepsId.map((step) => (
+                    <li key={step} className="text-sm text-foreground font-medium">
+                      {step}
+                    </li>
+                  ))}
+                </ol>
+                <p className="mt-4 rounded-xl border border-border bg-secondary/50 px-3 py-2.5 text-xs text-foreground leading-relaxed">
+                  {SIMPLE_FUNNEL_FLOW.exitId}
+                </p>
+                <p className="mt-2 text-xs text-muted-foreground leading-relaxed">
+                  {SIMPLE_FUNNEL_FLOW.croId}
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-border bg-card p-5">
                 <h2 className="text-sm font-semibold text-foreground">Kamus tahap 1–6</h2>
                 <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                  Sumber tunggal dari kode (`brand.ts` / `funnel-framework.ts`). Bukan localStorage —
-                  supaya form, pipeline, dan laporan selalu sama.
+                  Detail status di dalam tiap tahap (untuk tim operasional).
                 </p>
               </div>
 
@@ -462,6 +483,21 @@ export default function SettingsPage() {
                     </ul>
                   </div>
                 ))}
+                <div className="rounded-2xl border border-border bg-card p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="w-6 h-6 rounded-md text-[11px] font-bold flex items-center justify-center bg-amber-800 text-white">
+                      —
+                    </span>
+                    <p className="text-sm font-semibold text-foreground">Keluar · Tidak lanjut</p>
+                  </div>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    Bukan tahap 6. Lead berhenti di tengah jalan.
+                  </p>
+                  <ul className="space-y-1">
+                    <li className="text-[11px] text-foreground/80">· Not Interested</li>
+                    <li className="text-[11px] text-foreground/80">· Not Eligible</li>
+                  </ul>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
