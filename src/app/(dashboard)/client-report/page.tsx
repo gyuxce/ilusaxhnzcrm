@@ -7,12 +7,13 @@ import { LaporanSubnav } from '@/components/layout/laporan-subnav'
 import { createClient } from '@/lib/supabase/client'
 import { useLanguage } from '@/lib/language'
 import {
-  FUNNEL_STAGES,
   PRODUCT,
   countLeadsByFunnelStage,
   isLostOutcomeStatus,
   isWonStatus,
 } from '@/lib/brand'
+import { FunnelStageStrip } from '@/components/reports/funnel-stage-strip'
+import { RankedStatList } from '@/components/reports/ranked-stat-list'
 import { getTodayInWIB } from '@/lib/utils'
 import type { LeadRow } from '@/lib/supabase/types'
 
@@ -123,16 +124,15 @@ export default function ClientReportPage() {
   }, [leads, weekStart])
 
   const stageCounts = useMemo(() => countLeadsByFunnelStage(leads), [leads])
-  const maxStage = Math.max(1, ...stageCounts.map((s) => s.count))
 
   return (
     <>
       <Header title={c.title} subtitle={c.subtitle} />
-      <div className="w-full p-6 space-y-6 animate-fade-in">
+      <div className="w-full p-6 space-y-6 animate-fade-in font-sans">
         <LaporanSubnav />
 
         <section className="rounded-2xl border border-border bg-card p-6">
-          <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-accent">{c.intro}</p>
+          <p className="text-[11px] font-semibold text-accent">{c.intro}</p>
           <h2 className="font-display text-2xl sm:text-3xl font-semibold tracking-tight text-foreground mt-2">
             {c.title}
           </h2>
@@ -163,39 +163,15 @@ export default function ClientReportPage() {
             </div>
 
             <section className="rounded-2xl border border-border bg-card p-5">
-              <h3 className="text-sm font-semibold text-foreground">{c.funnel}</h3>
+              <h3 className="font-display text-base font-semibold tracking-tight text-foreground">
+                {c.funnel}
+              </h3>
               <p className="text-xs text-muted-foreground mt-1 mb-4">{c.funnelHint}</p>
-              <div className="space-y-3">
-                {FUNNEL_STAGES.map((stage) => {
-                  const count = stageCounts.find((s) => s.stageId === stage.id)?.count || 0
-                  const pct = Math.round((count / maxStage) * 100)
-                  return (
-                    <div key={stage.id}>
-                      <div className="flex items-center gap-3 mb-1">
-                        <span
-                          className="w-6 h-6 rounded-md text-[11px] font-bold flex items-center justify-center text-white"
-                          style={{ background: stage.color }}
-                        >
-                          {stage.id}
-                        </span>
-                        <span className="text-sm font-medium text-foreground flex-1">
-                          {lang === 'en' ? stage.labelEn : stage.labelId}
-                        </span>
-                        <span className="text-sm font-semibold tabular-nums">{loading ? '—' : count}</span>
-                      </div>
-                      <div className="h-2 rounded-full bg-secondary overflow-hidden ml-9">
-                        <div
-                          className="h-full rounded-full transition-all duration-500"
-                          style={{
-                            width: loading ? '0%' : `${Math.max(pct, count > 0 ? 6 : 0)}%`,
-                            background: stage.color,
-                          }}
-                        />
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
+              <FunnelStageStrip
+                counts={stageCounts}
+                loading={loading}
+                lang={lang === 'en' ? 'en' : 'id'}
+              />
             </section>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -211,20 +187,16 @@ export default function ClientReportPage() {
                 <h3 className="text-sm font-semibold text-foreground">{c.topLost}</h3>
                 {loading ? (
                   <p className="text-sm text-muted-foreground mt-3">...</p>
-                ) : stats.topLost.length === 0 ? (
-                  <p className="text-sm text-muted-foreground mt-3">{c.emptyLost}</p>
                 ) : (
-                  <ul className="mt-3 space-y-2">
-                    {stats.topLost.map((row) => (
-                      <li
-                        key={row.label}
-                        className="flex items-center justify-between gap-3 rounded-xl border border-border px-3 py-2"
-                      >
-                        <span className="text-sm text-foreground truncate">{row.label}</span>
-                        <span className="text-sm font-semibold tabular-nums">{row.count}</span>
-                      </li>
-                    ))}
-                  </ul>
+                  <div className="mt-2">
+                    <RankedStatList
+                      empty={c.emptyLost}
+                      rows={stats.topLost.map((row) => ({
+                        name: row.label,
+                        count: row.count,
+                      }))}
+                    />
+                  </div>
                 )}
               </section>
             </div>

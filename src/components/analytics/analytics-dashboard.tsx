@@ -1,79 +1,71 @@
 'use client'
 
 import { useMemo } from 'react'
-import { TrendingUp, Users, DollarSign, Award, Target, BarChart3, AlertCircle } from 'lucide-react'
-import { cn } from '@/lib/utils'
-import { FUNNEL_STATUS_OPTIONS } from '@/lib/funnel-framework'
+import { Award, DollarSign, Target, TrendingUp, Users } from 'lucide-react'
+import { FUNNEL_STAGES, countLeadsByFunnelStage, isWonStatus } from '@/lib/brand'
 import { LOST_STATUSES } from '@/lib/lost-reasons'
-
-const PIPELINE_STAGES = FUNNEL_STATUS_OPTIONS.filter(s => !['Not Interested', 'Not Eligible'].includes(s))
-const STAGE_COLORS: Record<string, string> = {
-  'New Lead': '#64748b',
-  'Contacted': '#94a3b8',
-  'Pitching': '#3b82f6',
-  'Interested': '#2563eb',
-  'Pemetaan Scheduled': '#8b5cf6',
-  'Pemetaan Done': '#7c3aed',
-  'Waiting Result': '#a78bfa',
-  'Result Ready': '#c084fc',
-  'Sent Result Pemetaan': '#f59e0b',
-  'Placement Test Scheduled': '#d97706',
-  'Placement Test Done': '#b45309',
-  'Expert Consultation Scheduled': '#10b981',
-  'Expert Consultation Done': '#059669',
-  'Seat Lock Offered': '#f43f5e',
-  'Belum Berhasil Closing': '#e11d48',
-  'Seat Lock Paid': '#22c55e',
-  'Onboarding': '#06b6d4',
-}
+import { FunnelStageStrip } from '@/components/reports/funnel-stage-strip'
+import { RankedStatList } from '@/components/reports/ranked-stat-list'
+import { cn } from '@/lib/utils'
 
 interface AnalyticsDashboardProps {
-  allLeads: { source_campaign: string; current_status: string; lead_type: string; lead_entry_date: string; assigned_cro_id: string | null; lost_reason: string | null }[]
-  payments: { payment_type: string; amount: number; verification_status: string; payment_date: string }[]
+  allLeads: {
+    source_campaign: string
+    current_status: string
+    lead_type: string
+    lead_entry_date: string
+    assigned_cro_id: string | null
+    lost_reason: string | null
+  }[]
+  payments: {
+    payment_type: string
+    amount: number
+    verification_status: string
+    payment_date: string
+  }[]
   users: { id: string; name: string }[]
 }
 
 export function AnalyticsDashboard({ allLeads, payments, users }: AnalyticsDashboardProps) {
   const stats = useMemo(() => {
     const total = allLeads.length
-    const inbound = allLeads.filter(l => l.lead_type === 'inbound').length
-    const outbound = allLeads.filter(l => l.lead_type === 'outbound').length
-    const seatLockPaid = allLeads.filter(l => l.current_status === 'Seat Lock Paid' || l.current_status === 'Onboarding' || l.current_status === 'Class Started').length
-    const lost = allLeads.filter(l => LOST_STATUSES.includes(l.current_status)).length
+    const inbound = allLeads.filter((l) => l.lead_type === 'inbound').length
+    const outbound = allLeads.filter((l) => l.lead_type === 'outbound').length
+    const seatLockPaid = allLeads.filter((l) => isWonStatus(l.current_status)).length
+    const lost = allLeads.filter((l) => LOST_STATUSES.includes(l.current_status)).length
     const convRate = total > 0 ? ((seatLockPaid / total) * 100).toFixed(1) : '0.0'
 
-    // Revenue
-    let revPemetaan = 0, revSeatLock = 0
-    payments.forEach(p => {
-      if (p.payment_type === 'pemetaan' || p.payment_type === 'roadmap_session') revPemetaan += Number(p.amount)
-      else if (p.payment_type === 'seat_lock') revSeatLock += Number(p.amount)
+    let revPemetaan = 0
+    let revSeatLock = 0
+    payments.forEach((p) => {
+      if (p.payment_type === 'pemetaan' || p.payment_type === 'roadmap_session') {
+        revPemetaan += Number(p.amount)
+      } else if (p.payment_type === 'seat_lock') {
+        revSeatLock += Number(p.amount)
+      }
     })
 
-    // By source
     const bySource: Record<string, number> = {}
-    allLeads.forEach(l => {
+    allLeads.forEach((l) => {
       bySource[l.source_campaign] = (bySource[l.source_campaign] || 0) + 1
     })
 
-    // By stage
-    const byStage: Record<string, number> = {}
-    allLeads.forEach(l => {
-      byStage[l.current_status] = (byStage[l.current_status] || 0) + 1
-    })
-
-    // Lost reasons
     const lostReasons: Record<string, number> = {}
-    allLeads.filter(l => l.lost_reason).forEach(l => {
-      lostReasons[l.lost_reason!] = (lostReasons[l.lost_reason!] || 0) + 1
-    })
+    allLeads
+      .filter((l) => l.lost_reason)
+      .forEach((l) => {
+        lostReasons[l.lost_reason!] = (lostReasons[l.lost_reason!] || 0) + 1
+      })
 
-    // CRO leaderboard
     const croLeaderboard: Record<string, number> = {}
-    allLeads.filter(l => l.current_status === 'Seat Lock Paid' || l.current_status === 'Onboarding').forEach(l => {
-      if (l.assigned_cro_id) croLeaderboard[l.assigned_cro_id] = (croLeaderboard[l.assigned_cro_id] || 0) + 1
-    })
+    allLeads
+      .filter((l) => isWonStatus(l.current_status))
+      .forEach((l) => {
+        if (l.assigned_cro_id) {
+          croLeaderboard[l.assigned_cro_id] = (croLeaderboard[l.assigned_cro_id] || 0) + 1
+        }
+      })
 
-    // Monthly trend (last 6 months)
     const monthlyLeads: Record<string, number> = {}
     const now = new Date()
     for (let i = 5; i >= 0; i--) {
@@ -81,212 +73,215 @@ export function AnalyticsDashboard({ allLeads, payments, users }: AnalyticsDashb
       const key = d.toLocaleDateString('id-ID', { month: 'short', year: '2-digit' })
       monthlyLeads[key] = 0
     }
-    allLeads.forEach(l => {
+    allLeads.forEach((l) => {
       const d = new Date(l.lead_entry_date)
       const key = d.toLocaleDateString('id-ID', { month: 'short', year: '2-digit' })
       if (monthlyLeads[key] !== undefined) monthlyLeads[key]++
     })
 
     return {
-      total, inbound, outbound, seatLockPaid, lost, convRate,
-      revPemetaan, revSeatLock, revTotal: revPemetaan + revSeatLock,
-      bySource, byStage, lostReasons, croLeaderboard, monthlyLeads,
+      total,
+      inbound,
+      outbound,
+      seatLockPaid,
+      lost,
+      convRate,
+      revPemetaan,
+      revSeatLock,
+      revTotal: revPemetaan + revSeatLock,
+      bySource,
+      lostReasons,
+      croLeaderboard,
+      monthlyLeads,
+      stageCounts: countLeadsByFunnelStage(allLeads),
     }
   }, [allLeads, payments])
 
-  const topSources = Object.entries(stats.bySource).sort((a, b) => b[1] - a[1]).slice(0, 6)
-  const pipelineStages = PIPELINE_STAGES.map(s => ({ stage: s, count: stats.byStage[s] || 0 })).filter(s => s.count > 0)
-  const maxStageCount = Math.max(...pipelineStages.map(s => s.count), 1)
-  const topReasons = Object.entries(stats.lostReasons).sort((a, b) => b[1] - a[1]).slice(0, 5)
-  const maxReasonCount = Math.max(...topReasons.map(r => r[1]), 1)
-  const maxSource = Math.max(...topSources.map(s => s[1]), 1)
+  const topSources = Object.entries(stats.bySource)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 6)
+  const sourceTotal = topSources.reduce((sum, [, n]) => sum + n, 0) || 1
+  const topReasons = Object.entries(stats.lostReasons)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+  const reasonTotal = topReasons.reduce((sum, [, n]) => sum + n, 0) || 1
   const maxMonthly = Math.max(...Object.values(stats.monthlyLeads), 1)
 
   const croRanking = Object.entries(stats.croLeaderboard)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5)
     .map(([id, count]) => ({
-      name: users.find(u => u.id === id)?.name || 'Unknown',
+      name: users.find((u) => u.id === id)?.name || 'Unknown',
       count,
     }))
 
+  const kpis = [
+    { label: 'Total leads', value: String(stats.total), icon: Users },
+    { label: 'Closing berhasil', value: String(stats.seatLockPaid), icon: Award },
+    { label: 'Konversi', value: `${stats.convRate}%`, icon: Target },
+    {
+      label: 'Rev pemetaan',
+      value: `Rp ${(stats.revPemetaan / 1e6).toFixed(1)}jt`,
+      icon: DollarSign,
+    },
+    {
+      label: 'Rev seat lock',
+      value: `Rp ${(stats.revSeatLock / 1e6).toFixed(1)}jt`,
+      icon: DollarSign,
+    },
+    {
+      label: 'Total revenue',
+      value: `Rp ${(stats.revTotal / 1e6).toFixed(1)}jt`,
+      icon: TrendingUp,
+    },
+  ]
+
   return (
-    <div className="space-y-6">
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-        {[
-          { label: 'Total Leads', value: stats.total, color: '#8b5cf6', icon: Users },
-          { label: 'Seat Lock Paid', value: stats.seatLockPaid, color: '#22c55e', icon: Award },
-          { label: 'Konversi Rate', value: `${stats.convRate}%`, color: '#10b981', icon: Target },
-          { label: 'Rev Pemetaan', value: `Rp ${(stats.revPemetaan / 1e6).toFixed(1)}jt`, color: '#6366f1', icon: DollarSign },
-          { label: 'Rev Seat Lock', value: `Rp ${(stats.revSeatLock / 1e6).toFixed(1)}jt`, color: '#f59e0b', icon: DollarSign },
-          { label: 'Total Revenue', value: `Rp ${(stats.revTotal / 1e6).toFixed(1)}jt`, color: '#3b82f6', icon: TrendingUp },
-        ].map(kpi => (
-          <div key={kpi.label} className="bg-card text-card-foreground rounded-2xl p-4 border border-border dark:border-white/5 flex flex-col gap-2 shadow-xs">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wide">{kpi.label}</span>
-              <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: `${kpi.color}15` }}>
-                <kpi.icon size={14} style={{ color: kpi.color }} />
-              </div>
+    <div className="space-y-6 font-sans">
+      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
+        {kpis.map((kpi) => (
+          <div key={kpi.label} className="rounded-2xl border border-border bg-card p-4">
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <span className="text-[11px] font-semibold text-muted-foreground">{kpi.label}</span>
+              <kpi.icon size={15} className="text-accent shrink-0" />
             </div>
-            <p className="text-xl font-extrabold text-foreground">{kpi.value}</p>
+            <p className="font-display text-2xl font-semibold tracking-tight text-foreground tabular-nums">
+              {kpi.value}
+            </p>
           </div>
         ))}
       </div>
 
-      {/* Charts Row 1 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Monthly Trend */}
-        <div className="bg-card text-card-foreground rounded-2xl p-5 border border-border dark:border-white/5 shadow-xs">
-          <h3 className="text-xs font-extrabold text-foreground uppercase tracking-wider mb-4 flex items-center gap-2">
-            <BarChart3 size={14} className="text-primary" />
-            Tren Lead Masuk (6 Bulan)
+      <section className="rounded-2xl border border-border bg-card p-5">
+        <div className="mb-4">
+          <h3 className="font-display text-base font-semibold tracking-tight text-foreground">
+            Tahap funnel 1–6
           </h3>
-          <div className="flex items-end gap-2 h-32">
+          <p className="text-xs text-muted-foreground mt-1">
+            Ringkas posisi lead — bukan daftar status detail yang panjang.
+          </p>
+        </div>
+        <FunnelStageStrip
+          counts={stats.stageCounts}
+          hrefForStage={(id) => {
+            const stage = FUNNEL_STAGES.find((s) => s.id === id)
+            if (!stage) return '/pipeline'
+            if (id === 6) return '/conversions?type=seat_lock'
+            return `/leads?status=${encodeURIComponent(stage.statuses[0])}`
+          }}
+        />
+      </section>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <section className="rounded-2xl border border-border bg-card p-5">
+          <h3 className="font-display text-base font-semibold tracking-tight text-foreground mb-1">
+            Tren lead masuk
+          </h3>
+          <p className="text-xs text-muted-foreground mb-5">Enam bulan terakhir</p>
+          <div className="flex items-end gap-2.5 h-36">
             {Object.entries(stats.monthlyLeads).map(([month, count]) => {
               const pct = (count / maxMonthly) * 100
               return (
-                <div key={month} className="flex-1 flex flex-col items-center gap-1">
-                  <span className="text-[8px] text-muted-foreground font-bold">{count}</span>
-                  <div className="w-full rounded-t-lg transition-all duration-500" style={{ height: `${Math.max(pct, 4)}%`, background: 'linear-gradient(to top, hsl(250,84%,65%), hsl(280,60%,60%))' }} />
-                  <span className="text-[8px] text-muted-foreground/70">{month}</span>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-
-        {/* Top Sources */}
-        <div className="bg-card text-card-foreground rounded-2xl p-5 border border-border dark:border-white/5 shadow-xs">
-          <h3 className="text-xs font-extrabold text-foreground uppercase tracking-wider mb-4 flex items-center gap-2">
-            <TrendingUp size={14} className="text-blue-500" />
-            Top Source Campaign
-          </h3>
-          <div className="space-y-2.5">
-            {topSources.slice(0, 5).map(([source, count]) => (
-              <div key={source} className="flex items-center gap-3">
-                <span className="text-[10px] text-muted-foreground truncate w-28 flex-shrink-0">{source || 'Unknown'}</span>
-                <div className="flex-1 h-2 rounded-full overflow-hidden bg-muted dark:bg-slate-800">
+                <div key={month} className="flex-1 flex flex-col items-center justify-end gap-1.5 h-full">
+                  <span className="text-[10px] font-semibold text-foreground tabular-nums">{count}</span>
                   <div
-                    className="h-full rounded-full transition-all duration-500"
-                    style={{ width: `${(count / maxSource) * 100}%`, background: 'linear-gradient(90deg, hsl(210,100%,56%), hsl(250,84%,65%))' }}
+                    className="w-full max-w-[2.5rem] rounded-t-md bg-primary/85 transition-all"
+                    style={{ height: `${Math.max(pct, count > 0 ? 8 : 2)}%` }}
                   />
-                </div>
-                <span className="text-[10px] font-extrabold text-foreground w-8 text-right">{count}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Charts Row 2 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Pipeline Funnel */}
-        <div className="bg-card text-card-foreground rounded-2xl p-5 border border-border dark:border-white/5 shadow-xs">
-          <h3 className="text-xs font-extrabold text-foreground uppercase tracking-wider mb-4 flex items-center gap-2">
-            <Target size={14} className="text-emerald-500" />
-            Distribusi Pipeline Stage
-          </h3>
-          <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
-            {pipelineStages.map(({ stage, count }) => {
-              const color = STAGE_COLORS[stage] || '#64748b'
-              return (
-                <div key={stage} className="flex items-center gap-3">
-                  <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: color }} />
-                  <span className="text-[10px] text-muted-foreground flex-1 truncate">{stage}</span>
-                  <div className="w-24 h-1.5 rounded-full overflow-hidden flex-shrink-0 bg-muted dark:bg-slate-800">
-                    <div className="h-full rounded-full" style={{ width: `${(count / maxStageCount) * 100}%`, background: color }} />
-                  </div>
-                  <span className="text-[10px] font-extrabold text-foreground w-6 text-right flex-shrink-0">{count}</span>
+                  <span className="text-[10px] text-muted-foreground">{month}</span>
                 </div>
               )
             })}
           </div>
-        </div>
+        </section>
 
-        {/* CRO Leaderboard */}
-        <div className="bg-card text-card-foreground rounded-2xl p-5 border border-border dark:border-white/5 shadow-xs space-y-4">
-          <h3 className="text-xs font-extrabold text-foreground uppercase tracking-wider flex items-center gap-2">
-            <Award size={14} className="text-amber-500" />
-            🏆 CRO Leaderboard (Seat Lock)
+        <section className="rounded-2xl border border-border bg-card p-5">
+          <h3 className="font-display text-base font-semibold tracking-tight text-foreground mb-1">
+            Top campaign
           </h3>
-          {croRanking.length === 0 ? (
-            <p className="text-muted-foreground text-xs text-center py-8">Belum ada data seat lock.</p>
-          ) : (
-            <div className="space-y-3">
-              {croRanking.map((cro, idx) => (
-                <div key={cro.name} className="flex items-center gap-3">
-                  <span
-                    className={cn(
-                      "w-6 h-6 flex items-center justify-center rounded-full text-[10px] font-extrabold flex-shrink-0",
-                      idx === 0 ? "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400" :
-                      idx === 1 ? "bg-slate-100 text-slate-700 dark:bg-slate-500/20 dark:text-slate-400" :
-                      idx === 2 ? "bg-amber-200/50 text-amber-800 dark:bg-amber-700/20 dark:text-amber-500" :
-                      "bg-muted text-muted-foreground"
-                    )}
-                  >
-                    {idx + 1}
-                  </span>
-                  <span className="flex-1 text-xs font-semibold text-foreground truncate">{cro.name}</span>
-                  <span className="text-xs font-extrabold text-emerald-600 dark:text-emerald-400">{cro.count} SL</span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Lost reasons */}
-          {topReasons.length > 0 && (
-            <div className="border-t border-border dark:border-white/5 pt-4 space-y-2">
-              <h4 className="text-[9px] font-extrabold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-                <AlertCircle size={10} className="text-red-500" /> Top Lost Reasons
-              </h4>
-              {topReasons.map(([reason, count]) => (
-                <div key={reason} className="flex items-center gap-2">
-                  <span className="text-[9px] text-muted-foreground flex-1 truncate">{reason}</span>
-                  <div className="w-16 h-1.5 rounded-full overflow-hidden bg-muted dark:bg-slate-800">
-                    <div className="h-full rounded-full bg-red-500/60" style={{ width: `${(count / maxReasonCount) * 100}%` }} />
-                  </div>
-                  <span className="text-[9px] font-bold text-red-500 w-4 text-right">{count}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+          <p className="text-xs text-muted-foreground mb-3">Sumber lead terbanyak</p>
+          <RankedStatList
+            empty="Belum ada data campaign."
+            rows={topSources.map(([source, count]) => ({
+              name: source || 'Tanpa campaign',
+              count,
+              percent: Math.round((count / sourceTotal) * 100),
+              href: `/leads?campaign=${encodeURIComponent(source || '')}`,
+            }))}
+          />
+        </section>
       </div>
 
-      {/* Lead Type Split */}
-      <div className="bg-card text-card-foreground rounded-2xl p-5 border border-border dark:border-white/5 shadow-xs">
-        <h3 className="text-xs font-extrabold text-foreground uppercase tracking-wider mb-4">Lead Type Distribution</h3>
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-blue-50 dark:bg-blue-950/30">
-              <Users size={16} className="text-blue-500" />
-            </div>
-            <div>
-              <p className="text-lg font-extrabold text-foreground">{stats.inbound}</p>
-              <p className="text-[10px] text-muted-foreground">Inbound</p>
-            </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <section className="rounded-2xl border border-border bg-card p-5">
+          <h3 className="font-display text-base font-semibold tracking-tight text-foreground mb-1">
+            Peringkat CRO
+          </h3>
+          <p className="text-xs text-muted-foreground mb-3">Closing berhasil (seat lock / onboarding)</p>
+          <RankedStatList
+            empty="Belum ada closing berhasil."
+            valueSuffix=" SL"
+            rows={croRanking.map((cro) => ({
+              name: cro.name,
+              count: cro.count,
+            }))}
+          />
+        </section>
+
+        <section className="rounded-2xl border border-border bg-card p-5">
+          <h3 className="font-display text-base font-semibold tracking-tight text-foreground mb-1">
+            Alasan tidak lanjut
+          </h3>
+          <p className="text-xs text-muted-foreground mb-3">Dari field lost reason di lead</p>
+          <RankedStatList
+            empty="Belum ada alasan tercatat."
+            rows={topReasons.map(([reason, count]) => ({
+              name: reason,
+              count,
+              percent: Math.round((count / reasonTotal) * 100),
+              href: '/playbook',
+            }))}
+          />
+        </section>
+      </div>
+
+      <section className="rounded-2xl border border-border bg-card p-5">
+        <h3 className="font-display text-base font-semibold tracking-tight text-foreground mb-4">
+          Tipe lead
+        </h3>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="rounded-xl border border-border bg-secondary/40 px-4 py-3">
+            <p className="text-[11px] font-semibold text-muted-foreground">Inbound</p>
+            <p className="font-display text-3xl font-semibold tracking-tight tabular-nums mt-1">
+              {stats.inbound}
+            </p>
           </div>
-          <div className="flex-1 h-3 rounded-full overflow-hidden bg-muted dark:bg-slate-800">
-            <div
-              className="h-full rounded-full transition-all duration-700"
-              style={{
-                width: stats.total > 0 ? `${(stats.inbound / stats.total) * 100}%` : '50%',
-                background: 'linear-gradient(90deg, hsl(210,100%,56%), hsl(250,84%,65%))'
-              }}
-            />
+          <div className="rounded-xl border border-border bg-secondary/40 px-4 py-3">
+            <p className="text-[11px] font-semibold text-muted-foreground">Outbound</p>
+            <p className="font-display text-3xl font-semibold tracking-tight tabular-nums mt-1">
+              {stats.outbound}
+            </p>
           </div>
-          <div className="flex items-center gap-3">
-            <div>
-              <p className="text-lg font-extrabold text-foreground text-right">{stats.outbound}</p>
-              <p className="text-[10px] text-muted-foreground text-right">Outbound</p>
-            </div>
-            <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-amber-50 dark:bg-amber-950/30">
-              <TrendingUp size={16} className="text-amber-500" />
-            </div>
+          <div className="rounded-xl border border-border bg-secondary/40 px-4 py-3">
+            <p className="text-[11px] font-semibold text-muted-foreground">Tidak lanjut (lost)</p>
+            <p className="font-display text-3xl font-semibold tracking-tight tabular-nums mt-1">
+              {stats.lost}
+            </p>
+            <p className="text-[11px] text-muted-foreground mt-1">
+              {stats.total > 0 ? Math.round((stats.lost / stats.total) * 100) : 0}% dari total
+            </p>
           </div>
         </div>
-      </div>
+        <p
+          className={cn(
+            'mt-3 text-[11px] text-muted-foreground',
+            stats.total === 0 && 'opacity-60'
+          )}
+        >
+          Inbound {stats.total ? Math.round((stats.inbound / stats.total) * 100) : 0}% · Outbound{' '}
+          {stats.total ? Math.round((stats.outbound / stats.total) * 100) : 0}%
+        </p>
+      </section>
     </div>
   )
 }

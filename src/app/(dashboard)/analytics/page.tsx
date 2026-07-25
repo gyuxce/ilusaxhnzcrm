@@ -29,8 +29,8 @@ export default async function AnalyticsPage() {
 
   return (
     <>
-      <Header title="Performa" subtitle="Ringkasan hasil leads, revenue, campaign, dan kerja tim CRO." />
-      <div className="w-full p-6 animate-fade-in">
+      <Header title="Performa" subtitle="Ringkasan lead, revenue, campaign, dan kerja tim — tanpa grafik template." />
+      <div className="w-full p-6 animate-fade-in font-sans">
         <LaporanSubnav />
         <AnalyticsDashboard
           allLeads={allLeads}

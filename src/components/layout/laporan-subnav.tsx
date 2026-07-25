@@ -21,7 +21,7 @@ function SubnavLink({
       href={href}
       prefetch
       className={cn(
-        'relative px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors',
+        'relative px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors font-sans',
         active
           ? 'bg-primary text-primary-foreground border-primary'
           : 'bg-card text-muted-foreground border-border hover:text-foreground hover:bg-secondary'
@@ -51,7 +51,7 @@ export function LaporanSubnav() {
   const { lang } = useLanguage()
 
   return (
-    <div className="flex flex-wrap gap-2 mb-6">
+    <div className="flex flex-wrap gap-2 mb-2 font-sans">
       {LAPORAN_LINKS.map((link) => {
         const active =
           link.href === '/dashboard'
