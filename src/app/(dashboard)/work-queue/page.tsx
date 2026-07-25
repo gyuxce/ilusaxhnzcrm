@@ -528,7 +528,9 @@ export default function WorkQueuePage() {
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <h2 className="text-sm font-extrabold uppercase tracking-wide text-foreground">Antrian Kerja</h2>
-                  <p className="mt-1 text-xs text-muted-foreground">Kerjakan dari urutan teratas.</p>
+                  <p className="mt-1 text-xs font-medium text-muted-foreground">
+                    <span className="font-extrabold text-primary">{queueItems.length} Lead Aktif</span> perlu dikerjakan
+                  </p>
                 </div>
                 <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-black text-primary">{queueItems.length}</span>
               </div>
@@ -563,9 +565,9 @@ export default function WorkQueuePage() {
                   )
                 })}
               </div>
-              <p className="mt-3 text-[10px] leading-relaxed text-muted-foreground">
-                Urutan: FU hari ini paling atas, lalu needs action, new lead terbaru, lalu lead lama yang belum disentuh.
-              </p>
+              <div className="mt-3 rounded-xl border border-blue-500/20 bg-blue-50/50 p-2.5 text-[10px] leading-relaxed text-blue-950 dark:border-blue-900/40 dark:bg-blue-950/20 dark:text-blue-200">
+                💡 <b>Keterangan untuk Klien:</b> Antrian ini hanya menampilkan <b>{queueItems.length} Lead Aktif</b>. Lead yang sudah gugur/menolak (<i>Not Interested / Not Eligible</i>) tidak ditampilkan di antrian kerja harian agar CRO fokus pada lead berpotensi.
+              </div>
             </div>
 
             <div className="max-h-[calc(100vh-14rem)] overflow-y-auto p-2">
