@@ -97,34 +97,61 @@ export const FUNNEL_STAGES = [
   },
   {
     id: 6 as const,
-    key: 'selesai',
-    labelId: 'Selesai',
-    labelEn: 'Done',
-    meaningId: 'Closing berhasil (paid/onboarding) atau tidak lanjut',
+    key: 'closing_berhasil',
+    labelId: 'Closing berhasil',
+    labelEn: 'Closing succeeded',
+    meaningId: 'Sudah bayar seat lock / mulai onboarding',
     color: 'var(--stage-6)',
     soft: 'var(--stage-6-soft)',
     defaultStatus: 'Seat Lock Paid',
-    statuses: [
-      'Seat Lock Paid',
-      'Onboarding',
-      'Class Started',
-      'Not Interested',
-      'Not Eligible',
-    ],
+    /** Stage 6 = win only. "Tidak lanjut" is an exit, not tahap 6. */
+    statuses: ['Seat Lock Paid', 'Onboarding', 'Class Started'],
   },
 ] as const
 
 export type FunnelStageId = (typeof FUNNEL_STAGES)[number]['id']
 
-/** Terminal win outcomes (subset of stage 6). */
+/** Terminal win outcomes (= tahap 6). */
 export const WON_STATUSES = ['Seat Lock Paid', 'Onboarding', 'Class Started'] as const
 
-/** Terminal lost outcomes (subset of stage 6). */
+/** Exit outcomes — bukan tahap bernomor; lead berhenti di tengah jalan. */
 export const LOST_OUTCOME_STATUSES = ['Not Interested', 'Not Eligible'] as const
 
 /**
- * Pipeline board columns — tahap 1–5 + tahap 6 split
- * Closing berhasil / Tidak lanjut (so drag never mixes win ↔ lost).
+ * Simple funnel story for team & clients (keep language plain).
+ */
+export const SIMPLE_FUNNEL_FLOW = {
+  titleId: 'Alur lead (sederhana)',
+  titleEn: 'Lead flow (simple)',
+  stepsId: [
+    '1 · Baru — lead baru masuk',
+    '2 · Diskusi — lagi ngobrol / pitching',
+    '3 · Pemetaan — assessment / pemetaan',
+    '4 · Expert — butuh bantuan expert',
+    '5 · Closing — lagi ditawar seat lock',
+    '6 · Closing berhasil — sudah bayar / onboarding',
+  ],
+  stepsEn: [
+    '1 · New — lead just entered',
+    '2 · Discussion — talking / pitching',
+    '3 · Mapping — assessment in progress',
+    '4 · Expert — needs expert help',
+    '5 · Closing — seat lock offered',
+    '6 · Closing succeeded — paid / onboarding',
+  ],
+  exitId:
+    'Keluar · Tidak lanjut — lead berhenti (bukan tahap 6). Bisa terjadi dari tahap mana pun.',
+  exitEn:
+    'Exit · Not continuing — lead stopped (not stage 6). Can happen from any stage.',
+  croId:
+    'Kerjaan CRO: pilih lead → WhatsApp → isi langkah chat 1–5 → Simpan. Pipeline hanya untuk pantau posisi.',
+  croEn:
+    'CRO desk: pick lead → WhatsApp → fill chat steps 1–5 → Save. Pipeline is for monitoring only.',
+} as const
+
+/**
+ * Pipeline board columns — tahap 1–6 + kolom keluar terpisah
+ * (Tidak lanjut tidak memakai nomor 6).
  */
 export const PIPELINE_BOARD_COLUMNS = [
   {
@@ -191,10 +218,11 @@ export const PIPELINE_BOARD_COLUMNS = [
   },
   {
     key: 'lost',
-    stageId: 6 as FunnelStageId,
-    label: '6 · Tidak lanjut',
-    color: '#b45309',
-    soft: 'rgba(180, 83, 9, 0.12)',
+    /** No stageId number — exit lane, not "tahap 6". */
+    stageId: null,
+    label: 'Keluar · Tidak lanjut',
+    color: '#9a3412',
+    soft: 'rgba(154, 52, 18, 0.12)',
     defaultStatus: 'Not Interested',
     statuses: [...LOST_OUTCOME_STATUSES] as string[],
   },
@@ -244,20 +272,15 @@ export function resolveBoardDropStatus(
   return column.defaultStatus
 }
 
-/** Statuses used for pipeline funnel bars (stage 6 = win only; lost is a separate KPI). */
+/** Counts per tahap 1–6 (tahap 6 = Closing berhasil only; tidak lanjut tidak dihitung di sini). */
 export function countLeadsByFunnelStage(
   leads: { current_status: string }[]
 ): { stageId: FunnelStageId; count: number }[] {
-  return FUNNEL_STAGES.map((stage) => {
-    const statuses =
-      stage.id === 6
-        ? ([...WON_STATUSES] as string[])
-        : ([...stage.statuses] as string[])
-    return {
-      stageId: stage.id,
-      count: leads.filter((lead) => statuses.includes(lead.current_status)).length,
-    }
-  })
+  return FUNNEL_STAGES.map((stage) => ({
+    stageId: stage.id,
+    count: leads.filter((lead) => (stage.statuses as readonly string[]).includes(lead.current_status))
+      .length,
+  }))
 }
 
 export function isOwnerLikeRole(role?: string | null): boolean {

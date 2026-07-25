@@ -1,5 +1,6 @@
 import { Header } from '@/components/layout/header'
 import { PipelineBoard } from '@/components/pipeline/pipeline-board'
+import { SIMPLE_FUNNEL_FLOW } from '@/lib/brand'
 import { createClient } from '@/lib/supabase/server'
 
 export const dynamic = 'force-dynamic'
@@ -21,9 +22,16 @@ export default async function PipelinePage() {
     <>
       <Header
         title="Pipeline"
-        subtitle="Pantau posisi lead. Klik ringkasan tahap untuk fokus — kolom lebih lega di layar normal."
+        subtitle="Tahap 1–6 = perjalanan lead. Kolom Keluar = tidak lanjut (bukan tahap 6)."
       />
-      <div className="p-5 sm:p-6 animate-fade-in font-sans">
+      <div className="p-5 sm:p-6 animate-fade-in font-sans space-y-4">
+        <div className="rounded-xl border border-border bg-card px-4 py-3">
+          <p className="text-xs font-semibold text-foreground">{SIMPLE_FUNNEL_FLOW.titleId}</p>
+          <p className="mt-1 text-[11px] text-muted-foreground leading-relaxed">
+            {SIMPLE_FUNNEL_FLOW.stepsId.join(' → ')}
+          </p>
+          <p className="mt-1.5 text-[11px] text-foreground/80">{SIMPLE_FUNNEL_FLOW.exitId}</p>
+        </div>
         <PipelineBoard initialLeads={leads || []} />
       </div>
     </>
