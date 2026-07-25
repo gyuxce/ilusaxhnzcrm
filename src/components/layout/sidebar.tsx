@@ -20,6 +20,7 @@ import {
   ClipboardCheck,
   Wallet,
   FileText,
+  BookOpen,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -30,15 +31,13 @@ const NAV_ICONS: Record<string, LucideIcon> = {
   '/pipeline': KanbanSquare,
   '/conversions': Wallet,
   '/dashboard': LayoutDashboard,
+  '/guide': BookOpen,
 }
 
 const COPY = {
   en: {
     settings: 'Settings',
     logout: 'Logout',
-    legend: 'Where to work',
-    legendCro: 'Work desk = daily steps. Queues = special lists. Pipeline is for monitoring only.',
-    legendOwner: 'Dashboard holds client + team reports (tabs). Pipeline/Leads for monitoring.',
     roleOwner: 'Owner view',
     roleCro: 'CRO view',
     menuOwner: 'Owner menu',
@@ -47,9 +46,6 @@ const COPY = {
   id: {
     settings: 'Pengaturan',
     logout: 'Keluar',
-    legend: 'Cara pakai',
-    legendCro: 'Kerjaan = langkah harian. Antrian = daftar khusus. Pipeline hanya untuk pantau.',
-    legendOwner: 'Dashboard = laporan klien & tim (toggle di dalam). Pipeline/Leads untuk pantau.',
     roleOwner: 'Tampilan owner',
     roleCro: 'Tampilan CRO',
     menuOwner: 'Menu owner',
@@ -159,15 +155,6 @@ export function Sidebar() {
               </Link>
             )
           })}
-
-          <div className="mt-5 mx-1 rounded-xl border border-border bg-secondary/50 px-3 py-3">
-            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-accent">
-              {copy.legend}
-            </p>
-            <p className="text-[11px] text-muted-foreground mt-1.5 leading-relaxed">
-              {isOwnerLike ? copy.legendOwner : copy.legendCro}
-            </p>
-          </div>
         </nav>
 
         <div className="px-3 py-4 border-t border-border space-y-0.5">
