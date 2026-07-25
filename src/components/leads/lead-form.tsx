@@ -143,10 +143,10 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
   return (
     <form onSubmit={handleFormSubmit(onSubmit)} className="space-y-6">
       {!isEditMode && (
-        <div className="rounded-2xl border border-primary/15 bg-primary/5 p-4">
-          <h2 className="text-sm font-extrabold text-foreground">Quick Add Lead</h2>
+        <div className="rounded-2xl border border-border bg-secondary/60 p-4">
+          <h2 className="font-display text-base font-semibold tracking-tight text-foreground">Tambah Lead</h2>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-            Untuk input manual dari ads cukup isi nama, WhatsApp, dan campaign. Setelah simpan, lead langsung masuk ke Kerjaan Hari Ini untuk dihubungi dan dicatat hasil chat-nya.
+            Untuk input manual dari ads cukup isi nama, WhatsApp, dan campaign. Setelah simpan, lead langsung masuk ke Hari Ini untuk dihubungi dan dicatat hasil chat-nya.
           </p>
         </div>
       )}
@@ -352,7 +352,7 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
         <button
           type="submit"
           disabled={loading || Boolean(success)}
-          className="flex-1 py-2.5 rounded-xl text-sm font-extrabold text-primary-foreground bg-primary hover:opacity-90 transition-all disabled:opacity-60 cursor-pointer shadow-xs flex items-center justify-center gap-1.5"
+          className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-accent-foreground bg-accent hover:opacity-90 transition-opacity disabled:opacity-60 cursor-pointer flex items-center justify-center gap-1.5"
         >
           {loading && <Loader2 size={14} className="animate-spin" />}
           {success ? 'Berhasil Disimpan' : loading ? 'Menyimpan...' : leadId ? 'Simpan Perubahan' : 'Tambah Lead'}
