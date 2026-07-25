@@ -15,8 +15,6 @@ import { createClient } from '@/lib/supabase/client'
 import type { Lead, PaymentRow, PemetaanRow, ExpertConsultationRow } from '@/lib/supabase/types'
 import { CsvUploadModal } from './csv-upload-modal'
 import { getStageBadgeClasses } from '@/lib/brand'
-import { useCurrentRole } from '@/lib/use-current-role'
-
 type LeadWithRelations = Lead & {
   users?: { id: string; name: string } | null
   updated_by_user?: { id: string; name: string } | null
@@ -97,7 +95,6 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
   const [toast, setToast] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [mounted, setMounted] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
-  const { isOwnerLike } = useCurrentRole()
   const pageSize = 25
 
   useEffect(() => {
@@ -639,18 +636,14 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
                     </td>
 
                     <td className="px-3 py-2.5 whitespace-nowrap">
-                      {!isOwnerLike ? (
-                        <Link
-                          href={`/stage-1?lead=${lead.id}`}
-                          className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-[11px] font-semibold text-accent-foreground hover:opacity-90"
-                          title="Kerjakan Stage 1"
-                        >
-                          <ClipboardCheck size={13} />
-                          Kerjakan
-                        </Link>
-                      ) : (
-                        <span className="text-[10px] text-muted-foreground/50">—</span>
-                      )}
+                      <Link
+                        href={`/stage-1?lead=${lead.id}`}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-[11px] font-semibold text-accent-foreground hover:opacity-90"
+                        title="Kerjakan Stage 1"
+                      >
+                        <ClipboardCheck size={13} />
+                        Kerjakan
+                      </Link>
                     </td>
                   </tr>
                 ))

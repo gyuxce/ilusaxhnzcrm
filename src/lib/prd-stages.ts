@@ -58,6 +58,17 @@ export const STAGE2_ENTRY_STATUSES = [
   'No Response',
 ] as const
 
+/**
+ * Statuses that keep a lead visible in the Stage 2 list.
+ * Entry statuses (interested) + "Menunggu arahan selanjutnya" (holding —
+ * belum concrete ke Stage 3). "Lainnya" tidak mengubah status, jadi tetap
+ * pakai status interested-nya.
+ */
+export const STAGE2_VISIBLE_STATUSES = [
+  ...STAGE2_ENTRY_STATUSES,
+  'Menunggu arahan selanjutnya',
+] as const
+
 /** B.2 — Update Status Current Staging di Kerjakan Stage 2. */
 export const STAGE2_UPDATE_STATUS_OPTIONS = [
   'Menunggu jadwal pemetaan',

@@ -147,8 +147,9 @@ export function CsvUploadModal({ isOpen, onClose, pics }: CsvUploadModalProps) {
         const fullName = getField(row, ['Nama', 'Name', 'Full Name', 'Nama Lengkap', 'Nama Lead']) || `Lead ${whatsapp}`
         const sourceCampaign = getField(row, ['Source Campaign', 'Campaign', 'Campaign Name', 'Nama Campaign', 'Source']) || 'Ads Import'
         const assignedId = findCroId(getField(row, ['PIC CRO', 'PIC', 'CRO', 'Assigned CRO']))
-        const entryDate = parseDateString(getField(row, ['Tanggal Lead Masuk', 'Tanggal Masuk', 'Lead Entry Date', 'Date']))
-        const status = getField(row, ['Status Pipeline', 'Status', 'Current Status']) || 'New Lead'
+        const entryDate = parseDateString(getField(row, ['Tanggal Lead Masuk', 'Tanggal Masuk', 'Lead Entry Date', 'Last Update', 'Date']))
+        const status = getField(row, ['Current Status', 'Status Pipeline', 'Status']) || 'New Lead'
+        const note = getField(row, ['Note', 'Notes', 'Catatan', 'Keterangan'])
 
         const { data, error } = await supabase.rpc('create_lead_fast', {
           p_full_name: fullName,
@@ -158,7 +159,7 @@ export function CsvUploadModal({ isOpen, onClose, pics }: CsvUploadModalProps) {
           p_lead_type: 'inbound',
           p_current_status: status,
           p_assigned_cro_id: assignedId,
-          p_notes: 'Imported from CSV',
+          p_notes: note || 'Imported from CSV',
           p_lead_entry_date: entryDate || new Date().toISOString(),
         })
 
@@ -286,7 +287,7 @@ export function CsvUploadModal({ isOpen, onClose, pics }: CsvUploadModalProps) {
                   <div className="text-center">
                     <p className="text-sm font-bold text-foreground">Klik untuk memilih file CSV</p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Format fleksibel: minimal kolom Nomor HP. Kolom aman: Nama, Nomor HP, Source Campaign, Status Pipeline, PIC CRO, Tanggal Lead Masuk.
+                      Format fleksibel: minimal kolom Nomor WhatsApp. Kolom aman: Nama, Nomor WhatsApp, Jenis Campaign, Current Status, PIC, Last Update, Note.
                     </p>
                   </div>
                   <input
@@ -376,11 +377,12 @@ export function CsvUploadModal({ isOpen, onClose, pics }: CsvUploadModalProps) {
                             <thead className="bg-slate-50 dark:bg-white/[0.02] border-b border-border">
                               <tr>
                                 <th className="px-4 py-3 font-semibold text-muted-foreground">Nama</th>
-                                <th className="px-4 py-3 font-semibold text-muted-foreground">Nomor HP</th>
-                                <th className="px-4 py-3 font-semibold text-muted-foreground">Status Pipeline</th>
-                                <th className="px-4 py-3 font-semibold text-muted-foreground">Campaign</th>
+                                <th className="px-4 py-3 font-semibold text-muted-foreground">Nomor WhatsApp</th>
+                                <th className="px-4 py-3 font-semibold text-muted-foreground">Current Status</th>
+                                <th className="px-4 py-3 font-semibold text-muted-foreground">Jenis Campaign</th>
                                 <th className="px-4 py-3 font-semibold text-muted-foreground">PIC</th>
-                                <th className="px-4 py-3 font-semibold text-muted-foreground">Tanggal Masuk</th>
+                                <th className="px-4 py-3 font-semibold text-muted-foreground">Last Update</th>
+                                <th className="px-4 py-3 font-semibold text-muted-foreground">Note</th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-border">
@@ -392,10 +394,11 @@ export function CsvUploadModal({ isOpen, onClose, pics }: CsvUploadModalProps) {
                                   <td className="px-4 py-2 text-foreground">
                                     {getField(row, ['Nomor HP', 'No. HP', 'No HP', 'No Hp', 'HP', 'Handphone', 'No Telepon', 'Telepon', 'No Handphone', 'Nomor WhatsApp', 'WhatsApp', 'Whatsapp', 'WA', 'Phone', 'Nomor']) || '-'}
                                   </td>
-                                  <td className="px-4 py-2 text-foreground">{getField(row, ['Status Pipeline', 'Status', 'Current Status']) || 'New Lead'}</td>
+                                  <td className="px-4 py-2 text-foreground">{getField(row, ['Current Status', 'Status Pipeline', 'Status']) || 'New Lead'}</td>
                                   <td className="px-4 py-2 text-foreground">{getField(row, ['Source Campaign', 'Campaign', 'Campaign Name', 'Nama Campaign', 'Source']) || 'Ads Import'}</td>
                                   <td className="px-4 py-2 text-foreground">{getField(row, ['PIC CRO', 'PIC', 'CRO', 'Assigned CRO']) || '-'}</td>
-                                  <td className="px-4 py-2 text-foreground">{getField(row, ['Tanggal Lead Masuk', 'Tanggal Masuk', 'Lead Entry Date', 'Date']) || 'Hari ini'}</td>
+                                  <td className="px-4 py-2 text-foreground">{getField(row, ['Tanggal Lead Masuk', 'Tanggal Masuk', 'Lead Entry Date', 'Last Update', 'Date']) || 'Hari ini'}</td>
+                                  <td className="px-4 py-2 text-foreground">{getField(row, ['Note', 'Notes', 'Catatan', 'Keterangan']) || '-'}</td>
                                 </tr>
                               ))}
                             </tbody>

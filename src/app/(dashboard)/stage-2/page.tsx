@@ -7,8 +7,8 @@ import { createClient } from '@/lib/supabase/client'
 import { cn, getTodayInWIB } from '@/lib/utils'
 import { getStageBadgeClasses } from '@/lib/brand'
 import {
-  STAGE2_ENTRY_STATUSES,
   STAGE2_UPDATE_STATUS_OPTIONS,
+  STAGE2_VISIBLE_STATUSES,
 } from '@/lib/prd-stages'
 import {
   CheckCircle2,
@@ -31,7 +31,7 @@ type LeadRow = {
 
 const FILTERS = [
   { key: 'all', label: 'Semua' },
-  ...STAGE2_ENTRY_STATUSES.map((s) => ({ key: s, label: s })),
+  ...STAGE2_VISIBLE_STATUSES.map((s) => ({ key: s, label: s })),
 ] as const
 
 type Form = {
@@ -64,7 +64,7 @@ export default function Stage2Page() {
     const { data, error } = await supabase
       .from('leads')
       .select('id, full_name, whatsapp_number, source_campaign, current_status, lead_entry_date, last_contacted_date, users:assigned_cro_id(id, name)')
-      .in('current_status', STAGE2_ENTRY_STATUSES as unknown as string[])
+      .in('current_status', STAGE2_VISIBLE_STATUSES as unknown as string[])
       .order('updated_at', { ascending: false })
       .limit(1000)
     if (error) {
@@ -82,7 +82,7 @@ export default function Stage2Page() {
 
   const counts = useMemo(() => {
     const map: Record<string, number> = { all: leads.length }
-    for (const s of STAGE2_ENTRY_STATUSES) map[s] = 0
+    for (const s of STAGE2_VISIBLE_STATUSES) map[s] = 0
     leads.forEach((l) => {
       if (map[l.current_status] !== undefined) map[l.current_status]++
     })
@@ -233,10 +233,10 @@ export default function Stage2Page() {
               <thead>
                 <tr className="border-y border-border bg-secondary/40">
                   <th className="px-3 py-2.5 text-[11px] font-semibold text-muted-foreground">Nama</th>
-                  <th className="px-3 py-2.5 text-[11px] font-semibold text-muted-foreground">WhatsApp</th>
+                  <th className="px-3 py-2.5 text-[11px] font-semibold text-muted-foreground">Nomor WhatsApp</th>
                   <th className="px-3 py-2.5 text-[11px] font-semibold text-muted-foreground">Current Staging</th>
-                  <th className="px-3 py-2.5 text-[11px] font-semibold text-muted-foreground">PIC</th>
-                  <th className="px-3 py-2.5 text-[11px] font-semibold text-muted-foreground text-right">Aksi</th>
+                  <th className="px-3 py-2.5 text-[11px] font-semibold text-muted-foreground">Edit</th>
+                  <th className="px-3 py-2.5 text-[11px] font-semibold text-muted-foreground">Kerjakan Stage 2</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -255,7 +255,7 @@ export default function Stage2Page() {
                 ) : (
                   filtered.map((lead) => (
                     <tr key={lead.id} className="hover:bg-secondary/30 transition-colors">
-                      <td className="px-3 py-2.5 min-w-[10rem] max-w-[14rem]">
+                      <td className="px-3 py-2.5 min-w-[10rem] max-w-[16rem]">
                         <Link href={`/leads/${lead.id}`} className="block truncate text-[12px] font-semibold text-foreground hover:text-accent">
                           {lead.full_name}
                         </Link>
@@ -267,26 +267,23 @@ export default function Stage2Page() {
                           {lead.current_status}
                         </span>
                       </td>
-                      <td className="px-3 py-2.5 text-[11px] text-foreground/80 whitespace-nowrap max-w-[7rem] truncate">
-                        {lead.users?.name || '—'}
+                      <td className="px-3 py-2.5 whitespace-nowrap">
+                        <Link
+                          href={`/leads/${lead.id}/edit`}
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground hover:text-foreground hover:bg-secondary"
+                          title="Edit"
+                        >
+                          <Pencil size={14} />
+                        </Link>
                       </td>
-                      <td className="px-3 py-2.5 text-right whitespace-nowrap">
-                        <div className="inline-flex items-center gap-1">
-                          <Link
-                            href={`/leads/${lead.id}/edit`}
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground hover:text-foreground hover:bg-secondary"
-                            title="Edit"
-                          >
-                            <Pencil size={14} />
-                          </Link>
-                          <button
-                            type="button"
-                            onClick={() => openFlow(lead)}
-                            className="rounded-lg bg-accent px-3 py-1.5 text-[11px] font-semibold text-accent-foreground hover:opacity-90"
-                          >
-                            Kerjakan
-                          </button>
-                        </div>
+                      <td className="px-3 py-2.5 whitespace-nowrap">
+                        <button
+                          type="button"
+                          onClick={() => openFlow(lead)}
+                          className="rounded-lg bg-accent px-3 py-1.5 text-[11px] font-semibold text-accent-foreground hover:opacity-90"
+                        >
+                          Kerjakan
+                        </button>
                       </td>
                     </tr>
                   ))
