@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { useLayoutStore } from '@/lib/store'
 import { useLanguage } from '@/lib/language'
+import { PRODUCT } from '@/lib/brand'
 import {
   LayoutDashboard,
   Users,
@@ -44,11 +45,12 @@ const insightNav = [
 
 const SIDEBAR_COPY = {
   en: {
-    sectionHarian: '🔵 CRO Daily Work',
-    sectionData: '🟡 Data Management',
-    sectionInsight: '🟢 Insights & Analytics',
+    sectionHarian: 'Daily work',
+    sectionData: 'Data',
+    sectionInsight: 'Insights',
     settings: 'Settings',
     logout: 'Logout',
+    whereHint: 'Work here first',
     labels: {
       Dashboard: 'Dashboard',
       'Kerjaan Hari Ini': 'Today Work',
@@ -63,11 +65,12 @@ const SIDEBAR_COPY = {
     } as Record<string, string>,
   },
   id: {
-    sectionHarian: '🔵 Kerja Harian CRO',
-    sectionData: '🟡 Kelola Data',
-    sectionInsight: '🟢 Pantau & Analisis',
+    sectionHarian: 'Kerja harian',
+    sectionData: 'Data',
+    sectionInsight: 'Pantau',
     settings: 'Pengaturan',
     logout: 'Keluar',
+    whereHint: 'Mulai kerja di sini',
     labels: {} as Record<string, string>,
   },
 } as const
@@ -80,7 +83,6 @@ export function Sidebar() {
   const copy = SIDEBAR_COPY[lang]
   const supabase = createClient()
 
-  // Automatically close sidebar on mobile when pathname changes
   useEffect(() => {
     closeSidebar()
   }, [pathname, closeSidebar])
@@ -108,26 +110,23 @@ export function Sidebar() {
         prefetch={true}
         onClick={closeSidebar}
         className={cn(
-          'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 group relative border border-transparent',
+          'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors duration-150 group relative border',
           isActive
-            ? 'text-purple-600 dark:text-purple-400 bg-purple-50/70 dark:bg-purple-950/20 border-purple-100/50 dark:border-purple-900/30'
-            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100/50 dark:hover:bg-white/5'
+            ? 'text-primary bg-secondary border-border'
+            : 'text-muted-foreground border-transparent hover:text-foreground hover:bg-secondary/70'
         )}
       >
         <Icon
           size={16}
           className={cn(
             'transition-colors flex-shrink-0',
-            isActive ? 'text-purple-600 dark:text-purple-400' : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-400'
+            isActive ? 'text-accent' : 'text-muted-foreground/80 group-hover:text-foreground'
           )}
         />
         <span className="truncate text-[13px] mr-1">{copy.labels[label] || label}</span>
-        {/* spacer pushes active indicator to right edge */}
         <span className="flex-1" />
         {isActive && (
-          <span
-            className="absolute right-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-l-full bg-purple-600 dark:bg-purple-400"
-          />
+          <span className="absolute right-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-l-full bg-accent" />
         )}
       </Link>
     )
@@ -135,56 +134,58 @@ export function Sidebar() {
 
   return (
     <>
-      {/* Backdrop for mobile */}
       {sidebarOpen && (
         <div
           onClick={closeSidebar}
-          className="fixed inset-0 z-20 bg-black/60 backdrop-blur-sm lg:hidden"
+          className="fixed inset-0 z-20 bg-ink/40 backdrop-blur-[2px] lg:hidden"
+          style={{ background: 'rgba(27, 42, 74, 0.35)' }}
         />
       )}
 
       <aside
         className={cn(
-          'fixed left-0 top-0 h-full w-[260px] flex flex-col z-30 transition-transform duration-200 bg-card border-r border-border',
+          'fixed left-0 top-0 h-full w-[268px] flex flex-col z-30 transition-transform duration-200 app-shell-surface',
           sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         )}
       >
-        {/* Logo */}
         <div className="flex items-center gap-3 px-5 py-5 border-b border-border">
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 bg-white border border-border overflow-hidden">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-card border border-border overflow-hidden">
             <Image
               src="/harunokaze-logo.jpg"
-              alt="Harunokaze"
-              width={36}
-              height={36}
+              alt={PRODUCT.shortName}
+              width={40}
+              height={40}
               className="h-full w-full object-contain p-0.5"
               priority
             />
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-extrabold text-foreground leading-none tracking-tight">CRM Harunokaze</p>
-            <p className="text-[10px] text-muted-foreground mt-0.5 truncate">HNZ x Wiwitan — CRO v2.0</p>
+            <p className="font-display text-[15px] font-semibold text-foreground leading-tight tracking-tight">
+              {PRODUCT.name}
+            </p>
+            <p className="text-[10px] text-muted-foreground mt-0.5 truncate">
+              {PRODUCT.partnership}
+            </p>
           </div>
         </div>
 
-        {/* Nav */}
         <nav className="flex-1 px-3 py-4 space-y-5 overflow-y-auto">
-          {/* Zona Kerja Harian CRO */}
           <div className="space-y-0.5">
-            <p className="text-[9px] font-extrabold text-blue-600 dark:text-blue-400 uppercase tracking-[0.15em] px-3 mb-2 flex items-center justify-between">
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.14em] px-3 mb-1.5 flex items-center justify-between gap-2">
               <span>{copy.sectionHarian}</span>
+              <span className="normal-case tracking-normal font-medium text-[9px] text-accent">
+                {copy.whereHint}
+              </span>
             </p>
             {harianNav.map((item) => (
               <NavItem key={item.href} {...item} />
             ))}
           </div>
 
-          {/* Divider */}
           <div className="border-t border-border" />
 
-          {/* Zona Kelola Data */}
           <div className="space-y-0.5">
-            <p className="text-[9px] font-extrabold text-amber-600 dark:text-amber-400 uppercase tracking-[0.15em] px-3 mb-2">
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.14em] px-3 mb-1.5">
               {copy.sectionData}
             </p>
             {dataNav.map((item) => (
@@ -192,12 +193,10 @@ export function Sidebar() {
             ))}
           </div>
 
-          {/* Divider */}
           <div className="border-t border-border" />
 
-          {/* Zona Pantau & Analisis */}
           <div className="space-y-0.5">
-            <p className="text-[9px] font-extrabold text-emerald-600 dark:text-emerald-400 uppercase tracking-[0.15em] px-3 mb-2">
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.14em] px-3 mb-1.5">
               {copy.sectionInsight}
             </p>
             {insightNav.map((item) => (
@@ -206,25 +205,24 @@ export function Sidebar() {
           </div>
         </nav>
 
-        {/* Bottom */}
         <div className="px-3 py-4 border-t border-border space-y-0.5">
           <Link
             href="/settings"
             prefetch={true}
             onClick={closeSidebar}
             className={cn(
-              'flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium transition-all duration-150 border border-transparent',
+              'flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium transition-colors duration-150 border',
               pathname.startsWith('/settings')
-                ? 'text-purple-600 dark:text-purple-400 bg-purple-50/70 dark:bg-purple-950/20 border-purple-100/50 dark:border-purple-900/30'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100/50 dark:hover:bg-white/5'
+                ? 'text-primary bg-secondary border-border'
+                : 'text-muted-foreground border-transparent hover:text-foreground hover:bg-secondary/70'
             )}
           >
-            <Settings size={16} className="text-slate-400 dark:text-slate-500 flex-shrink-0" />
+            <Settings size={16} className="text-muted-foreground flex-shrink-0" />
             {copy.settings}
           </Link>
           <button
             onClick={handleSignOut}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium text-slate-600 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all duration-150"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/5 transition-colors duration-150"
           >
             <LogOut size={16} className="flex-shrink-0" />
             {copy.logout}

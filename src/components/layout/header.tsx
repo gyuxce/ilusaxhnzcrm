@@ -6,6 +6,8 @@ import { useLayoutStore } from '@/lib/store'
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useLanguage } from '@/lib/language'
+import { getStageBadgeClasses } from '@/lib/brand'
+import { cn } from '@/lib/utils'
 
 import type { LeadRow } from '@/lib/supabase/types'
 
@@ -338,7 +340,7 @@ export function Header({ title, subtitle, backUrl }: HeaderProps) {
 
   return (
     <header
-      className="fixed top-0 left-0 lg:left-[260px] right-0 z-20 flex items-center justify-between px-4 sm:px-6 h-16 bg-background/80 dark:bg-slate-950/85 backdrop-blur-md border-b border-border transition-colors duration-200"
+      className="fixed top-0 left-0 lg:left-[268px] right-0 z-20 flex items-center justify-between px-4 sm:px-6 h-16 bg-background/90 backdrop-blur-md border-b border-border transition-colors duration-200"
     >
       {/* Title & Mobile Toggle */}
       <div className="flex items-center gap-2.5 min-w-0">
@@ -359,7 +361,7 @@ export function Header({ title, subtitle, backUrl }: HeaderProps) {
           </Link>
         )}
         <div className="min-w-0">
-          <h1 className="text-sm sm:text-base font-semibold text-foreground truncate">{displayTitle}</h1>
+          <h1 className="font-display text-base sm:text-lg font-semibold tracking-tight text-foreground truncate">{displayTitle}</h1>
           {displaySubtitle && <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 hidden sm:block truncate">{displaySubtitle}</p>}
         </div>
       </div>
@@ -389,7 +391,7 @@ export function Header({ title, subtitle, backUrl }: HeaderProps) {
         {/* Add lead */}
         <Link
           href="/leads/new"
-          className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium text-primary-foreground bg-primary hover:opacity-90 transition-all flex-shrink-0 shadow-sm"
+          className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium text-accent-foreground bg-accent hover:opacity-90 transition-opacity flex-shrink-0"
         >
           <Plus size={14} />
           <span className="hidden sm:inline">{copy.addLead}</span>
@@ -471,19 +473,19 @@ export function Header({ title, subtitle, backUrl }: HeaderProps) {
                           className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
                           style={{
                             background: notif.type === 'follow_up'
-                              ? 'rgba(249,115,22,0.12)'
-                              : 'rgba(139,92,246,0.12)',
+                              ? 'var(--stage-5-soft)'
+                              : 'var(--stage-2-soft)',
                           }}
                         >
                           {notif.type === 'follow_up'
-                            ? <Calendar size={14} className="text-orange-500 dark:text-orange-400" />
-                            : <AlertCircle size={14} className="text-purple-600 dark:text-purple-400" />
+                            ? <Calendar size={14} style={{ color: 'var(--stage-5)' }} />
+                            : <AlertCircle size={14} style={{ color: 'var(--stage-2)' }} />
                           }
                         </div>
 
                         {/* Content */}
                         <div className="flex-1 min-w-0">
-                          <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
+                          <p className="text-xs font-bold text-foreground truncate group-hover:text-primary transition-colors">
                             {notif.name}
                           </p>
                           <p className="text-[10px] text-muted-foreground truncate">{notif.label}</p>
@@ -508,7 +510,7 @@ export function Header({ title, subtitle, backUrl }: HeaderProps) {
                 <Link
                   href="/needs-action"
                   onClick={() => setNotifOpen(false)}
-                  className="flex items-center justify-center gap-1.5 py-2 rounded-xl text-[10px] font-bold text-purple-600 dark:text-purple-400 transition-all bg-purple-50/70 dark:bg-purple-950/20 border border-purple-100 dark:border-purple-900/30"
+                  className="flex items-center justify-center gap-1.5 py-2 rounded-xl text-[10px] font-bold text-primary transition-colors bg-secondary border border-border"
                 >
                   <AlertCircle size={11} /> Needs Action
                 </Link>
@@ -577,7 +579,10 @@ export function Header({ title, subtitle, backUrl }: HeaderProps) {
                         <p className="text-xs font-bold text-foreground group-hover:text-primary transition-colors">{lead.full_name}</p>
                         <p className="text-[9px] text-muted-foreground mt-0.5">{lead.whatsapp_number} | {lead.source_campaign}</p>
                       </div>
-                      <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-purple-50 dark:bg-purple-950/20 text-purple-600 dark:text-purple-400 border border-purple-100/50 dark:border-purple-900/30 uppercase tracking-wide">
+                      <span className={cn(
+                        'text-[9px] px-2 py-0.5 rounded-md uppercase tracking-wide',
+                        getStageBadgeClasses(lead.current_status)
+                      )}>
                         {lead.current_status}
                       </span>
                     </Link>
