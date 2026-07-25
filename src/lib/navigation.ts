@@ -147,8 +147,8 @@ export const LAPORAN_LINKS = [
   },
   {
     href: '/playbook',
-    labelId: 'Alasan Gagal',
-    labelEn: 'Lost Reasons',
+    labelId: 'Alasan tidak lanjut',
+    labelEn: 'Not continuing',
   },
 ]
 

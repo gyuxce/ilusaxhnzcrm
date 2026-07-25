@@ -1,11 +1,11 @@
 import Link from 'next/link'
 import { Header } from '@/components/layout/header'
 import { LaporanSubnav } from '@/components/layout/laporan-subnav'
+import { RankedStatList } from '@/components/reports/ranked-stat-list'
 import { createClient } from '@/lib/supabase/server'
 import {
   AlertTriangle,
   ArrowRight,
-  BarChart3,
   BriefcaseBusiness,
   CheckCircle2,
   Lightbulb,
@@ -156,11 +156,11 @@ export default async function PlaybookPage() {
   return (
     <>
       <Header
-        title="Alasan Gagal"
-        subtitle="Ringkasan kendala lead, respon CRO, bantuan yang dibutuhkan, dan peluang tambahan dari chat harian."
+        title="Alasan tidak lanjut"
+        subtitle="Kendala dari chat CRO — untuk keputusan script, offer, dan bantuan tim."
       />
 
-      <div className="w-full space-y-6 p-6 animate-fade-in">
+      <div className="w-full space-y-6 p-6 animate-fade-in font-sans">
         <LaporanSubnav />
         {error && (
           <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300">
@@ -168,83 +168,67 @@ export default async function PlaybookPage() {
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
           {[
-            { label: 'Total Catatan', value: total, icon: MessageSquareText, tone: 'hsl(250,84%,64%)' },
-            { label: 'Kendala Terbanyak', value: topObjection?.name || '-', icon: AlertTriangle, tone: 'hsl(24,95%,53%)', small: true },
-            { label: 'Perlu Dibantu', value: expertRows.length, icon: Sparkles, tone: 'hsl(38,92%,50%)' },
-            { label: 'Bisa Berbayar', value: potentialPaidRows.length, icon: BriefcaseBusiness, tone: 'hsl(210,100%,56%)' },
-            { label: 'Ada Follow-Up', value: withFollowUp.length, icon: CheckCircle2, tone: 'hsl(160,84%,39%)' },
-          ].map(card => (
-            <div key={card.label} className="rounded-2xl border border-border bg-card p-4 shadow-xs">
+            { label: 'Total catatan', value: String(total), icon: MessageSquareText },
+            { label: 'Kendala terbanyak', value: topObjection?.name || '—', icon: AlertTriangle, small: true },
+            { label: 'Perlu dibantu', value: String(expertRows.length), icon: Sparkles },
+            { label: 'Bisa berbayar', value: String(potentialPaidRows.length), icon: BriefcaseBusiness },
+            { label: 'Ada follow-up', value: String(withFollowUp.length), icon: CheckCircle2 },
+          ].map((card) => (
+            <div key={card.label} className="rounded-2xl border border-border bg-card p-4">
               <div className="flex items-center justify-between gap-3">
-                <span className="text-[10px] font-extrabold uppercase tracking-wide text-muted-foreground">{card.label}</span>
-                <div className="flex size-8 items-center justify-center rounded-xl" style={{ background: `${card.tone}20` }}>
-                  <card.icon size={16} style={{ color: card.tone }} />
-                </div>
+                <span className="text-[11px] font-semibold text-muted-foreground">{card.label}</span>
+                <card.icon size={15} className="text-accent shrink-0" />
               </div>
-              <p className={card.small ? 'mt-5 truncate text-sm font-black text-foreground' : 'mt-5 text-3xl font-black text-foreground'}>
+              <p
+                className={
+                  card.small
+                    ? 'mt-4 truncate text-sm font-semibold text-foreground'
+                    : 'mt-4 font-display text-3xl font-semibold tracking-tight text-foreground tabular-nums'
+                }
+              >
                 {card.value}
               </p>
             </div>
           ))}
         </div>
 
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-          <div className="xl:col-span-2 rounded-2xl border border-border bg-card p-5 shadow-xs">
-            <div className="mb-5 flex items-center justify-between gap-3">
-              <div>
-                <h2 className="text-sm font-extrabold uppercase tracking-wide text-foreground">Kendala yang Paling Sering Muncul</h2>
-                <p className="mt-1 text-xs text-muted-foreground">Kendala yang paling sering dicatat dari chat CRO.</p>
-              </div>
-              <BarChart3 size={18} className="text-primary" />
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+          <div className="xl:col-span-2 rounded-2xl border border-border bg-card p-5">
+            <div className="mb-4">
+              <h2 className="font-display text-base font-semibold tracking-tight text-foreground">
+                Kendala paling sering
+              </h2>
+              <p className="mt-1 text-xs text-muted-foreground">Dari catatan chat CRO di Kerjaan.</p>
             </div>
-
-            <div className="space-y-4">
-              {objectionRows.length === 0 ? (
-                <p className="py-10 text-center text-sm text-muted-foreground">Belum ada catatan kendala.</p>
-              ) : objectionRows.map(row => (
-                <div key={row.name} className="rounded-xl border border-border bg-slate-50/70 p-4 dark:bg-white/[0.02]">
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="min-w-0">
-                      <p className="font-extrabold text-foreground">{row.name}</p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {row.count} catatan, {row.percent}% dari semua kendala.
-                      </p>
-                    </div>
-                    <Link
-                      href={`/reports?date=${new Date().toISOString().split('T')[0]}`}
-                      className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline"
-                    >
-                      Cek report
-                      <ArrowRight size={12} />
-                    </Link>
-                  </div>
-                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
-                    <div className="h-full rounded-full bg-primary" style={{ width: `${Math.max(row.percent, 4)}%` }} />
-                  </div>
-                </div>
-              ))}
-            </div>
+            <RankedStatList
+              empty="Belum ada catatan kendala."
+              rows={objectionRows.map((row) => ({
+                name: row.name,
+                count: row.count,
+                percent: row.percent,
+                href: `/reports?date=${new Date().toISOString().split('T')[0]}`,
+              }))}
+            />
           </div>
 
-          <div className="rounded-2xl border border-border bg-card p-5 shadow-xs">
-            <div className="mb-5 flex items-center gap-2">
-              <Lightbulb size={18} className="text-amber-500" />
-              <h2 className="text-sm font-extrabold uppercase tracking-wide text-foreground">Catatan Buat Keputusan</h2>
+          <div className="rounded-2xl border border-border bg-card p-5">
+            <div className="mb-4 flex items-center gap-2">
+              <Lightbulb size={16} className="text-accent" />
+              <h2 className="font-display text-base font-semibold tracking-tight text-foreground">
+                Catatan keputusan
+              </h2>
             </div>
             <div className="space-y-3 text-xs leading-relaxed text-muted-foreground">
               <p>
-                Halaman ini membaca <span className="font-bold text-foreground">Catatan Chat</span>, bukan sekadar status Not Interested.
-                Jadi yang terlihat di sini adalah kendala, respon CRO, dan peluang layanan dari aktivitas nyata CRO.
+                Halaman ini membaca <span className="font-semibold text-foreground">catatan chat</span>, bukan hanya status Not Interested.
               </p>
               <p>
-                Gunakan <span className="font-bold text-foreground">Bisa Berbayar</span> untuk melihat peluang layanan tambahan, dan
-                <span className="font-bold text-foreground"> Perlu Dibantu</span> untuk melihat lead yang perlu dibantu sensei/tim lain.
+                Pakai <span className="font-semibold text-foreground">Bisa berbayar</span> untuk peluang layanan, dan{' '}
+                <span className="font-semibold text-foreground">Perlu dibantu</span> untuk lead yang butuh sensei/tim lain.
               </p>
-              <p>
-                Kalau kendala dominan berulang, buat script atau offer khusus agar respon tim makin seragam.
-              </p>
+              <p>Kalau kendala dominan berulang, siapkan script atau offer khusus agar respon tim seragam.</p>
             </div>
           </div>
         </div>
@@ -282,7 +266,7 @@ export default async function PlaybookPage() {
         <div className="rounded-2xl border border-border bg-card p-5 shadow-xs">
           <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <h2 className="text-sm font-extrabold uppercase tracking-wide text-foreground">Kasus Prioritas</h2>
+              <h2 className="font-display text-base font-semibold tracking-tight text-foreground">Kasus prioritas</h2>
               <p className="mt-1 text-xs text-muted-foreground">Lead yang perlu dibantu, bisa berbayar, ada follow-up, atau belum punya hasil chat.</p>
             </div>
             <span className="text-xs text-muted-foreground">{priorityRows.length} dari {total} catatan</span>
@@ -341,7 +325,7 @@ export default async function PlaybookPage() {
         <div className="rounded-2xl border border-border bg-card p-5 shadow-xs">
           <div className="mb-4 flex items-center gap-2">
             <Target size={18} className="text-primary" />
-            <h2 className="text-sm font-extrabold uppercase tracking-wide text-foreground">Cara Pakai Buat Tim</h2>
+            <h2 className="font-display text-base font-semibold tracking-tight text-foreground">Cara pakai buat tim</h2>
           </div>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
             {[
@@ -359,7 +343,7 @@ export default async function PlaybookPage() {
               },
             ].map(item => (
               <div key={item.title} className="rounded-xl border border-border bg-muted/30 p-4">
-                <p className="text-sm font-extrabold text-foreground">{item.title}</p>
+                <p className="text-sm font-semibold text-foreground">{item.title}</p>
                 <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{item.body}</p>
               </div>
             ))}
@@ -392,32 +376,22 @@ function InsightTable({
   empty: string
 }) {
   return (
-    <div className="rounded-2xl border border-border bg-card p-5 shadow-xs">
-      <div className="mb-4 flex items-end justify-between gap-3">
+    <div className="rounded-2xl border border-border bg-card p-5">
+      <div className="mb-3 flex items-end justify-between gap-3">
         <div>
-          <h2 className="text-sm font-extrabold uppercase tracking-wide text-foreground">{title}</h2>
+          <h2 className="font-display text-base font-semibold tracking-tight text-foreground">{title}</h2>
           <p className="mt-1 text-xs text-muted-foreground">{subtitle}</p>
         </div>
-        <span className="text-xs text-muted-foreground">{rows.length} item</span>
+        <span className="text-xs text-muted-foreground tabular-nums">{rows.length}</span>
       </div>
-      <div className="space-y-3">
-        {rows.length === 0 ? (
-          <p className="py-8 text-center text-xs text-muted-foreground">{empty}</p>
-        ) : rows.map((row, index) => (
-          <div key={row.name} className="rounded-xl border border-border bg-slate-50/70 p-3 dark:bg-white/[0.02]">
-            <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <p className="truncate text-sm font-bold text-foreground">{index + 1}. {row.name}</p>
-                <p className="mt-1 text-[11px] text-muted-foreground">{row.percent}% dari data terkait</p>
-              </div>
-              <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-black text-foreground">{row.count}</span>
-            </div>
-            <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-muted">
-              <div className="h-full rounded-full bg-primary" style={{ width: `${Math.max(row.percent, 4)}%` }} />
-            </div>
-          </div>
-        ))}
-      </div>
+      <RankedStatList
+        empty={empty}
+        rows={rows.map((row) => ({
+          name: row.name,
+          count: row.count,
+          percent: row.percent,
+        }))}
+      />
     </div>
   )
 }

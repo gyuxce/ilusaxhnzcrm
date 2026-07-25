@@ -8,11 +8,11 @@ import {
   getStageBadgeClasses,
   resolveBoardDropStatus,
 } from '@/lib/brand'
-import { MessageCircle, ExternalLink, GripVertical, Users } from 'lucide-react'
+import { MessageCircle, Users } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-const INITIAL_VISIBLE_PER_COLUMN = 12
-const LOAD_MORE_STEP = 12
+const INITIAL_VISIBLE_PER_COLUMN = 10
+const LOAD_MORE_STEP = 10
 
 interface LeadCard {
   id: string
@@ -31,6 +31,12 @@ interface PipelineBoardProps {
   initialLeads: LeadCard[]
 }
 
+/** Two rows so columns stay readable on a normal desktop width. */
+const BOARD_ROWS = [
+  ['baru', 'diskusi', 'pemetaan', 'expert'],
+  ['closing', 'menang', 'lost'],
+] as const
+
 export function PipelineBoard({ initialLeads }: PipelineBoardProps) {
   const [leads, setLeads] = useState<LeadCard[]>(initialLeads)
   const [dragging, setDragging] = useState<string | null>(null)
@@ -38,6 +44,7 @@ export function PipelineBoard({ initialLeads }: PipelineBoardProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [visibleCounts, setVisibleCounts] = useState<Record<string, number>>({})
   const [moveError, setMoveError] = useState('')
+  const [focusColumn, setFocusColumn] = useState<string | null>(null)
 
   const supabase = createClient()
 
@@ -109,9 +116,13 @@ export function PipelineBoard({ initialLeads }: PipelineBoardProps) {
     }
   }
 
-  function onDragStart(e: React.DragEvent, leadId: string) {
+  function onDragStart(_e: React.DragEvent, leadId: string) {
     setDragging(leadId)
-    e.dataTransfer.effectAllowed = 'move'
+  }
+
+  function onDragEnd() {
+    setDragging(null)
+    setDragOverStage(null)
   }
 
   function onDragOver(e: React.DragEvent, columnKey: string) {
@@ -127,40 +138,183 @@ export function PipelineBoard({ initialLeads }: PipelineBoardProps) {
     setDragOverStage(null)
   }
 
-  function onDragEnd() {
-    setDragging(null)
-    setDragOverStage(null)
-  }
-
   const openWA = useCallback((phone: string) => {
     const clean = phone.replace(/\D/g, '')
-    const num = clean.startsWith('0')
-      ? '62' + clean.slice(1)
-      : clean.startsWith('62')
-        ? clean
-        : '62' + clean
+    const num = clean.startsWith('62')
+      ? clean
+      : clean.startsWith('0')
+        ? `62${clean.slice(1)}`
+        : `62${clean}`
     window.open(`https://wa.me/${num}`, '_blank')
   }, [])
 
+  function renderColumn(columnKey: string) {
+    const column = PIPELINE_BOARD_COLUMNS.find((c) => c.key === columnKey)
+    if (!column) return null
+
+    const stageLeads = getLeadsByColumn(column.key)
+    const visibleLeads = stageLeads.slice(0, getVisibleCount(column.key))
+    const hiddenCount = Math.max(0, stageLeads.length - visibleLeads.length)
+    const isOver = dragOverStage === column.key
+
+    return (
+      <div
+        key={column.key}
+        className="flex min-h-[24rem] flex-col rounded-2xl border transition-colors"
+        style={{
+          background: isOver ? column.soft : 'hsl(var(--card))',
+          borderColor: isOver ? column.color : 'hsl(var(--border))',
+        }}
+        onDragOver={(e) => onDragOver(e, column.key)}
+        onDrop={(e) => onDrop(e, column.key)}
+        onDragLeave={() => setDragOverStage(null)}
+      >
+        <div className="flex items-center justify-between gap-2 px-3.5 pt-3.5 pb-2.5">
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: column.color }} />
+            <span className="font-display text-sm font-semibold tracking-tight text-foreground truncate">
+              {column.label}
+            </span>
+          </div>
+          <span
+            className="rounded-md px-2 py-0.5 text-xs font-semibold tabular-nums"
+            style={{ background: column.soft, color: column.color }}
+          >
+            {stageLeads.length}
+          </span>
+        </div>
+
+        <div className="flex-1 space-y-2 overflow-y-auto px-2.5 pb-3">
+          {stageLeads.length === 0 ? (
+            <div
+              className="flex h-24 items-center justify-center rounded-xl border border-dashed text-xs text-muted-foreground"
+              style={{ borderColor: isOver ? column.color : 'hsl(var(--border))' }}
+            >
+              {isOver ? 'Lepas di sini' : 'Kosong'}
+            </div>
+          ) : (
+            <>
+              {visibleLeads.map((lead) => (
+                <div
+                  key={lead.id}
+                  draggable
+                  onDragStart={(e) => onDragStart(e, lead.id)}
+                  onDragEnd={onDragEnd}
+                  className={cn(
+                    'rounded-xl border border-border bg-background px-3 py-2.5 transition-all',
+                    'hover:border-primary/25 cursor-grab active:cursor-grabbing',
+                    dragging === lead.id && 'opacity-40 scale-[0.98]'
+                  )}
+                  style={{ borderLeftWidth: 3, borderLeftColor: column.color }}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <Link
+                        href={`/leads/${lead.id}`}
+                        className="block text-[13px] font-semibold leading-snug text-foreground hover:text-accent line-clamp-2"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {lead.full_name}
+                      </Link>
+                      <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+                        {lead.source_campaign}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => openWA(lead.whatsapp_number)}
+                      className="shrink-0 rounded-lg border border-border p-1.5 text-emerald-700 hover:bg-emerald-500/10"
+                      title="WhatsApp"
+                    >
+                      <MessageCircle size={14} />
+                    </button>
+                  </div>
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                    <span
+                      className={cn(
+                        'inline-block rounded-md px-1.5 py-0.5 text-[10px]',
+                        getStageBadgeClasses(lead.current_status)
+                      )}
+                    >
+                      {lead.current_status}
+                    </span>
+                    {lead.users?.name && (
+                      <span className="truncate text-[10px] text-muted-foreground">
+                        {lead.users.name.split(' ')[0]}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+
+              {hiddenCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => loadMore(column.key)}
+                  className="w-full rounded-xl border border-border bg-secondary/40 px-3 py-2 text-[11px] font-semibold text-muted-foreground hover:text-foreground"
+                >
+                  +{Math.min(LOAD_MORE_STEP, hiddenCount)} lagi ({hiddenCount})
+                </button>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs text-muted-foreground border border-border bg-card">
+    <div className="space-y-4 font-sans">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-xs text-muted-foreground">
             <Users size={13} />
-            <span>{leads.length} lead</span>
+            <span className="font-semibold tabular-nums text-foreground">{filtered.length}</span>
+            <span>lead</span>
           </div>
           <input
             type="text"
             placeholder="Cari nama atau campaign..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="px-3 py-1.5 rounded-xl text-xs text-foreground placeholder-muted-foreground bg-card border border-border outline-none w-52 focus:ring-1 focus:ring-primary focus:border-primary"
+            className="w-56 rounded-xl border border-border bg-card px-3 py-2 text-xs text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary"
           />
+          {focusColumn && (
+            <button
+              type="button"
+              onClick={() => setFocusColumn(null)}
+              className="text-[11px] font-semibold text-accent hover:opacity-80"
+            >
+              Tampilkan semua kolom
+            </button>
+          )}
         </div>
-        <p className="text-[10px] text-muted-foreground hidden md:block">
-          Kolom = tahap 1–6 (Closing berhasil / Tidak lanjut dipisah). Drag untuk pindah status.
+        <p className="hidden text-[11px] text-muted-foreground lg:block">
+          Ringkasan di atas untuk fokus · drag kartu untuk pindah tahap
         </p>
+      </div>
+
+      <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 xl:grid-cols-7">
+        {PIPELINE_BOARD_COLUMNS.map((column) => {
+          const count = getLeadsByColumn(column.key).length
+          const active = focusColumn === column.key
+          return (
+            <button
+              key={column.key}
+              type="button"
+              onClick={() => setFocusColumn((prev) => (prev === column.key ? null : column.key))}
+              className={cn(
+                'rounded-xl border px-2.5 py-2 text-left transition-colors',
+                active ? 'border-primary bg-primary/5' : 'border-border bg-card hover:bg-secondary/50'
+              )}
+            >
+              <p className="truncate text-[10px] font-semibold text-muted-foreground">{column.label}</p>
+              <p className="mt-0.5 font-display text-xl font-semibold tracking-tight tabular-nums text-foreground">
+                {count}
+              </p>
+            </button>
+          )
+        })}
       </div>
 
       {moveError && (
@@ -169,129 +323,25 @@ export function PipelineBoard({ initialLeads }: PipelineBoardProps) {
         </div>
       )}
 
-      <div className="flex gap-3 overflow-x-auto pb-4 h-[calc(100vh-170px)]">
-        {PIPELINE_BOARD_COLUMNS.map((column) => {
-          const stageLeads = getLeadsByColumn(column.key)
-          const visibleCount = getVisibleCount(column.key)
-          const visibleLeads = stageLeads.slice(0, visibleCount)
-          const hiddenCount = Math.max(0, stageLeads.length - visibleLeads.length)
-          const isOver = dragOverStage === column.key
-
-          return (
+      {focusColumn ? (
+        <div className="grid grid-cols-1">{renderColumn(focusColumn)}</div>
+      ) : (
+        <div className="space-y-3">
+          {BOARD_ROWS.map((row, rowIndex) => (
             <div
-              key={column.key}
-              className="flex-shrink-0 w-[200px] flex flex-col rounded-2xl transition-colors duration-150 h-full border"
-              style={{
-                background: isOver ? column.soft : 'hsl(var(--secondary))',
-                borderColor: isOver ? column.color : 'hsl(var(--border))',
-              }}
-              onDragOver={(e) => onDragOver(e, column.key)}
-              onDrop={(e) => onDrop(e, column.key)}
-              onDragLeave={() => setDragOverStage(null)}
+              key={rowIndex}
+              className={cn(
+                'grid gap-3',
+                rowIndex === 0
+                  ? 'grid-cols-1 sm:grid-cols-2 xl:grid-cols-4'
+                  : 'grid-cols-1 sm:grid-cols-2 xl:grid-cols-3'
+              )}
             >
-              <div className="px-3 pt-3 pb-2 flex items-center justify-between flex-shrink-0">
-                <div className="flex items-center gap-2 min-w-0">
-                  <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: column.color }} />
-                  <span className="text-[11px] font-bold text-foreground truncate leading-tight">
-                    {column.label}
-                  </span>
-                </div>
-                <span
-                  className="text-[10px] font-bold rounded-md px-1.5 py-0.5 min-w-[20px] text-center"
-                  style={{ background: column.soft, color: column.color }}
-                >
-                  {stageLeads.length}
-                </span>
-              </div>
-
-              <div className="flex-1 px-2 pb-2 space-y-2 overflow-y-auto pr-1">
-                {stageLeads.length === 0 ? (
-                  <div
-                    className="h-20 rounded-xl border-2 border-dashed flex items-center justify-center text-[10px] text-muted-foreground/40"
-                    style={{ borderColor: isOver ? column.color : 'transparent' }}
-                  >
-                    {isOver ? 'Lepas di sini' : 'Kosong'}
-                  </div>
-                ) : (
-                  <>
-                    {visibleLeads.map((lead) => (
-                      <div
-                        key={lead.id}
-                        draggable
-                        onDragStart={(e) => onDragStart(e, lead.id)}
-                        onDragEnd={onDragEnd}
-                        className={cn(
-                          'p-3 rounded-xl border border-border bg-card hover:border-primary/20 cursor-grab active:cursor-grabbing transition-all duration-150',
-                          dragging === lead.id ? 'opacity-40 scale-95' : ''
-                        )}
-                      >
-                        <div className="flex items-start gap-1.5">
-                          <GripVertical size={12} className="text-muted-foreground/40 mt-0.5 flex-shrink-0" />
-                          <div className="min-w-0 flex-1">
-                            <p className="text-xs font-semibold text-foreground leading-tight line-clamp-2">
-                              {lead.full_name}
-                            </p>
-                            <p className="text-[9px] text-muted-foreground mt-0.5 truncate">
-                              {lead.source_campaign}
-                            </p>
-                            <span
-                              className={cn(
-                                'inline-block mt-1 text-[8px] px-1.5 py-0.5 rounded-md',
-                                getStageBadgeClasses(lead.current_status)
-                              )}
-                            >
-                              {lead.current_status}
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-1 mt-2 flex-wrap">
-                          {lead.lead_type === 'outbound' && (
-                            <span className="text-[8px] px-1.5 py-0.5 rounded-md font-bold bg-secondary text-muted-foreground">
-                              OUT
-                            </span>
-                          )}
-                          {lead.users?.name && (
-                            <span className="text-[8px] px-1.5 py-0.5 rounded-md font-bold truncate max-w-[80px] bg-secondary text-foreground">
-                              {lead.users.name.split(' ')[0]}
-                            </span>
-                          )}
-                        </div>
-
-                        <div className="flex items-center gap-1 mt-2 pt-2 border-t border-border">
-                          <button
-                            type="button"
-                            onClick={() => openWA(lead.whatsapp_number)}
-                            className="flex-1 flex items-center justify-center gap-1 py-1 rounded-lg text-[9px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20"
-                          >
-                            <MessageCircle size={10} /> WA
-                          </button>
-                          <Link
-                            href={`/leads/${lead.id}`}
-                            className="flex-1 flex items-center justify-center gap-1 py-1 rounded-lg text-[9px] font-semibold text-primary bg-secondary hover:bg-secondary/80"
-                          >
-                            <ExternalLink size={10} /> Detail
-                          </Link>
-                        </div>
-                      </div>
-                    ))}
-
-                    {hiddenCount > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => loadMore(column.key)}
-                        className="w-full rounded-xl border border-border bg-card px-3 py-2 text-[10px] font-bold text-muted-foreground hover:text-foreground"
-                      >
-                        Muat {Math.min(LOAD_MORE_STEP, hiddenCount)} lagi ({hiddenCount})
-                      </button>
-                    )}
-                  </>
-                )}
-              </div>
+              {row.map((key) => renderColumn(key))}
             </div>
-          )
-        })}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

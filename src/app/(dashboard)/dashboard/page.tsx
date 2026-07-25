@@ -16,11 +16,12 @@ import { LaporanSubnav } from '@/components/layout/laporan-subnav'
 import { createClient } from '@/lib/supabase/client'
 import { useLanguage, type Language } from '@/lib/language'
 import {
-  FUNNEL_STAGES,
   countLeadsByFunnelStage,
   isLostOutcomeStatus,
   isWonStatus,
 } from '@/lib/brand'
+import { FunnelStageStrip } from '@/components/reports/funnel-stage-strip'
+import { RankedStatList } from '@/components/reports/ranked-stat-list'
 import { NEEDS_ACTION_STATUSES } from '@/lib/funnel-framework'
 import { getTodayInWIB } from '@/lib/utils'
 import type { LeadInterventionRow, LeadRow, PaymentRow } from '@/lib/supabase/types'
@@ -263,7 +264,6 @@ export default function DashboardPage() {
   }, [fetchStats])
 
   const stageCounts = useMemo(() => countLeadsByFunnelStage(leads), [leads])
-  const maxStage = Math.max(1, ...stageCounts.map((s) => s.count))
 
   const kpis = [
     {
@@ -311,7 +311,7 @@ export default function DashboardPage() {
   return (
     <>
       <Header title={c.title} subtitle={c.subtitle} />
-      <div className="w-full p-6 space-y-6 animate-fade-in">
+      <div className="w-full p-6 space-y-6 animate-fade-in font-sans">
         <LaporanSubnav />
 
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -349,7 +349,7 @@ export default function DashboardPage() {
                 {loading ? (
                   <MetricSkeleton />
                 ) : (
-                  <p className="font-display text-3xl font-semibold tracking-tight text-foreground">
+                  <p className="font-display text-3xl font-semibold tracking-tight text-foreground tabular-nums">
                     {kpi.value}
                   </p>
                 )}
@@ -362,51 +362,19 @@ export default function DashboardPage() {
           })}
         </div>
 
-        {/* Funnel 1–6 */}
+        {/* Funnel 1–6 — stage cards, not stacked bars */}
         <section className="rounded-2xl border border-border bg-card p-5">
           <div className="mb-4">
-            <h3 className="text-sm font-semibold text-foreground">{c.funnelTitle}</h3>
+            <h3 className="font-display text-base font-semibold tracking-tight text-foreground">
+              {c.funnelTitle}
+            </h3>
             <p className="text-xs text-muted-foreground mt-1">{c.funnelHint}</p>
           </div>
-          <div className="space-y-3">
-            {FUNNEL_STAGES.map((stage) => {
-              const count = stageCounts.find((s) => s.stageId === stage.id)?.count || 0
-              const pct = Math.round((count / maxStage) * 100)
-              const label = lang === 'en' ? stage.labelEn : stage.labelId
-              const href =
-                stage.id === 6
-                  ? '/conversions?type=seat_lock'
-                  : `/leads?status=${encodeURIComponent(stage.statuses[0])}`
-              return (
-                <Link key={stage.id} href={href} className="block group">
-                  <div className="flex items-center gap-3 mb-1">
-                    <span
-                      className="w-6 h-6 rounded-md text-[11px] font-bold flex items-center justify-center text-white"
-                      style={{ background: stage.color }}
-                    >
-                      {stage.id}
-                    </span>
-                    <span className="text-sm font-medium text-foreground flex-1">{label}</span>
-                    <span className="text-sm font-semibold text-foreground tabular-nums">
-                      {loading ? '—' : count}
-                    </span>
-                  </div>
-                  <div className="h-2 rounded-full bg-secondary overflow-hidden ml-9">
-                    <div
-                      className="h-full rounded-full transition-all duration-500"
-                      style={{
-                        width: loading ? '0%' : `${Math.max(pct, count > 0 ? 6 : 0)}%`,
-                        background: stage.color,
-                      }}
-                    />
-                  </div>
-                  <p className="text-[10px] text-muted-foreground mt-1 ml-9 group-hover:text-foreground transition-colors">
-                    {stage.meaningId}
-                  </p>
-                </Link>
-              )
-            })}
-          </div>
+          <FunnelStageStrip
+            counts={stageCounts}
+            loading={loading}
+            lang={lang === 'en' ? 'en' : 'id'}
+          />
         </section>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -462,20 +430,14 @@ export default function DashboardPage() {
                 <MetricSkeleton />
                 <MetricSkeleton />
               </div>
-            ) : topObjections.length === 0 ? (
-              <p className="text-sm text-muted-foreground">{c.lostEmpty}</p>
             ) : (
-              <ul className="space-y-2">
-                {topObjections.map((row) => (
-                  <li
-                    key={row.label}
-                    className="flex items-center justify-between gap-3 rounded-xl border border-border px-3 py-2.5"
-                  >
-                    <p className="text-sm text-foreground truncate">{row.label}</p>
-                    <span className="text-sm font-semibold tabular-nums text-foreground">{row.count}</span>
-                  </li>
-                ))}
-              </ul>
+              <RankedStatList
+                empty={c.lostEmpty}
+                rows={topObjections.map((row) => ({
+                  name: row.label,
+                  count: row.count,
+                }))}
+              />
             )}
           </section>
         </div>
