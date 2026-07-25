@@ -2,15 +2,11 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import type { User as AuthUser } from '@supabase/supabase-js'
+import Link from 'next/link'
 import { Header } from '@/components/layout/header'
 import { createClient } from '@/lib/supabase/client'
-import {
-  Loader2, User as UserIcon, BookOpen, Users, Target, Trash2,
-} from 'lucide-react'
+import { Loader2, User as UserIcon, Users, BookOpen } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { FUNNEL_STAGES, SIMPLE_FUNNEL_FLOW } from '@/lib/brand'
-import { FUNNEL_STATUS_OPTIONS } from '@/lib/funnel-framework'
-import { LOST_REASON_OPTIONS } from '@/lib/lost-reasons'
 
 interface DBUser {
   id: string
@@ -20,50 +16,35 @@ interface DBUser {
   created_at: string
 }
 
-interface BatchTarget {
-  id: string
-  batch_name: string
-  target_seat_lock: number
-  start_date: string
-  closing_date: string
-  notes: string | null
-}
-
+/**
+ * Slim settings: profile for everyone + user roles for admin/owner.
+ * Batch targets & kamus removed — kamus/flow lives in /guide.
+ */
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState<'profile' | 'users' | 'batches' | 'vocab'>('profile')
+  const [activeTab, setActiveTab] = useState<'profile' | 'users'>('profile')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState({ text: '', type: '' })
-  
-  // Profile State
+
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null)
   const [profile, setProfile] = useState({
     name: '',
     role: '',
     email: '',
   })
-
-  // Admin states
   const [usersList, setUsersList] = useState<DBUser[]>([])
-  const [batchesList, setBatchesList] = useState<BatchTarget[]>([])
-  
-  // Add batch target form state
-  const [batchName, setBatchName] = useState('')
-  const [targetSeatLock, setTargetSeatLock] = useState(28)
-  const [startDate, setStartDate] = useState('')
-  const [endDate, setEndDate] = useState('')
-  const [batchNotes, setBatchNotes] = useState('')
 
   const supabase = createClient()
 
   const loadSettingsData = useCallback(async () => {
     setLoading(true)
-    const { data: { user: authUser } } = await supabase.auth.getUser()
+    const {
+      data: { user: authUser },
+    } = await supabase.auth.getUser()
     if (!authUser) return
 
     setCurrentUser(authUser)
 
-    // Load profile
     const { data: userData } = await supabase
       .from('users')
       .select('*')
@@ -78,25 +59,12 @@ export default function SettingsPage() {
       })
     }
 
-    // Load admin users list
     const { data: allUsers } = await supabase
       .from('users')
       .select('*')
       .order('created_at', { ascending: false })
 
-    if (allUsers) {
-      setUsersList(allUsers)
-    }
-
-    // Load batch targets
-    const { data: allBatches } = await supabase
-      .from('batch_targets')
-      .select('*')
-      .order('created_at', { ascending: false })
-
-    if (allBatches) {
-      setBatchesList(allBatches)
-    }
+    if (allUsers) setUsersList(allUsers)
 
     setLoading(false)
   }, [supabase])
@@ -105,7 +73,6 @@ export default function SettingsPage() {
     loadSettingsData()
   }, [loadSettingsData])
 
-  // Save profile info
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!profile.name) {
@@ -118,9 +85,7 @@ export default function SettingsPage() {
 
     const { error } = await supabase
       .from('users')
-      .update({
-        name: profile.name
-      })
+      .update({ name: profile.name })
       .eq('id', currentUser.id)
 
     if (error) {
@@ -132,50 +97,10 @@ export default function SettingsPage() {
     setSaving(false)
   }
 
-  // Update user role
   const handleUpdateRole = async (userId: string, newRole: string) => {
-    const { error } = await supabase
-      .from('users')
-      .update({ role: newRole })
-      .eq('id', userId)
-
+    const { error } = await supabase.from('users').update({ role: newRole }).eq('id', userId)
     if (!error) {
-      setUsersList(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u))
-    }
-  }
-
-  // Create batch target
-  const handleAddBatch = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!batchName) return
-
-    const { data, error } = await supabase
-      .from('batch_targets')
-      .insert({
-        batch_name: batchName,
-        target_seat_lock: Number(targetSeatLock),
-        start_date: startDate || new Date().toISOString().split('T')[0],
-        closing_date: endDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        notes: batchNotes || null
-      })
-      .select()
-
-    if (!error && data) {
-      setBatchesList(prev => [data[0], ...prev])
-      setBatchName('')
-      setBatchNotes('')
-    }
-  }
-
-  // Delete batch target
-  const handleDeleteBatch = async (id: string) => {
-    const { error } = await supabase
-      .from('batch_targets')
-      .delete()
-      .eq('id', id)
-
-    if (!error) {
-      setBatchesList(prev => prev.filter(b => b.id !== id))
+      setUsersList((prev) => prev.map((u) => (u.id === userId ? { ...u, role: newRole } : u)))
     }
   }
 
@@ -191,29 +116,29 @@ export default function SettingsPage() {
 
   return (
     <>
-      <Header title="Pengaturan" subtitle="Kelola data profil dan preferensi CRM" />
-      
-      <div className="w-full p-6 grid grid-cols-1 lg:grid-cols-4 gap-6 animate-fade-in">
-        
-        {/* Left Side: Navigation Sidebar */}
+      <Header
+        title="Pengaturan"
+        subtitle="Profil akun. Alur & kamus tahap ada di menu Cara pakai."
+      />
+
+      <div className="w-full p-6 grid grid-cols-1 lg:grid-cols-4 gap-6 animate-fade-in font-sans">
         <div className="lg:col-span-1 space-y-2">
           {[
-            { id: 'profile', label: 'Profil Saya', icon: UserIcon },
-            { id: 'users', label: 'Manage Users', icon: Users, adminOnly: true },
-            { id: 'batches', label: 'Manage Batch Targets', icon: Target, adminOnly: true },
-            { id: 'vocab', label: 'Kamus Tahap 1–6', icon: BookOpen, adminOnly: false }
-          ].map(tab => {
+            { id: 'profile' as const, label: 'Profil saya', icon: UserIcon },
+            { id: 'users' as const, label: 'Kelola user', icon: Users, adminOnly: true },
+          ].map((tab) => {
             if (tab.adminOnly && !isAdmin) return null
             const Icon = tab.icon
             return (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id as typeof activeTab)}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
                 className={cn(
-                  "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all text-left cursor-pointer border",
-                  activeTab === tab.id 
-                    ? "bg-primary/10 text-primary border-primary/20" 
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted border-transparent dark:hover:bg-white/5"
+                  'w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold transition-all text-left border',
+                  activeTab === tab.id
+                    ? 'bg-primary/10 text-primary border-primary/20'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted border-transparent'
                 )}
               >
                 <Icon size={14} />
@@ -221,55 +146,71 @@ export default function SettingsPage() {
               </button>
             )
           })}
+
+          <Link
+            href="/guide"
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted border border-transparent"
+          >
+            <BookOpen size={14} />
+            Cara pakai & alur →
+          </Link>
         </div>
 
-        {/* Right Side: Tab Panel Content */}
         <div className="lg:col-span-3">
-          
-          {/* Tab 1: Profile */}
           {activeTab === 'profile' && (
-            <form onSubmit={handleSaveProfile} className="bg-card text-card-foreground rounded-2xl p-6 border border-border dark:border-white/5 space-y-5 shadow-xs">
-              <h2 className="text-sm font-bold text-foreground uppercase tracking-wider">Profil Saya</h2>
+            <form
+              onSubmit={handleSaveProfile}
+              className="bg-card rounded-2xl p-6 border border-border space-y-5"
+            >
+              <h2 className="font-display text-base font-semibold tracking-tight text-foreground">
+                Profil saya
+              </h2>
 
               {message.text && (
-                <div className={cn(
-                  "p-3 rounded-xl text-xs font-bold border",
-                  message.type === 'error' 
-                    ? "bg-red-50 border-red-100 text-red-700 dark:bg-red-500/10 dark:border-red-500/20 dark:text-red-400" 
-                    : "bg-emerald-50 border-emerald-100 text-emerald-700 dark:bg-green-500/10 dark:border-green-500/20 dark:text-green-400"
-                )}>
+                <div
+                  className={cn(
+                    'p-3 rounded-xl text-xs font-semibold border',
+                    message.type === 'error'
+                      ? 'bg-red-50 border-red-100 text-red-700'
+                      : 'bg-emerald-50 border-emerald-100 text-emerald-700'
+                  )}
+                >
                   {message.text}
                 </div>
               )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[10px] text-muted-foreground font-bold uppercase mb-1.5">Email (Sistem)</label>
+                  <label className="block text-[11px] text-muted-foreground font-semibold mb-1.5">
+                    Email (sistem)
+                  </label>
                   <input
                     type="email"
                     disabled
                     value={profile.email}
-                    className="w-full px-3.5 py-2.5 rounded-xl text-xs bg-muted text-muted-foreground/60 cursor-not-allowed border border-border dark:border-white/5"
+                    className="w-full px-3.5 py-2.5 rounded-xl text-xs bg-muted text-muted-foreground/60 cursor-not-allowed border border-border"
                   />
                 </div>
-
                 <div>
-                  <label className="block text-[10px] text-muted-foreground font-bold uppercase mb-1.5">Role / Hak Akses</label>
+                  <label className="block text-[11px] text-muted-foreground font-semibold mb-1.5">
+                    Role
+                  </label>
                   <input
                     type="text"
                     disabled
                     value={profile.role.toUpperCase()}
-                    className="w-full px-3.5 py-2.5 rounded-xl text-xs bg-muted text-muted-foreground/60 cursor-not-allowed border border-border dark:border-white/5 font-extrabold"
+                    className="w-full px-3.5 py-2.5 rounded-xl text-xs bg-muted text-muted-foreground/60 cursor-not-allowed border border-border font-semibold"
                   />
                 </div>
-
                 <div className="md:col-span-2">
-                  <label className="block text-[10px] text-muted-foreground font-bold uppercase mb-1.5">Nama Lengkap</label>
+                  <label className="block text-[11px] text-muted-foreground font-semibold mb-1.5">
+                    Nama lengkap
+                  </label>
                   <input
                     type="text"
                     value={profile.name}
-                    onChange={(e) => setProfile(prev => ({ ...prev, name: e.target.value }))}
-                    className="w-full px-3.5 py-2.5 rounded-xl text-xs bg-background text-foreground border border-border outline-none focus:ring-1 focus:ring-primary focus:border-primary placeholder:text-muted-foreground/50"
+                    onChange={(e) => setProfile((prev) => ({ ...prev, name: e.target.value }))}
+                    className="w-full px-3.5 py-2.5 rounded-xl text-xs bg-background text-foreground border border-border outline-none focus:ring-1 focus:ring-primary focus:border-primary"
                   />
                 </div>
               </div>
@@ -277,46 +218,52 @@ export default function SettingsPage() {
               <button
                 type="submit"
                 disabled={saving}
-                className="w-full py-2.5 rounded-xl text-xs font-bold text-primary-foreground bg-primary hover:opacity-90 transition-all duration-300 shadow-sm cursor-pointer"
+                className="w-full py-2.5 rounded-xl text-xs font-semibold text-primary-foreground bg-primary hover:opacity-90"
               >
-                {saving ? 'Menyimpan...' : 'Simpan Perubahan'}
+                {saving ? 'Menyimpan...' : 'Simpan perubahan'}
               </button>
             </form>
           )}
 
-          {/* Tab 2: Manage Users (Admin only) */}
           {activeTab === 'users' && isAdmin && (
-            <div className="bg-card text-card-foreground rounded-2xl p-6 border border-border dark:border-white/5 space-y-5 shadow-xs">
-              <h2 className="text-sm font-bold text-foreground uppercase tracking-wider">Manage Users</h2>
-              
+            <div className="bg-card rounded-2xl p-6 border border-border space-y-5">
+              <div>
+                <h2 className="font-display text-base font-semibold tracking-tight text-foreground">
+                  Kelola user
+                </h2>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Ubah role: CRO (kerja harian), Owner (pantau), Admin (penuh).
+                </p>
+              </div>
+
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
                   <thead>
-                    <tr className="border-b border-border dark:border-white/10 text-muted-foreground">
-                      <th className="py-2.5 px-3">Nama</th>
-                      <th className="py-2.5 px-3">Email</th>
-                      <th className="py-2.5 px-3">Role</th>
-                      <th className="py-2.5 px-3">Tanggal Dibuat</th>
+                    <tr className="border-b border-border text-muted-foreground">
+                      <th className="py-2.5 px-3 font-semibold">Nama</th>
+                      <th className="py-2.5 px-3 font-semibold">Email</th>
+                      <th className="py-2.5 px-3 font-semibold">Role</th>
+                      <th className="py-2.5 px-3 font-semibold">Dibuat</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-border dark:divide-white/5">
-                    {usersList.map(u => (
-                       <tr key={u.id} className="hover:bg-muted/40 dark:hover:bg-white/[0.01]">
-                        <td className="py-3 px-3 font-bold text-foreground">{u.name}</td>
+                  <tbody className="divide-y divide-border">
+                    {usersList.map((u) => (
+                      <tr key={u.id}>
+                        <td className="py-3 px-3 font-semibold text-foreground">{u.name}</td>
                         <td className="py-3 px-3 text-muted-foreground">{u.email}</td>
                         <td className="py-3 px-3">
                           <select
                             value={u.role}
-                            disabled={u.id === currentUser?.id} // cannot change own role here
+                            disabled={u.id === currentUser?.id}
                             onChange={(e) => handleUpdateRole(u.id, e.target.value)}
-                            className="px-2 py-1 bg-background text-foreground border border-border rounded-lg text-xs outline-none cursor-pointer disabled:opacity-40 focus:ring-1 focus:ring-primary focus:border-primary"
+                            className="px-2 py-1 bg-background text-foreground border border-border rounded-lg text-xs outline-none disabled:opacity-40"
                           >
-                            <option value="cro" className="bg-card text-foreground">CRO</option>
-                            <option value="owner" className="bg-card text-foreground">OWNER</option>
-                            <option value="admin" className="bg-card text-foreground">ADMIN</option>
+                            <option value="cro">CRO</option>
+                            <option value="owner">OWNER</option>
+                            <option value="admin">ADMIN</option>
                           </select>
                         </td>
-                        <td className="py-3 px-3 text-muted-foreground/80">
+                        <td className="py-3 px-3 text-muted-foreground">
                           {new Date(u.created_at).toLocaleDateString('id-ID')}
                         </td>
                       </tr>
@@ -326,211 +273,7 @@ export default function SettingsPage() {
               </div>
             </div>
           )}
-
-          {/* Tab 3: Manage Batch Targets */}
-          {activeTab === 'batches' && isAdmin && (
-            <div className="space-y-6">
-              
-              {/* Add Batch Form */}
-              <form onSubmit={handleAddBatch} className="bg-card text-card-foreground rounded-2xl p-6 border border-border dark:border-white/5 space-y-4 shadow-xs">
-                <h2 className="text-sm font-bold text-foreground uppercase tracking-wider">Tambah Target Batch Baru</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-[10px] text-muted-foreground font-bold uppercase mb-1.5">Nama Batch</label>
-                    <input
-                      type="text"
-                      placeholder="Contoh: Batch 2 Harunokaze"
-                      value={batchName}
-                      onChange={e => setBatchName(e.target.value)}
-                      required
-                      className="w-full px-3.5 py-2 rounded-xl text-xs bg-background text-foreground border border-border outline-none focus:ring-1 focus:ring-primary focus:border-primary placeholder:text-muted-foreground/50"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] text-muted-foreground font-bold uppercase mb-1.5">Target Seat Lock</label>
-                    <input
-                      type="number"
-                      value={targetSeatLock}
-                      onChange={e => setTargetSeatLock(Number(e.target.value))}
-                      required
-                      className="w-full px-3.5 py-2 rounded-xl text-xs bg-background text-foreground border border-border outline-none focus:ring-1 focus:ring-primary focus:border-primary placeholder:text-muted-foreground/50"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] text-muted-foreground font-bold uppercase mb-1.5">Tanggal Mulai</label>
-                    <input
-                      type="date"
-                      value={startDate}
-                      onChange={e => setStartDate(e.target.value)}
-                      className="w-full px-3.5 py-2 rounded-xl text-xs bg-background text-foreground border border-border outline-none focus:ring-1 focus:ring-primary focus:border-primary"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] text-muted-foreground font-bold uppercase mb-1.5">Tanggal Berakhir</label>
-                    <input
-                      type="date"
-                      value={endDate}
-                      onChange={e => setEndDate(e.target.value)}
-                      className="w-full px-3.5 py-2 rounded-xl text-xs bg-background text-foreground border border-border outline-none focus:ring-1 focus:ring-primary focus:border-primary"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-[10px] text-muted-foreground font-bold uppercase mb-1.5">Catatan</label>
-                  <input
-                    type="text"
-                    placeholder="Catatan tambahan target batch..."
-                    value={batchNotes}
-                    onChange={e => setBatchNotes(e.target.value)}
-                    className="w-full px-3.5 py-2 rounded-xl text-xs bg-background text-foreground border border-border outline-none focus:ring-1 focus:ring-primary focus:border-primary placeholder:text-muted-foreground/50"
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  className="w-full py-2 rounded-xl text-xs font-bold text-primary-foreground bg-primary hover:opacity-90 transition-all duration-300 shadow-sm cursor-pointer"
-                >
-                  Tambah Batch Target
-                </button>
-              </form>
-
-              {/* Batch Targets list */}
-              <div className="bg-card text-card-foreground rounded-2xl p-6 border border-border dark:border-white/5 space-y-4 shadow-xs">
-                <h2 className="text-sm font-bold text-foreground uppercase tracking-wider">Daftar Batch Target</h2>
-                <div className="space-y-3">
-                  {batchesList.map(b => (
-                    <div key={b.id} className="flex items-center justify-between p-4 rounded-xl border border-border dark:border-white/5 bg-muted/20 dark:bg-white/[0.01]">
-                      <div className="space-y-1">
-                        <span className="text-xs font-bold text-foreground">{b.batch_name}</span>
-                        <p className="text-[10px] text-muted-foreground">Periode: {b.start_date} s/d {b.closing_date}</p>
-                        {b.notes && <p className="text-[10px] text-muted-foreground/80">{b.notes}</p>}
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <div className="text-right">
-                          <span className="text-[10px] text-muted-foreground uppercase font-bold">Target</span>
-                          <p className="text-sm font-extrabold text-primary">{b.target_seat_lock} Seat Lock</p>
-                        </div>
-                        <button
-                          onClick={() => handleDeleteBatch(b.id)}
-                          className="p-1.5 rounded-lg text-red-600 hover:text-red-700 hover:bg-red-500/10 border border-transparent hover:border-red-500/10 cursor-pointer dark:text-red-500/60 dark:hover:text-red-400 transition-all"
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-            </div>
-          )}
-
-          {/* Tab 4: Read-only vocabulary (single source of truth in code) */}
-          {activeTab === 'vocab' && (
-            <div className="space-y-4">
-              <div className="rounded-2xl border border-border bg-card p-5">
-                <h2 className="font-display text-base font-semibold tracking-tight text-foreground">
-                  {SIMPLE_FUNNEL_FLOW.titleId}
-                </h2>
-                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                  Bahasa sederhana untuk tim & klien. Sumber tunggal dari kode — form, pipeline, dan laporan selalu sama.
-                </p>
-                <ol className="mt-4 space-y-2">
-                  {SIMPLE_FUNNEL_FLOW.stepsId.map((step) => (
-                    <li key={step} className="text-sm text-foreground font-medium">
-                      {step}
-                    </li>
-                  ))}
-                </ol>
-                <p className="mt-4 rounded-xl border border-border bg-secondary/50 px-3 py-2.5 text-xs text-foreground leading-relaxed">
-                  {SIMPLE_FUNNEL_FLOW.exitId}
-                </p>
-                <p className="mt-2 text-xs text-muted-foreground leading-relaxed">
-                  {SIMPLE_FUNNEL_FLOW.croId}
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-border bg-card p-5">
-                <h2 className="text-sm font-semibold text-foreground">Kamus tahap 1–6</h2>
-                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                  Detail status di dalam tiap tahap (untuk tim operasional).
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {FUNNEL_STAGES.map((stage) => (
-                  <div key={stage.id} className="rounded-2xl border border-border bg-card p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span
-                        className="w-6 h-6 rounded-md text-[11px] font-bold flex items-center justify-center text-white"
-                        style={{ background: stage.color }}
-                      >
-                        {stage.id}
-                      </span>
-                      <p className="text-sm font-semibold text-foreground">{stage.labelId}</p>
-                    </div>
-                    <p className="text-xs text-muted-foreground mb-2">{stage.meaningId}</p>
-                    <ul className="space-y-1">
-                      {stage.statuses.map((status) => (
-                        <li key={status} className="text-[11px] text-foreground/80">
-                          · {status}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
-                <div className="rounded-2xl border border-border bg-card p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="w-6 h-6 rounded-md text-[11px] font-bold flex items-center justify-center bg-amber-800 text-white">
-                      —
-                    </span>
-                    <p className="text-sm font-semibold text-foreground">Keluar · Tidak lanjut</p>
-                  </div>
-                  <p className="text-xs text-muted-foreground mb-2">
-                    Bukan tahap 6. Lead berhenti di tengah jalan.
-                  </p>
-                  <ul className="space-y-1">
-                    <li className="text-[11px] text-foreground/80">· Not Interested</li>
-                    <li className="text-[11px] text-foreground/80">· Not Eligible</li>
-                  </ul>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="rounded-2xl border border-border bg-card p-5">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-foreground mb-3">
-                    Status detail (picker)
-                  </h3>
-                  <div className="space-y-1 max-h-64 overflow-y-auto">
-                    {FUNNEL_STATUS_OPTIONS.map((status) => (
-                      <p key={status} className="text-[11px] text-muted-foreground px-2 py-1 rounded-lg bg-secondary/50">
-                        {status}
-                      </p>
-                    ))}
-                  </div>
-                </div>
-                <div className="rounded-2xl border border-border bg-card p-5">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-foreground mb-3">
-                    Alasan lost (picker)
-                  </h3>
-                  <div className="space-y-1 max-h-64 overflow-y-auto">
-                    {LOST_REASON_OPTIONS.map((reason) => (
-                      <p key={reason} className="text-[11px] text-muted-foreground px-2 py-1 rounded-lg bg-secondary/50">
-                        {reason}
-                      </p>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
         </div>
-
       </div>
     </>
   )

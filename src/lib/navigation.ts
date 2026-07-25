@@ -13,7 +13,6 @@ export type NavItem = {
 
 /**
  * CRO primary nav — daily work first, monitoring second.
- * Kerjaan is the desk; Antrian covers Needs Action / FU / Expert hubs.
  */
 export const PRIMARY_NAV: NavItem[] = [
   {
@@ -50,6 +49,13 @@ export const PRIMARY_NAV: NavItem[] = [
     labelEn: 'Reports',
     hintId: 'Ringkasan kerja & performa',
     hintEn: 'Work summary & performance',
+  },
+  {
+    href: '/guide',
+    labelId: 'Cara pakai',
+    labelEn: 'How to use',
+    hintId: 'Alur, menu, sumber angka Dashboard',
+    hintEn: 'Flow, menus, where Dashboard numbers come from',
   },
 ]
 
@@ -90,7 +96,7 @@ export const TODAY_TOOLS = [
 ]
 
 /**
- * One Dashboard menu for owner — Client + Team reports live as toggles inside.
+ * Owner primary nav — monitoring first + guide for clients.
  */
 export const OWNER_PRIMARY_NAV: NavItem[] = [
   {
@@ -120,6 +126,13 @@ export const OWNER_PRIMARY_NAV: NavItem[] = [
     labelEn: 'Payments',
     hintId: 'Uang masuk verified',
     hintEn: 'Verified payments',
+  },
+  {
+    href: '/guide',
+    labelId: 'Cara pakai',
+    labelEn: 'How to use',
+    hintId: 'Alur, menu, sumber angka Dashboard',
+    hintEn: 'Flow, menus, where Dashboard numbers come from',
   },
 ]
 
@@ -172,6 +185,9 @@ export function isNavActive(pathname: string, href: string): boolean {
       pathname.startsWith('/analytics') ||
       pathname.startsWith('/playbook')
     )
+  }
+  if (href === '/guide') {
+    return pathname.startsWith('/guide')
   }
   if (href === '/leads') {
     return pathname.startsWith('/leads')
