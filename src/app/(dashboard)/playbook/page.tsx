@@ -346,16 +346,16 @@ export default async function PlaybookPage() {
           <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
             {[
               {
-                title: '1. Catat Kondisi',
-                body: 'Saat CRO mengerjakan lead, isi kondisi lead dan kendala utama di Kerjaan Hari Ini.',
+                title: '1–3. Kondisi → Kendala → Respon',
+                body: 'Di Kerjaan Hari Ini, isi tiga langkah pertama setelah hubungi WA. Satu layar, urutan jelas untuk training.',
               },
               {
-                title: '2. Pilih Solusi',
-                body: 'Isi respon yang diberikan, lalu tandai gratis/berbayar dan apakah perlu dibantu tim lain.',
+                title: '4–5. Next action & follow-up',
+                body: 'Pilih langkah berikutnya dan jadwal FU (atau alasan lost). Status terupdate otomatis saat simpan.',
               },
               {
-                title: '3. Follow Up & Evaluasi',
-                body: 'Isi langkah berikutnya dan tanggal follow-up. Manager membaca pola kendala dari halaman ini.',
+                title: 'Opsi lanjutan',
+                body: 'Hasil chat, komersial, dan expert bersifat opsional. Manager membaca pola kendala dari Report Harian.',
               },
             ].map(item => (
               <div key={item.title} className="rounded-xl border border-border bg-muted/30 p-4">
