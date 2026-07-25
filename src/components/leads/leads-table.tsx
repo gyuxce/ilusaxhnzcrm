@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -8,7 +8,7 @@ import {
   Search, Filter,
   ChevronUp, ChevronDown,
   ChevronLeft, ChevronRight,
-  FileUp, Loader2, Trash2
+  FileUp, Loader2, Trash2, MoreHorizontal,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
@@ -16,6 +16,7 @@ import type { Lead, PaymentRow, PemetaanRow, ExpertConsultationRow } from '@/lib
 import { CsvUploadModal } from './csv-upload-modal'
 import { NEEDS_ACTION_STATUSES } from '@/lib/funnel-framework'
 import { getStageBadgeClasses } from '@/lib/brand'
+import { useCurrentRole } from '@/lib/use-current-role'
 
 type LeadWithRelations = Lead & {
   users?: { id: string; name: string } | null
@@ -36,21 +37,28 @@ const paymentBadgeClass = (status: string) => {
   return 'border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-800 dark:bg-white/5 dark:text-slate-400'
 }
 
+function paymentShort(status: string) {
+  if (status === 'verified') return 'OK'
+  if (status === 'pending') return 'Pending'
+  return '—'
+}
+
 const renderPaymentSummary = (lead: LeadWithRelations) => {
-  const pemetaanPayment = lead.payments?.find(p => p.payment_type === 'pemetaan')
-  const seatLockPayment = lead.payments?.find(p => p.payment_type === 'seat_lock')
+  const pemetaanPayment = lead.payments?.find((p) => p.payment_type === 'pemetaan')
+  const seatLockPayment = lead.payments?.find((p) => p.payment_type === 'seat_lock')
   const pemetaanStatus = pemetaanPayment?.verification_status || 'not_paid'
   const seatLockStatus = seatLockPayment?.verification_status || 'not_paid'
 
   return (
-    <div className="flex flex-col gap-1">
-      <span className={cn('w-fit rounded-full border px-2 py-0.5 text-[10px] font-bold', paymentBadgeClass(pemetaanStatus))}>
-        Pemetaan: {pemetaanStatus === 'not_paid' ? 'Belum' : pemetaanStatus}
+    <p className="text-[11px] text-muted-foreground whitespace-nowrap">
+      <span className={cn('font-semibold', paymentBadgeClass(pemetaanStatus).includes('emerald') && 'text-emerald-700 dark:text-emerald-300')}>
+        P {paymentShort(pemetaanStatus)}
       </span>
-      <span className={cn('w-fit rounded-full border px-2 py-0.5 text-[10px] font-bold', paymentBadgeClass(seatLockStatus))}>
-        Seat Lock: {seatLockStatus === 'not_paid' ? 'Belum' : seatLockStatus}
+      <span className="mx-1 text-border">·</span>
+      <span className={cn('font-semibold', paymentBadgeClass(seatLockStatus).includes('emerald') && 'text-emerald-700 dark:text-emerald-300')}>
+        SL {paymentShort(seatLockStatus)}
       </span>
-    </div>
+    </p>
   )
 }
 
@@ -123,11 +131,25 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
   const [toast, setToast] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [mounted, setMounted] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
+  const [openActionId, setOpenActionId] = useState<string | null>(null)
+  const actionMenuRef = useRef<HTMLDivElement | null>(null)
+  const { isOwnerLike } = useCurrentRole()
   const pageSize = 25
 
   useEffect(() => {
     setMounted(true)
   }, [])
+
+  useEffect(() => {
+    if (!openActionId) return
+    const onPointerDown = (event: MouseEvent) => {
+      if (!actionMenuRef.current?.contains(event.target as Node)) {
+        setOpenActionId(null)
+      }
+    }
+    document.addEventListener('mousedown', onPointerDown)
+    return () => document.removeEventListener('mousedown', onPointerDown)
+  }, [openActionId])
 
   // Get unique campaigns for filter dropdown
   const campaignsList = useMemo(() => {
@@ -586,23 +608,24 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
         <div className="overflow-x-auto">
           <table className="w-full text-xs text-left">
             <thead>
-              <tr className="border-b border-border bg-slate-50/50 dark:bg-white/[0.01]">
+              <tr className="border-b border-border bg-secondary/40">
                 {[
-                  { label: 'Nama & Campaign', field: 'full_name' as const },
-                  { label: 'WhatsApp', field: null },
-                  { label: 'Tanggal Masuk', field: 'lead_entry_date' as const },
-                  { label: 'PIC CRO', field: null },
-                  { label: 'Status Pipeline', field: 'current_status' as const },
-                  { label: 'Langkah Berikutnya', field: null },
-                  { label: 'Last Update', field: null },
-                  { label: 'Payment', field: null },
-                  { label: 'Aksi Data', field: null }
-                ].map(col => (
+                  { label: 'Lead', field: 'full_name' as const },
+                  { label: 'WA', field: null },
+                  { label: 'Masuk', field: 'lead_entry_date' as const },
+                  { label: 'PIC', field: null },
+                  { label: 'Status', field: 'current_status' as const },
+                  { label: 'Next', field: null },
+                  { label: 'Update', field: null },
+                  { label: 'Bayar', field: null },
+                  { label: '', field: null },
+                ].map((col) => (
                   <th
-                    key={col.label}
+                    key={col.label || 'aksi'}
                     className={cn(
-                      'px-4 py-3 font-semibold text-slate-500 dark:text-slate-400 whitespace-nowrap',
-                      col.field && 'cursor-pointer hover:text-slate-800 dark:hover:text-slate-200 select-none'
+                      'px-3 py-2.5 text-[11px] font-semibold text-muted-foreground whitespace-nowrap',
+                      col.field && 'cursor-pointer hover:text-foreground select-none',
+                      !col.label && 'w-12 text-right'
                     )}
                     onClick={() => col.field && toggleSort(col.field)}
                   >
@@ -622,122 +645,125 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
                   </td>
                 </tr>
               ) : (
-                paginatedLeads.map(lead => {
+                paginatedLeads.map((lead) => {
+                  const menuOpen = openActionId === lead.id
                   return (
-                    <tr key={lead.id} className="hover:bg-slate-50/50 dark:hover:bg-white/[0.01] transition-colors group">
-                      {/* Name & Campaign */}
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <div className="flex flex-col">
-                          <Link href={`/leads/${lead.id}`} className="font-semibold text-foreground hover:text-accent transition-colors">
-                            {lead.full_name}
-                          </Link>
-                          <span className="text-[10px] text-muted-foreground mt-0.5">{lead.source_campaign || 'No Campaign'}</span>
-                          <div className="mt-1 flex flex-wrap gap-1">
-                            {lead.lead_quality && (
-                              <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[9px] font-bold text-emerald-700 dark:text-emerald-300">
-                                {lead.lead_quality}
-                              </span>
-                            )}
-                            {lead.lead_segment && (
-                              <span className="rounded-full bg-blue-500/10 px-2 py-0.5 text-[9px] font-bold text-blue-700 dark:text-blue-300">
-                                {lead.lead_segment}
-                              </span>
-                            )}
-                          </div>
-                        </div>
+                    <tr key={lead.id} className="hover:bg-secondary/30 transition-colors">
+                      <td className="px-3 py-2.5 min-w-[10rem] max-w-[14rem]">
+                        <Link
+                          href={`/leads/${lead.id}`}
+                          className="block truncate text-[12px] font-semibold text-foreground hover:text-accent"
+                        >
+                          {lead.full_name}
+                        </Link>
+                        <p className="truncate text-[10px] text-muted-foreground mt-0.5">
+                          {lead.source_campaign || '—'}
+                        </p>
                       </td>
 
-                      {/* WhatsApp */}
-                      <td className="px-4 py-3 font-mono text-slate-700 dark:text-slate-300 whitespace-nowrap">
+                      <td className="px-3 py-2.5 font-mono text-[11px] text-muted-foreground whitespace-nowrap">
                         {lead.whatsapp_number}
                       </td>
 
-                      {/* Tanggal Masuk */}
-                      <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
+                      <td className="px-3 py-2.5 text-[11px] text-muted-foreground whitespace-nowrap">
                         {formatCellDate(lead.lead_entry_date)}
                       </td>
 
-                      {/* PIC CRO */}
-                      <td className="px-4 py-3 text-slate-700 dark:text-slate-300 whitespace-nowrap">
-                        {lead.users?.name || '-'}
+                      <td className="px-3 py-2.5 text-[11px] text-foreground/80 whitespace-nowrap max-w-[7rem] truncate">
+                        {lead.users?.name || '—'}
                       </td>
 
-                      {/* Status Pipeline */}
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <span className={cn('px-2 py-0.5 rounded-md text-[10px] font-semibold', getStageBadgeClasses(lead.current_status))}>
+                      <td className="px-3 py-2.5 whitespace-nowrap">
+                        <span
+                          className={cn(
+                            'px-1.5 py-0.5 rounded-md text-[10px] font-semibold',
+                            getStageBadgeClasses(lead.current_status)
+                          )}
+                        >
                           {lead.current_status}
                         </span>
                       </td>
 
-                      {/* Next Action */}
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <div className="flex flex-col gap-1">
-                          <span className="font-semibold text-slate-700 dark:text-slate-300">
-                            {lead.next_action || '-'}
-                          </span>
-                          {lead.next_follow_up_date && (
-                            <span className="text-[10px] text-muted-foreground">
-                              FU: {formatCellDate(lead.next_follow_up_date)}
-                            </span>
+                      <td className="px-3 py-2.5 whitespace-nowrap max-w-[7rem]">
+                        <p className="truncate text-[11px] font-medium text-foreground">
+                          {lead.next_action || '—'}
+                        </p>
+                        {lead.next_follow_up_date && (
+                          <p className="text-[10px] text-muted-foreground">
+                            FU {formatCellDate(lead.next_follow_up_date)}
+                          </p>
+                        )}
+                      </td>
+
+                      <td className="px-3 py-2.5 whitespace-nowrap">
+                        <span
+                          className={cn(
+                            'text-[11px] font-medium',
+                            daysSinceLastTouch(lead) >= 3 ? 'text-amber-700 dark:text-amber-300' : 'text-muted-foreground'
                           )}
-                        </div>
+                        >
+                          {lastTouchLabel(lead)}
+                        </span>
                       </td>
 
-                      {/* Last Update */}
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <div className="flex flex-col gap-1">
-                          <span className={cn(
-                            'w-fit rounded-full border px-2 py-0.5 text-[10px] font-bold',
-                            daysSinceLastTouch(lead) >= 3
-                              ? 'border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-300'
-                              : 'border-emerald-500/25 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300'
-                          )}>
-                            {lastTouchLabel(lead)}
-                          </span>
-                          <span className="text-[10px] text-muted-foreground">
-                            by {lead.updated_by_user?.name || 'Unknown'}
-                          </span>
-                        </div>
-                      </td>
-
-                      {/* Payment Status */}
-                      <td className="px-4 py-3 whitespace-nowrap">
+                      <td className="px-3 py-2.5 whitespace-nowrap">
                         {renderPaymentSummary(lead)}
                       </td>
 
-                      {/* Action buttons */}
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <div className="flex items-center gap-2">
-                          <Link
-                            href={`/leads/${lead.id}`}
-                            className="rounded-lg border border-border bg-card px-2.5 py-1.5 text-[10px] font-bold text-foreground transition-colors hover:bg-slate-50 dark:hover:bg-white/5"
-                            title="Lihat Detail"
-                          >
-                            Detail
-                          </Link>
-                          <Link
-                            href={`/leads/${lead.id}/edit`}
-                            className="rounded-lg border border-border bg-card px-2.5 py-1.5 text-[10px] font-bold text-blue-600 transition-colors hover:bg-blue-500/10 dark:text-blue-300"
-                            title="Edit data master"
-                          >
-                            Edit
-                          </Link>
-                          <Link
-                            href={`/work-queue?lead=${lead.id}`}
-                            className="rounded-lg border border-primary/20 bg-primary/10 px-2.5 py-1.5 text-[10px] font-bold text-primary transition-colors hover:bg-primary/15"
-                            title="Kerjakan di Kerjaan Hari Ini"
-                          >
-                            Kerjakan
-                          </Link>
+                      <td className="px-2 py-2.5 text-right">
+                        <div
+                          className="relative inline-block"
+                          ref={menuOpen ? actionMenuRef : undefined}
+                        >
                           <button
                             type="button"
-                            onClick={() => promptDelete(lead.id, lead.full_name)}
-                            disabled={deletingId === lead.id}
-                            className="rounded-lg border border-red-500/20 bg-red-500/5 px-2.5 py-1.5 text-[10px] font-bold text-red-600 transition-colors hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-50 dark:text-red-300"
-                            title="Hapus lead dari database"
+                            onClick={() =>
+                              setOpenActionId((prev) => (prev === lead.id ? null : lead.id))
+                            }
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground hover:text-foreground hover:bg-secondary"
+                            title="Aksi"
+                            aria-expanded={menuOpen}
                           >
-                            Hapus
+                            <MoreHorizontal size={16} />
                           </button>
+                          {menuOpen && (
+                            <div className="absolute right-0 top-full z-30 mt-1 w-40 overflow-hidden rounded-xl border border-border bg-card py-1 shadow-lg">
+                              <Link
+                                href={`/leads/${lead.id}`}
+                                className="block px-3 py-2 text-left text-[12px] font-medium text-foreground hover:bg-secondary"
+                                onClick={() => setOpenActionId(null)}
+                              >
+                                Detail
+                              </Link>
+                              <Link
+                                href={`/leads/${lead.id}/edit`}
+                                className="block px-3 py-2 text-left text-[12px] font-medium text-foreground hover:bg-secondary"
+                                onClick={() => setOpenActionId(null)}
+                              >
+                                Edit
+                              </Link>
+                              {!isOwnerLike && (
+                                <Link
+                                  href={`/work-queue?lead=${lead.id}`}
+                                  className="block px-3 py-2 text-left text-[12px] font-medium text-foreground hover:bg-secondary"
+                                  onClick={() => setOpenActionId(null)}
+                                >
+                                  Kerjakan
+                                </Link>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setOpenActionId(null)
+                                  promptDelete(lead.id, lead.full_name)
+                                }}
+                                disabled={deletingId === lead.id}
+                                className="block w-full px-3 py-2 text-left text-[12px] font-medium text-red-600 hover:bg-red-500/10 disabled:opacity-50"
+                              >
+                                Hapus
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </td>
                     </tr>

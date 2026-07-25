@@ -33,16 +33,11 @@ export default async function LeadsPage() {
 
   return (
     <>
-      <Header title="Leads" subtitle="Tempat cek, import, edit, dan hapus data lead. Kerja harian tetap dari menu Hari Ini." />
-      <div className="p-6 animate-fade-in w-full">
-        <div className="mb-4 rounded-2xl border border-border bg-secondary/60 px-5 py-4">
-          <p className="font-display text-base font-semibold tracking-tight text-foreground">
-            Leads = data master, bukan antrian kerja harian
-          </p>
-          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-            Pakai halaman ini untuk cek histori, import CSV, edit, atau hapus data. Untuk menghubungi lead, mencatat kendala, dan menentukan langkah berikutnya, buka menu Hari Ini.
-          </p>
-        </div>
+      <Header
+        title="Leads"
+        subtitle="Data master lead — cek, import, edit, hapus. Kerja chat harian dari menu Kerjaan."
+      />
+      <div className="p-5 sm:p-6 animate-fade-in w-full font-sans">
         <Suspense fallback={<div className="p-8 text-center text-xs text-muted-foreground animate-pulse">Memuat data leads...</div>}>
           <LeadsTable
             initialLeads={leads || []}
