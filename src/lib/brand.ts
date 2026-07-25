@@ -21,7 +21,7 @@ export const VOCAB = {
   nextAction: 'Next Action',
   followUp: 'Follow-Up',
   payment: 'Pembayaran',
-  lost: 'Lost',
+  lost: 'Tidak lanjut',
   workToday: 'Hari Ini',
 } as const
 
@@ -100,7 +100,7 @@ export const FUNNEL_STAGES = [
     key: 'selesai',
     labelId: 'Selesai',
     labelEn: 'Done',
-    meaningId: 'Menang (paid/onboarding) atau kalah (lost)',
+    meaningId: 'Closing berhasil (paid/onboarding) atau tidak lanjut',
     color: 'var(--stage-6)',
     soft: 'var(--stage-6-soft)',
     defaultStatus: 'Seat Lock Paid',
@@ -123,8 +123,8 @@ export const WON_STATUSES = ['Seat Lock Paid', 'Onboarding', 'Class Started'] as
 export const LOST_OUTCOME_STATUSES = ['Not Interested', 'Not Eligible'] as const
 
 /**
- * Pipeline board columns — tahap 1–5 + tahap 6 split Menang/Lost
- * so drag-and-drop never defaults a win into Not Interested.
+ * Pipeline board columns — tahap 1–5 + tahap 6 split
+ * Closing berhasil / Tidak lanjut (so drag never mixes win ↔ lost).
  */
 export const PIPELINE_BOARD_COLUMNS = [
   {
@@ -183,7 +183,7 @@ export const PIPELINE_BOARD_COLUMNS = [
   {
     key: 'menang',
     stageId: 6 as FunnelStageId,
-    label: '6 · Menang',
+    label: '6 · Closing berhasil',
     color: 'var(--stage-6)',
     soft: 'var(--stage-6-soft)',
     defaultStatus: 'Seat Lock Paid',
@@ -192,9 +192,9 @@ export const PIPELINE_BOARD_COLUMNS = [
   {
     key: 'lost',
     stageId: 6 as FunnelStageId,
-    label: '6 · Lost',
-    color: '#dc2626',
-    soft: 'rgba(220, 38, 38, 0.12)',
+    label: '6 · Tidak lanjut',
+    color: '#b45309',
+    soft: 'rgba(180, 83, 9, 0.12)',
     defaultStatus: 'Not Interested',
     statuses: [...LOST_OUTCOME_STATUSES] as string[],
   },

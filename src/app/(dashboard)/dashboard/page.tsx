@@ -56,26 +56,26 @@ const DASHBOARD_CACHE_MS = 30_000
 
 const COPY = {
   en: {
-    title: 'Reports',
-    subtitle: 'Five numbers that matter — then the funnel and what needs attention.',
+    title: 'Dashboard',
+    subtitle: 'One place: overview, client report, daily report, performance — switch via tabs above.',
     kpiToday: 'New leads today',
     kpiTodayHint: 'Entered today (WIB)',
     kpiWork: 'Need contact today',
-    kpiWorkHint: 'Open Today workspace',
+    kpiWorkHint: 'Open CRO work desk',
     kpiStuck: 'Stuck / needs action',
     kpiStuckHint: 'Waiting on schedule or result',
-    kpiWin: 'Seat lock this week',
+    kpiWin: 'Closing succeeded this week',
     kpiWinHint: 'Paid / onboarding this week',
-    kpiLost: 'Lost this week',
+    kpiLost: 'Not continuing this week',
     kpiLostHint: 'Not interested / not eligible',
     funnelTitle: 'Funnel stages 1–6',
     funnelHint: 'Click a stage to open matching leads in Pipeline / Leads.',
     attentionTitle: 'Needs attention',
     attentionHint: 'Active leads with no update for 3+ days.',
     attentionEmpty: 'No stale leads right now.',
-    lostTitle: 'Top lost reasons',
+    lostTitle: 'Top reasons not continuing',
     lostHint: 'From recent CRO handling notes.',
-    lostEmpty: 'No lost-reason patterns yet.',
+    lostEmpty: 'No patterns yet.',
     revenueTitle: 'Revenue (secondary)',
     revenueHint: 'Verified payments — details in Payments.',
     revenueMap: 'Mapping',
@@ -83,29 +83,29 @@ const COPY = {
     revenueTotal: 'Total',
     viewPayments: 'Open payments',
     days: 'd',
-    openToday: 'Go to Today',
+    openToday: 'Open work desk',
   },
   id: {
-    title: 'Laporan',
-    subtitle: 'Lima angka penting — lalu funnel dan yang perlu perhatian.',
+    title: 'Dashboard',
+    subtitle: 'Satu tempat: ringkasan, laporan klien, report harian, performa — ganti via tab di atas.',
     kpiToday: 'Lead masuk hari ini',
     kpiTodayHint: 'Masuk hari ini (WIB)',
     kpiWork: 'Perlu dihubungi',
-    kpiWorkHint: 'Buka workspace Hari Ini',
+    kpiWorkHint: 'Buka meja Kerjaan CRO',
     kpiStuck: 'Stuck / needs action',
     kpiStuckHint: 'Menunggu jadwal atau hasil',
-    kpiWin: 'Seat lock minggu ini',
+    kpiWin: 'Closing berhasil minggu ini',
     kpiWinHint: 'Paid / onboarding minggu ini',
-    kpiLost: 'Lost minggu ini',
+    kpiLost: 'Tidak lanjut minggu ini',
     kpiLostHint: 'Not interested / not eligible',
     funnelTitle: 'Funnel tahap 1–6',
     funnelHint: 'Klik tahap untuk melihat lead terkait.',
     attentionTitle: 'Butuh perhatian',
     attentionHint: 'Lead aktif tanpa update ≥ 3 hari.',
     attentionEmpty: 'Tidak ada lead stale saat ini.',
-    lostTitle: 'Top alasan gagal',
+    lostTitle: 'Top alasan tidak lanjut',
     lostHint: 'Dari catatan handling CRO terbaru.',
-    lostEmpty: 'Belum ada pola alasan gagal.',
+    lostEmpty: 'Belum ada pola alasan.',
     revenueTitle: 'Revenue (sekunder)',
     revenueHint: 'Pembayaran verified — detail di menu Pembayaran.',
     revenueMap: 'Pemetaan',
@@ -113,7 +113,7 @@ const COPY = {
     revenueTotal: 'Total',
     viewPayments: 'Buka pembayaran',
     days: 'hr',
-    openToday: 'Ke Hari Ini',
+    openToday: 'Buka Kerjaan',
   },
 } as const
 
@@ -322,7 +322,7 @@ export default function DashboardPage() {
             <p className="text-sm text-muted-foreground mt-1">{c.subtitle}</p>
           </div>
           <Link
-            href="/today"
+            href="/work-queue"
             className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold bg-accent text-accent-foreground hover:opacity-90 transition-opacity"
           >
             <ClipboardCheck size={14} />

@@ -19,18 +19,18 @@ type Counts = {
 
 const COPY = {
   id: {
-    title: 'Hari Ini',
-    subtitle: 'Satu pintu kerja harian CRO. Pilih antrian, kerjakan, lalu lanjut.',
-    intro: 'Data lead diubah dari sini (atau Detail Lead). Pipeline & Laporan hanya untuk pantau.',
-    start: 'Mulai kerja',
+    title: 'Antrian',
+    subtitle: 'Daftar khusus di luar meja Kerjaan: Needs Action, FU, Expert.',
+    intro: 'Kerjaan harian utama ada di menu Kerjaan. Halaman ini untuk antrian khusus. Pipeline & Laporan hanya pantau.',
+    start: 'Buka',
     loading: 'Memuat antrian...',
     items: 'item',
   },
   en: {
-    title: 'Today',
-    subtitle: 'One door for CRO daily work. Pick a queue, work it, move on.',
-    intro: 'Change lead data here (or Lead Detail). Pipeline & Reports are for monitoring only.',
-    start: 'Start working',
+    title: 'Queues',
+    subtitle: 'Special lists outside the Work desk: Needs Action, FU, Expert.',
+    intro: 'Daily work lives in Work desk. This page is for special queues. Pipeline & Reports are monitoring only.',
+    start: 'Open',
     loading: 'Loading queues...',
     items: 'items',
   },
