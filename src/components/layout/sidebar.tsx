@@ -3,6 +3,11 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
+import { useEffect } from 'react'
+import { cn } from '@/lib/utils'
+import { createClient } from '@/lib/supabase/client'
+import { useLayoutStore } from '@/lib/store'
+import { useLanguage } from '@/lib/language'
 import {
   LayoutDashboard,
   Users,
