@@ -255,14 +255,15 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
             </select>
           </div>
 
-          {isEditMode && (
-            <div>
-              <label className="block text-xs font-bold text-muted-foreground mb-2">Status Pipeline</label>
-              <select {...register('current_status')} className={inputClass} style={inputStyle}>
-                {statusOptions.map(s => <option key={s} value={s} className="bg-card text-foreground">{s}</option>)}
-              </select>
-            </div>
-          )}
+          <div>
+            <label className="block text-xs font-bold text-muted-foreground mb-2">Current Status</label>
+            <select {...register('current_status')} className={inputClass} style={inputStyle}>
+              {(isEditMode
+                ? statusOptions
+                : STAGE1_CURRENT_STATUS_OPTIONS
+              ).map(s => <option key={s} value={s} className="bg-card text-foreground">{s}</option>)}
+            </select>
+          </div>
         </div>
 
         {LOST_STATUSES.includes(currentStatus || '') && (
@@ -300,20 +301,18 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
           📅 Catatan & Tanggal
         </h3>
 
-        {/* Entry Date */}
-        {isEditMode && (
-          <div>
-            <label className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground mb-2">
-              <Calendar size={12} /> Tanggal Lead Masuk
-            </label>
-            <input
-              type="date"
-              {...register('lead_entry_date')}
-              className={inputClass}
-              style={inputStyle}
-            />
-          </div>
-        )}
+        {/* Entry Date / Last Update */}
+        <div>
+          <label className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground mb-2">
+            <Calendar size={12} /> {isEditMode ? 'Tanggal Lead Masuk' : 'Last Update'}
+          </label>
+          <input
+            type="date"
+            {...register('lead_entry_date')}
+            className={inputClass}
+            style={inputStyle}
+          />
+        </div>
 
         {/* Notes */}
         <div>
