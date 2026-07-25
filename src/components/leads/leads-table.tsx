@@ -744,7 +744,7 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
                               </Link>
                               {!isOwnerLike && (
                                 <Link
-                                  href={`/work-queue?lead=${lead.id}`}
+                                  href={`/stage-1?lead=${lead.id}`}
                                   className="block px-3 py-2 text-left text-[12px] font-medium text-foreground hover:bg-secondary"
                                   onClick={() => setOpenActionId(null)}
                                 >

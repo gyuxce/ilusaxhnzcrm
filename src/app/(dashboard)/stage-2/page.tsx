@@ -1,0 +1,414 @@
+'use client'
+
+import { useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
+import { Header } from '@/components/layout/header'
+import { createClient } from '@/lib/supabase/client'
+import { cn, getTodayInWIB } from '@/lib/utils'
+import { getStageBadgeClasses } from '@/lib/brand'
+import {
+  STAGE2_ENTRY_STATUSES,
+  STAGE2_UPDATE_STATUS_OPTIONS,
+} from '@/lib/prd-stages'
+import {
+  CheckCircle2,
+  Loader2,
+  Pencil,
+  Search,
+  X,
+} from 'lucide-react'
+
+type LeadRow = {
+  id: string
+  full_name: string
+  whatsapp_number: string
+  source_campaign: string
+  current_status: string
+  lead_entry_date: string
+  last_contacted_date: string | null
+  users?: { id?: string; name?: string } | null
+}
+
+const FILTERS = [
+  { key: 'all', label: 'Semua' },
+  ...STAGE2_ENTRY_STATUSES.map((s) => ({ key: s, label: s })),
+] as const
+
+type Form = {
+  statusStaging: string
+  bayarPemetaan: boolean
+  nominalPemetaan: string
+  komunikasiTerakhir: string
+  note: string
+}
+
+export default function Stage2Page() {
+  const supabase = createClient()
+  const [leads, setLeads] = useState<LeadRow[]>([])
+  const [loading, setLoading] = useState(true)
+  const [query, setQuery] = useState('')
+  const [filter, setFilter] = useState<string>('all')
+  const [activeLead, setActiveLead] = useState<LeadRow | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [message, setMessage] = useState<{ type: 'success' | 'error' | ''; text: string }>({ type: '', text: '' })
+  const [form, setForm] = useState<Form>({
+    statusStaging: '',
+    bayarPemetaan: false,
+    nominalPemetaan: '',
+    komunikasiTerakhir: '',
+    note: '',
+  })
+
+  async function fetchLeads() {
+    setLoading(true)
+    const { data, error } = await supabase
+      .from('leads')
+      .select('id, full_name, whatsapp_number, source_campaign, current_status, lead_entry_date, last_contacted_date, users:assigned_cro_id(id, name)')
+      .in('current_status', STAGE2_ENTRY_STATUSES as unknown as string[])
+      .order('updated_at', { ascending: false })
+      .limit(1000)
+    if (error) {
+      setMessage({ type: 'error', text: error.message })
+      setLeads([])
+    } else {
+      setLeads(data as LeadRow[])
+    }
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    void fetchLeads()
+  }, [])
+
+  const counts = useMemo(() => {
+    const map: Record<string, number> = { all: leads.length }
+    for (const s of STAGE2_ENTRY_STATUSES) map[s] = 0
+    leads.forEach((l) => {
+      if (map[l.current_status] !== undefined) map[l.current_status]++
+    })
+    return map
+  }, [leads])
+
+  const filtered = useMemo(() => {
+    const k = query.trim().toLowerCase()
+    return leads
+      .filter((l) => (filter === 'all' ? true : l.current_status === filter))
+      .filter((l) =>
+        !k
+          ? true
+          : [l.full_name, l.whatsapp_number, l.source_campaign, l.current_status].some((v) =>
+              String(v || '').toLowerCase().includes(k)
+            )
+      )
+  }, [leads, query, filter])
+
+  function openFlow(lead: LeadRow) {
+    setActiveLead(lead)
+    setMessage({ type: '', text: '' })
+    setForm({
+      statusStaging: '',
+      bayarPemetaan: false,
+      nominalPemetaan: '',
+      komunikasiTerakhir: lead.last_contacted_date || getTodayInWIB(),
+      note: '',
+    })
+  }
+
+  const isLainnya = form.statusStaging === 'Lainnya (tulis di note)'
+
+  function canSave() {
+    if (!activeLead) return false
+    if (!form.statusStaging) return false
+    if (isLainnya && !form.note.trim()) return false
+    if (form.bayarPemetaan && !form.nominalPemetaan.trim()) return false
+    return true
+  }
+
+  async function handleSave() {
+    if (!activeLead || saving || !canSave()) return
+    setSaving(true)
+    setMessage({ type: '', text: '' })
+
+    const nextStatus = isLainnya ? activeLead.current_status : form.statusStaging
+    const funnelParts: string[] = []
+    if (isLainnya) funnelParts.push(`Lainnya: ${form.note.trim()}`)
+    else if (form.note.trim()) funnelParts.push(`Note: ${form.note.trim()}`)
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    const { error } = await supabase
+      .from('leads')
+      .update({
+        current_status: nextStatus,
+        funnel_notes: funnelParts.join(' · ') || null,
+        last_contacted_date: form.komunikasiTerakhir || getTodayInWIB(),
+        updated_by: user?.id ?? null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', activeLead.id)
+
+    if (error) {
+      setSaving(false)
+      setMessage({ type: 'error', text: `Gagal menyimpan: ${error.message}` })
+      return
+    }
+
+    // Optional pemetaan payment
+    if (form.bayarPemetaan && form.nominalPemetaan.trim()) {
+      const nominal = Number(form.nominalPemetaan.replace(/[^\d]/g, ''))
+      if (!Number.isNaN(nominal) && nominal > 0) {
+        await supabase.from('payments').insert({
+          lead_id: activeLead.id,
+          payment_type: 'pemetaan',
+          amount: nominal,
+          payment_method: 'Transfer',
+          payment_date: getTodayInWIB(),
+          verification_status: 'verified',
+          verified_by: user?.id ?? null,
+          verified_at: new Date().toISOString(),
+          notes: 'Input dari Stage 2',
+        })
+      }
+    }
+
+    await supabase.from('lead_activities').insert({
+      lead_id: activeLead.id,
+      activity_type: 'Stage 2',
+      description: `Stage 2 → ${nextStatus}`,
+      created_by: user?.id ?? null,
+    })
+
+    setSaving(false)
+    setMessage({ type: 'success', text: `Tersimpan. Status sekarang: ${nextStatus}.` })
+    setActiveLead(null)
+    void fetchLeads()
+  }
+
+  return (
+    <>
+      <Header
+        title="Stage 2"
+        subtitle="Lead interested — jadwalkan pemetaan, expert, atau seat-lock."
+      />
+      <div className="p-5 sm:p-6 animate-fade-in w-full font-sans">
+        <div className="glass-card rounded-2xl border border-border overflow-hidden">
+          {/* Filter pills */}
+          <div className="flex flex-wrap gap-1.5 border-b border-border p-3">
+            {FILTERS.map((f) => (
+              <button
+                key={f.key}
+                type="button"
+                onClick={() => setFilter(f.key)}
+                className={cn(
+                  'rounded-full px-3 py-1 text-[11px] font-semibold transition-colors',
+                  filter === f.key
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-secondary text-muted-foreground hover:text-foreground'
+                )}
+              >
+                {f.label} {counts[f.key] ?? 0}
+              </button>
+            ))}
+          </div>
+
+          {/* Search */}
+          <div className="flex items-center justify-between gap-2 p-3">
+            <div className="relative max-w-sm flex-1">
+              <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Cari nama / WA / campaign..."
+                className="w-full rounded-lg border border-border bg-card py-1.5 pl-8 pr-2 text-xs outline-none focus:border-primary focus:ring-1 focus:ring-primary/20"
+              />
+            </div>
+            <p className="text-[11px] text-muted-foreground">{filtered.length} lead</p>
+          </div>
+
+          {/* Table */}
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs text-left">
+              <thead>
+                <tr className="border-y border-border bg-secondary/40">
+                  <th className="px-3 py-2.5 text-[11px] font-semibold text-muted-foreground">Nama</th>
+                  <th className="px-3 py-2.5 text-[11px] font-semibold text-muted-foreground">WhatsApp</th>
+                  <th className="px-3 py-2.5 text-[11px] font-semibold text-muted-foreground">Current Staging</th>
+                  <th className="px-3 py-2.5 text-[11px] font-semibold text-muted-foreground">PIC</th>
+                  <th className="px-3 py-2.5 text-[11px] font-semibold text-muted-foreground text-right">Aksi</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {loading ? (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-12 text-center text-muted-foreground">
+                      <Loader2 size={16} className="inline animate-spin" /> Memuat...
+                    </td>
+                  </tr>
+                ) : filtered.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-12 text-center text-muted-foreground/40 text-sm">
+                      Belum ada lead di Stage 2.
+                    </td>
+                  </tr>
+                ) : (
+                  filtered.map((lead) => (
+                    <tr key={lead.id} className="hover:bg-secondary/30 transition-colors">
+                      <td className="px-3 py-2.5 min-w-[10rem] max-w-[14rem]">
+                        <Link href={`/leads/${lead.id}`} className="block truncate text-[12px] font-semibold text-foreground hover:text-accent">
+                          {lead.full_name}
+                        </Link>
+                        <p className="truncate text-[10px] text-muted-foreground mt-0.5">{lead.source_campaign}</p>
+                      </td>
+                      <td className="px-3 py-2.5 font-mono text-[11px] text-muted-foreground whitespace-nowrap">{lead.whatsapp_number}</td>
+                      <td className="px-3 py-2.5 whitespace-nowrap">
+                        <span className={cn('px-1.5 py-0.5 rounded-md text-[10px] font-semibold', getStageBadgeClasses(lead.current_status))}>
+                          {lead.current_status}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2.5 text-[11px] text-foreground/80 whitespace-nowrap max-w-[7rem] truncate">
+                        {lead.users?.name || '—'}
+                      </td>
+                      <td className="px-3 py-2.5 text-right whitespace-nowrap">
+                        <div className="inline-flex items-center gap-1">
+                          <Link
+                            href={`/leads/${lead.id}/edit`}
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground hover:text-foreground hover:bg-secondary"
+                            title="Edit"
+                          >
+                            <Pencil size={14} />
+                          </Link>
+                          <button
+                            type="button"
+                            onClick={() => openFlow(lead)}
+                            className="rounded-lg bg-accent px-3 py-1.5 text-[11px] font-semibold text-accent-foreground hover:opacity-90"
+                          >
+                            Kerjakan
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      {/* Kerjakan Stage 2 modal */}
+      {activeLead && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center" style={{ background: 'rgba(27,42,74,0.45)' }}>
+          <div className="w-full max-w-lg rounded-t-2xl sm:rounded-2xl border border-border bg-card shadow-xl">
+            <div className="flex items-center justify-between border-b border-border px-4 py-3">
+              <div className="min-w-0">
+                <h3 className="truncate font-display text-base font-semibold text-foreground">Kerjakan Stage 2</h3>
+                <p className="truncate text-[11px] text-muted-foreground">{activeLead.full_name} · {activeLead.whatsapp_number}</p>
+              </div>
+              <button type="button" onClick={() => setActiveLead(null)} className="rounded-lg p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary">
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="max-h-[70vh] overflow-y-auto p-4">
+              {message.text && (
+                <div className={cn('mb-3 rounded-lg border px-3 py-2 text-[11px] font-medium', message.type === 'success' ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-destructive/20 bg-destructive/5 text-destructive')}>
+                  {message.text}
+                </div>
+              )}
+              <div className="grid grid-cols-1 gap-3">
+                <Field label="Status Current Staging">
+                  <select
+                    value={form.statusStaging}
+                    onChange={(e) => setForm((prev) => ({ ...prev, statusStaging: e.target.value }))}
+                    className="field-input"
+                  >
+                    <option value="">Pilih status...</option>
+                    {STAGE2_UPDATE_STATUS_OPTIONS.map((opt) => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
+                  </select>
+                </Field>
+
+                <label className="flex items-center gap-2 text-xs font-semibold text-foreground/80">
+                  <input
+                    type="checkbox"
+                    checked={form.bayarPemetaan}
+                    onChange={(e) => setForm((prev) => ({ ...prev, bayarPemetaan: e.target.checked }))}
+                  />
+                  Sudah bayar pemetaan? (opsional)
+                </label>
+                {form.bayarPemetaan && (
+                  <Field label="Berapa nominal pemetaan? (angka saja, tanpa titik / Rp)">
+                    <input
+                      inputMode="numeric"
+                      value={form.nominalPemetaan}
+                      onChange={(e) => setForm((prev) => ({ ...prev, nominalPemetaan: e.target.value.replace(/[^\d]/g, '') }))}
+                      placeholder="500000"
+                      className="field-input"
+                    />
+                  </Field>
+                )}
+
+                <Field label="Komunikasi Terakhir">
+                  <input
+                    type="date"
+                    value={form.komunikasiTerakhir}
+                    onChange={(e) => setForm((prev) => ({ ...prev, komunikasiTerakhir: e.target.value }))}
+                    className="field-input"
+                  />
+                </Field>
+
+                <Field label="Note (opsional)">
+                  <textarea
+                    value={form.note}
+                    onChange={(e) => setForm((prev) => ({ ...prev, note: e.target.value }))}
+                    className="field-input min-h-[56px] resize-y"
+                    placeholder={isLainnya ? 'Tulis status lainnya di sini...' : 'Opsional'}
+                  />
+                </Field>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between gap-3 border-t border-border bg-secondary/30 px-4 py-3">
+              <button
+                type="button"
+                onClick={() => setActiveLead(null)}
+                className="text-xs font-semibold text-muted-foreground hover:text-foreground"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                disabled={saving || !canSave()}
+                onClick={handleSave}
+                className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {saving ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle2 size={15} />}
+                Simpan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
+function Field({
+  label,
+  children,
+  className,
+}: {
+  label: string
+  children: React.ReactNode
+  className?: string
+}) {
+  return (
+    <label className={cn('block space-y-1.5', className)}>
+      <span className="text-[11px] font-semibold text-foreground/80">{label}</span>
+      {children}
+    </label>
+  )
+}

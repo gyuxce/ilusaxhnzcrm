@@ -1,6 +1,9 @@
 /**
- * Information architecture — Owner vs CRO menus stay separate.
- * Old routes remain alive; this controls primary navigation & hubs.
+ * Information architecture — PRD V3 (3-stage lead flow).
+ *
+ * Primary menus: Leads → Stage 2 → Stage 3 (Kanban).
+ * Legacy routes (work-queue, today, pipeline, needs-action, follow-ups,
+ * expert-queue) stay alive for deep-links but are no longer primary nav.
  */
 
 export type NavItem = {
@@ -12,36 +15,29 @@ export type NavItem = {
 }
 
 /**
- * CRO primary nav — daily work first, monitoring second.
+ * CRO primary nav — kerja lead mengalir dari Leads → Stage 2 → Stage 3.
  */
 export const PRIMARY_NAV: NavItem[] = [
-  {
-    href: '/work-queue',
-    labelId: 'Kerjaan',
-    labelEn: 'Work desk',
-    hintId: 'Langkah 1–5: hubungi → catat → simpan',
-    hintEn: 'Steps 1–5: contact → log → save',
-  },
-  {
-    href: '/today',
-    labelId: 'Antrian',
-    labelEn: 'Queues',
-    hintId: 'Needs Action, FU, Butuh Expert',
-    hintEn: 'Needs Action, follow-ups, expert help',
-  },
   {
     href: '/leads',
     labelId: 'Leads',
     labelEn: 'Leads',
-    hintId: 'Data master lead',
-    hintEn: 'Lead master data',
+    hintId: 'Data master + Kerjakan Stage 1',
+    hintEn: 'Master data + Stage 1 work',
   },
   {
-    href: '/pipeline',
-    labelId: 'Pipeline',
-    labelEn: 'Pipeline',
-    hintId: 'Pantau tahap 1–6',
-    hintEn: 'Monitor stages 1–6',
+    href: '/stage-2',
+    labelId: 'Stage 2',
+    labelEn: 'Stage 2',
+    hintId: 'Lead interested — jadwal pemetaan / expert',
+    hintEn: 'Interested leads — schedule mapping / expert',
+  },
+  {
+    href: '/stage-3',
+    labelId: 'Stage 3',
+    labelEn: 'Stage 3',
+    hintId: 'Pipeline Kanban: Pemetaan → Closing',
+    hintEn: 'Kanban pipeline: Mapping → Closing',
   },
   {
     href: '/dashboard',
@@ -54,8 +50,8 @@ export const PRIMARY_NAV: NavItem[] = [
     href: '/guide',
     labelId: 'Cara pakai',
     labelEn: 'How to use',
-    hintId: 'Alur, menu, sumber angka Dashboard',
-    hintEn: 'Flow, menus, where Dashboard numbers come from',
+    hintId: 'Alur 3 stage, menu, sumber angka',
+    hintEn: '3-stage flow, menus, where numbers come from',
   },
 ]
 
@@ -96,7 +92,7 @@ export const TODAY_TOOLS = [
 ]
 
 /**
- * Owner primary nav — monitoring first + guide for clients.
+ * Owner primary nav — pantau pipeline + laporan.
  */
 export const OWNER_PRIMARY_NAV: NavItem[] = [
   {
@@ -107,11 +103,11 @@ export const OWNER_PRIMARY_NAV: NavItem[] = [
     hintEn: 'Client & team summary in one place',
   },
   {
-    href: '/pipeline',
-    labelId: 'Pipeline',
-    labelEn: 'Pipeline',
-    hintId: 'Pantau tahap 1–6',
-    hintEn: 'Monitor stages 1–6',
+    href: '/stage-3',
+    labelId: 'Stage 3',
+    labelEn: 'Stage 3',
+    hintId: 'Pipeline Kanban: Pemetaan → Closing',
+    hintEn: 'Kanban pipeline: Mapping → Closing',
   },
   {
     href: '/leads',
@@ -119,6 +115,13 @@ export const OWNER_PRIMARY_NAV: NavItem[] = [
     labelEn: 'Leads',
     hintId: 'Data master lead',
     hintEn: 'Lead master data',
+  },
+  {
+    href: '/stage-2',
+    labelId: 'Stage 2',
+    labelEn: 'Stage 2',
+    hintId: 'Lead interested — jadwal pemetaan / expert',
+    hintEn: 'Interested leads — schedule mapping / expert',
   },
   {
     href: '/conversions',
@@ -131,8 +134,8 @@ export const OWNER_PRIMARY_NAV: NavItem[] = [
     href: '/guide',
     labelId: 'Cara pakai',
     labelEn: 'How to use',
-    hintId: 'Alur, menu, sumber angka Dashboard',
-    hintEn: 'Flow, menus, where Dashboard numbers come from',
+    hintId: 'Alur 3 stage, menu, sumber angka',
+    hintEn: '3-stage flow, menus, where numbers come from',
   },
 ]
 
@@ -166,8 +169,15 @@ export const LAPORAN_LINKS = [
 ]
 
 export function isNavActive(pathname: string, href: string): boolean {
+  if (href === '/stage-3') {
+    // Stage 3 is the PRD pipeline; legacy /pipeline still routes here conceptually.
+    return pathname.startsWith('/stage-3') || pathname.startsWith('/pipeline')
+  }
+  if (href === '/stage-2') {
+    return pathname.startsWith('/stage-2')
+  }
   if (href === '/work-queue') {
-    return pathname.startsWith('/work-queue')
+    return pathname.startsWith('/work-queue') || pathname.startsWith('/stage-1')
   }
   if (href === '/today') {
     return (

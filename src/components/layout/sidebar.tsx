@@ -21,6 +21,7 @@ import {
   Wallet,
   FileText,
   BookOpen,
+  ListChecks,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -29,6 +30,8 @@ const NAV_ICONS: Record<string, LucideIcon> = {
   '/today': FileText,
   '/leads': Users,
   '/pipeline': KanbanSquare,
+  '/stage-2': ListChecks,
+  '/stage-3': KanbanSquare,
   '/conversions': Wallet,
   '/dashboard': LayoutDashboard,
   '/guide': BookOpen,
