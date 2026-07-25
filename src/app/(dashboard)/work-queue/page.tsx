@@ -113,9 +113,9 @@ const WORK_STEPS_ACTIVE = [
 const WORK_STEPS_CLOSE = [
   { n: 1, title: 'Kondisi lead', hint: 'Posisi lead sebelum ditutup.' },
   { n: 2, title: 'Kendala', hint: 'Keberatan yang membuat lead berhenti.' },
-  { n: 3, title: 'Respon CRO', hint: 'Apa yang sudah dicoba sebelum lost.' },
-  { n: 4, title: 'Status lost', hint: 'Not Interested atau Not Eligible.' },
-  { n: 5, title: 'Alasan lost', hint: 'Alasan utama untuk report & evaluasi.' },
+  { n: 3, title: 'Respon CRO', hint: 'Apa yang sudah dicoba sebelum tidak lanjut.' },
+  { n: 4, title: 'Status akhir', hint: 'Not Interested atau Not Eligible.' },
+  { n: 5, title: 'Alasan', hint: 'Alasan utama untuk report & evaluasi.' },
 ] as const
 
 function todayInput() {
@@ -494,52 +494,59 @@ export default function WorkQueuePage() {
   return (
     <>
       <Header
-        title="Kerjaan Hari Ini"
-        subtitle="5 langkah di satu layar: hubungi → catat → next action → simpan. Bukan wizard panjang."
+        title="Kerjaan CRO"
+        subtitle="Satu meja kerja: pilih lead → langkah 1–5 → simpan. Tanpa bolak-balik halaman."
       />
-      <div className="w-full p-4 sm:p-6 animate-fade-in">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+      <div className="w-full p-3 sm:p-5 animate-fade-in font-sans">
+        <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <p className="font-display text-lg font-semibold text-foreground tracking-tight">Antrian kerja CRO</p>
+            <p className="font-display text-lg font-semibold text-foreground tracking-tight">Meja kerja harian</p>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Pilih lead kiri, ikuti langkah 1–5 di kanan. Detail lengkap tetap di halaman Lead.
+              Kiri = antrian. Kanan = langkah berurutan. Detail lengkap di halaman Lead.
             </p>
           </div>
-          <Link href="/today" className="text-xs font-semibold text-accent hover:opacity-80">
-            ← Kembali ke Hari Ini
-          </Link>
+          <div className="flex flex-wrap gap-2 text-[11px] font-semibold">
+            <Link href="/follow-ups" className="text-muted-foreground hover:text-foreground">
+              FU jatuh tempo
+            </Link>
+            <span className="text-border">·</span>
+            <Link href="/needs-action" className="text-muted-foreground hover:text-foreground">
+              Needs Action
+            </Link>
+            <span className="text-border">·</span>
+            <Link href="/today" className="text-accent hover:opacity-80">
+              Semua antrian
+            </Link>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-[22rem_minmax(0,1fr)] gap-4 items-start">
+        <div className="grid grid-cols-1 xl:grid-cols-[20rem_minmax(0,1fr)] gap-3 items-start">
           {/* Left queue */}
-          <aside className="rounded-2xl border border-border bg-card p-4 xl:sticky xl:top-20">
-            <div className="relative mb-3">
+          <aside className="rounded-2xl border border-border bg-card p-3 xl:sticky xl:top-20 shadow-sm">
+            <div className="relative mb-2">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Cari nama / WA / campaign..."
-                className="w-full pl-9 pr-3 py-2 rounded-xl text-xs border border-border bg-background outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                className="w-full pl-9 pr-3 py-2 rounded-lg text-xs border border-border bg-background outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
               />
             </div>
 
-            <div className="flex flex-wrap gap-1.5 mb-3">
-              {QUEUE_FILTERS.map((filter) => (
-                <button
-                  key={filter.key}
-                  type="button"
-                  onClick={() => setQueueFilter(filter.key)}
-                  className={cn(
-                    'px-2.5 py-1 rounded-lg text-[10px] font-semibold border transition-colors',
-                    queueFilter === filter.key
-                      ? 'bg-primary text-primary-foreground border-primary'
-                      : 'bg-secondary/50 text-muted-foreground border-border hover:text-foreground'
-                  )}
-                >
-                  {filter.label} ({queueCounts[filter.key]})
-                </button>
-              ))}
-            </div>
+            <label className="mb-2 block">
+              <span className="sr-only">Filter antrian</span>
+              <select
+                value={queueFilter}
+                onChange={(e) => setQueueFilter(e.target.value as QueueFilter)}
+                className="w-full rounded-lg border border-border bg-secondary/60 px-2.5 py-2 text-xs font-semibold text-foreground outline-none focus:ring-2 focus:ring-primary/20"
+              >
+                {QUEUE_FILTERS.map((filter) => (
+                  <option key={filter.key} value={filter.key}>
+                    {filter.label} ({queueCounts[filter.key]})
+                  </option>
+                ))}
+              </select>
+            </label>
 
             <div className="space-y-1.5 max-h-[70vh] overflow-y-auto pr-1">
               {loading ? (
@@ -584,15 +591,15 @@ export default function WorkQueuePage() {
           </aside>
 
           {/* Right form */}
-          <main className="rounded-2xl border border-border bg-card p-4 sm:p-5 min-h-[28rem]">
+          <main className="rounded-2xl border border-border bg-card p-3 sm:p-4 min-h-[28rem] shadow-sm">
             {!selectedLead ? (
               <div className="h-full min-h-[20rem] flex flex-col items-center justify-center text-center gap-2 text-muted-foreground">
                 <ClipboardCheck size={28} className="opacity-40" />
                 <p className="text-sm font-medium">Pilih lead dari antrian kiri</p>
               </div>
             ) : (
-              <div className="space-y-5">
-                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 pb-4 border-b border-border">
+              <div className="space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 pb-3 border-b border-border">
                   <div className="min-w-0">
                     <h2 className="font-display text-xl font-semibold tracking-tight text-foreground truncate">
                       {selectedLead.full_name}
@@ -613,7 +620,7 @@ export default function WorkQueuePage() {
                       )}
                     </div>
                   </div>
-                  <div className="w-full sm:w-48">
+                  <div className="w-full sm:w-44 shrink-0">
                     <WhatsAppButton
                       leadName={selectedLead.full_name}
                       leadPhone={selectedLead.whatsapp_number}
@@ -637,15 +644,15 @@ export default function WorkQueuePage() {
                 )}
 
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex flex-wrap gap-2">
+                  <div className="inline-flex rounded-lg border border-border p-0.5 bg-secondary/50">
                     <button
                       type="button"
                       onClick={() => setWorkflowOutcome('active')}
                       className={cn(
-                        'px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors',
+                        'px-3 py-1.5 rounded-md text-xs font-semibold transition-colors',
                         !isCloseFlow
-                          ? 'bg-primary text-primary-foreground border-primary'
-                          : 'bg-card text-muted-foreground border-border'
+                          ? 'bg-primary text-primary-foreground shadow-sm'
+                          : 'text-muted-foreground hover:text-foreground'
                       )}
                     >
                       Lanjut kerja
@@ -654,21 +661,21 @@ export default function WorkQueuePage() {
                       type="button"
                       onClick={() => setWorkflowOutcome('close')}
                       className={cn(
-                        'px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors',
+                        'px-3 py-1.5 rounded-md text-xs font-semibold transition-colors',
                         isCloseFlow
-                          ? 'bg-destructive text-destructive-foreground border-destructive'
-                          : 'bg-card text-muted-foreground border-border'
+                          ? 'bg-primary text-primary-foreground shadow-sm'
+                          : 'text-muted-foreground hover:text-foreground'
                       )}
                     >
-                      Tandai Lost
+                      Tidak lanjut
                     </button>
                   </div>
-                  <p className="text-[11px] font-medium text-muted-foreground">
-                    {doneCount}/5 langkah · mulai dari WA di atas
+                  <p className="text-[11px] font-medium text-muted-foreground tabular-nums">
+                    {doneCount}/5 · mulai dari WA
                   </p>
                 </div>
 
-                <nav aria-label="Langkah kerja" className="flex flex-wrap gap-1.5">
+                <nav aria-label="Langkah kerja" className="grid grid-cols-5 gap-1">
                   {workSteps.map((step) => {
                     const done = stepDone[step.n]
                     const current = step.n === focusStep
@@ -677,12 +684,12 @@ export default function WorkQueuePage() {
                         key={step.n}
                         href={`#wq-step-${step.n}`}
                         className={cn(
-                          'inline-flex items-center gap-1.5 rounded-lg border px-2 py-1 text-[10px] font-semibold transition-colors',
+                          'flex flex-col items-center gap-0.5 rounded-lg border px-1 py-1.5 text-center transition-colors',
                           done
-                            ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-300'
+                            ? 'border-primary/30 bg-primary/5 text-foreground'
                             : current
-                              ? 'border-accent/40 bg-accent/10 text-foreground'
-                              : 'border-border bg-card text-muted-foreground hover:text-foreground'
+                              ? 'border-accent bg-accent/10 text-foreground'
+                              : 'border-border bg-background text-muted-foreground hover:text-foreground'
                         )}
                       >
                         <span
@@ -694,13 +701,15 @@ export default function WorkQueuePage() {
                         >
                           {done ? '✓' : step.n}
                         </span>
-                        {step.title}
+                        <span className="text-[9px] font-semibold leading-tight truncate w-full">
+                          {step.title}
+                        </span>
                       </a>
                     )
                   })}
                 </nav>
 
-                <div className="space-y-3 animate-fade-in">
+                <div className="space-y-1.5 animate-fade-in">
                   <WorkStep
                     n={1}
                     title={workSteps[0].title}
@@ -839,17 +848,17 @@ export default function WorkQueuePage() {
                 <details
                   open={showAdvanced}
                   onToggle={(e) => setShowAdvanced((e.target as HTMLDetailsElement).open)}
-                  className="rounded-xl border border-dashed border-border bg-secondary/30 px-3 py-2.5"
+                  className="rounded-lg border border-border bg-secondary/40 px-3 py-2"
                 >
                   <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden">
                     <div className="flex items-center justify-between gap-2">
                       <div>
                         <p className="text-xs font-semibold text-foreground">Opsi lanjutan</p>
-                        <p className="text-[10px] text-muted-foreground mt-0.5">
-                          Hasil chat, komersial, expert, catatan — tidak wajib untuk simpan.
+                        <p className="text-[10px] text-muted-foreground">
+                          Hasil chat, komersial, expert — tidak wajib.
                         </p>
                       </div>
-                      <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                      <span className="text-[10px] font-semibold text-muted-foreground">
                         {showAdvanced ? 'Tutup' : 'Buka'}
                       </span>
                     </div>
@@ -917,12 +926,12 @@ export default function WorkQueuePage() {
                   </div>
                 </details>
 
-                <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+                <div className="sticky bottom-0 -mx-3 sm:-mx-4 px-3 sm:px-4 py-3 mt-2 border-t border-border bg-card/95 backdrop-blur flex flex-wrap items-center justify-between gap-3">
                   <Link
                     href={`/leads/${selectedLead.id}`}
                     className="text-xs font-semibold text-muted-foreground hover:text-foreground"
                   >
-                    Buka detail lead →
+                    Detail lead →
                   </Link>
                   <button
                     type="button"
@@ -931,12 +940,12 @@ export default function WorkQueuePage() {
                     className={cn(
                       'inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-opacity disabled:opacity-50 disabled:cursor-not-allowed',
                       isCloseFlow
-                        ? 'bg-destructive text-destructive-foreground'
+                        ? 'bg-primary text-primary-foreground'
                         : 'bg-accent text-accent-foreground'
                     )}
                   >
                     {saving ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle2 size={15} />}
-                    {isCloseFlow ? 'Simpan & tutup lead' : 'Simpan'}
+                    {isCloseFlow ? 'Simpan · tidak lanjut' : 'Simpan langkah'}
                   </button>
                 </div>
               </div>
@@ -970,18 +979,18 @@ function WorkStep({
     <section
       id={`wq-step-${n}`}
       className={cn(
-        'rounded-xl border px-3 py-3 transition-colors scroll-mt-24',
+        'rounded-lg border px-2.5 py-2 transition-colors scroll-mt-24',
         done
-          ? 'border-emerald-200/80 bg-emerald-50/40 dark:border-emerald-500/20 dark:bg-emerald-500/5'
+          ? 'border-primary/25 bg-primary/[0.03]'
           : current
-            ? 'border-accent/35 bg-accent/[0.06]'
-            : 'border-border bg-background/60'
+            ? 'border-accent border-l-[3px] bg-card shadow-sm'
+            : 'border-border/80 bg-background'
       )}
     >
-      <div className="flex items-start gap-3">
+      <div className="flex items-center gap-2.5">
         <span
           className={cn(
-            'work-step-num mt-0.5',
+            'work-step-num',
             done && 'work-step-num-done',
             current && !done && 'work-step-num-current'
           )}
@@ -989,19 +998,21 @@ function WorkStep({
         >
           {done ? '✓' : n}
         </span>
-        <label className="min-w-0 flex-1 space-y-2">
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
+        <label className="min-w-0 flex-1 grid grid-cols-1 sm:grid-cols-[8.5rem_minmax(0,1fr)] gap-1 sm:gap-3 sm:items-center">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-1.5">
               <span className="text-xs font-semibold text-foreground">
-                {n}. {title}
+                {title}
               </span>
               {optional && (
                 <span className="text-[10px] font-medium text-muted-foreground">opsional</span>
               )}
             </div>
-            <p className="text-[10px] text-muted-foreground mt-0.5">{hint}</p>
+            {current && (
+              <p className="text-[10px] text-muted-foreground mt-0.5 leading-snug">{hint}</p>
+            )}
           </div>
-          {children}
+          <div>{children}</div>
         </label>
       </div>
     </section>

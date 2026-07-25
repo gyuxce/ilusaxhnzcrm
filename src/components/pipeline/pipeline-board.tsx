@@ -159,7 +159,7 @@ export function PipelineBoard({ initialLeads }: PipelineBoardProps) {
           />
         </div>
         <p className="text-[10px] text-muted-foreground hidden md:block">
-          Kolom = tahap 1–6 (Menang/Lost dipisah agar aman). Drag untuk pindah status.
+          Kolom = tahap 1–6 (Closing berhasil / Tidak lanjut dipisah). Drag untuk pindah status.
         </p>
       </div>
 

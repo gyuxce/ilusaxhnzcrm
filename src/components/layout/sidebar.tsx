@@ -24,12 +24,12 @@ import {
 } from 'lucide-react'
 
 const NAV_ICONS: Record<string, LucideIcon> = {
-  '/today': ClipboardCheck,
+  '/work-queue': ClipboardCheck,
+  '/today': FileText,
   '/leads': Users,
   '/pipeline': KanbanSquare,
   '/conversions': Wallet,
   '/dashboard': LayoutDashboard,
-  '/client-report': FileText,
 }
 
 const COPY = {
@@ -37,19 +37,23 @@ const COPY = {
     settings: 'Settings',
     logout: 'Logout',
     legend: 'Where to work',
-    legendCro: 'Input in Today or Lead detail. Pipeline & Reports are for monitoring.',
-    legendOwner: 'Client Report is the clean summary. Team tools stay available under Leads/Pipeline.',
+    legendCro: 'Work desk = daily steps. Queues = special lists. Pipeline is for monitoring only.',
+    legendOwner: 'Dashboard holds client + team reports (tabs). Pipeline/Leads for monitoring.',
     roleOwner: 'Owner view',
     roleCro: 'CRO view',
+    menuOwner: 'Owner menu',
+    menuCro: 'CRO menu',
   },
   id: {
     settings: 'Pengaturan',
     logout: 'Keluar',
-    legend: 'Data ini ke mana?',
-    legendCro: 'Input di Hari Ini atau Detail Lead. Pipeline & Laporan untuk pantau.',
-    legendOwner: 'Laporan Klien = ringkas untuk owner. Detail operasional di Leads/Pipeline.',
+    legend: 'Cara pakai',
+    legendCro: 'Kerjaan = langkah harian. Antrian = daftar khusus. Pipeline hanya untuk pantau.',
+    legendOwner: 'Dashboard = laporan klien & tim (toggle di dalam). Pipeline/Leads untuk pantau.',
     roleOwner: 'Tampilan owner',
     roleCro: 'Tampilan CRO',
+    menuOwner: 'Menu owner',
+    menuCro: 'Menu CRO',
   },
 } as const
 
@@ -112,8 +116,8 @@ export function Sidebar() {
         </div>
 
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-          <p className="px-3 mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-            Menu utama
+          <p className="px-3 mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground font-sans">
+            {isOwnerLike ? copy.menuOwner : copy.menuCro}
           </p>
           {navItems.map((item) => {
             const Icon = NAV_ICONS[item.href] || Users

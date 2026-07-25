@@ -1,6 +1,6 @@
 /**
- * Information architecture for Harunokaze CRO (Sprint B / Fase 2).
- * Old routes stay alive — this only controls primary navigation & hubs.
+ * Information architecture — Owner vs CRO menus stay separate.
+ * Old routes remain alive; this controls primary navigation & hubs.
  */
 
 export type NavItem = {
@@ -11,14 +11,24 @@ export type NavItem = {
   hintEn: string
 }
 
-/** Primary sidebar — 5 work surfaces + settings elsewhere. */
+/**
+ * CRO primary nav — daily work first, monitoring second.
+ * Kerjaan is the desk; Antrian covers Needs Action / FU / Expert hubs.
+ */
 export const PRIMARY_NAV: NavItem[] = [
   {
+    href: '/work-queue',
+    labelId: 'Kerjaan',
+    labelEn: 'Work desk',
+    hintId: 'Langkah 1–5: hubungi → catat → simpan',
+    hintEn: 'Steps 1–5: contact → log → save',
+  },
+  {
     href: '/today',
-    labelId: 'Hari Ini',
-    labelEn: 'Today',
-    hintId: 'Tempat kerja utama CRO',
-    hintEn: 'Main CRO workspace',
+    labelId: 'Antrian',
+    labelEn: 'Queues',
+    hintId: 'Needs Action, FU, Butuh Expert',
+    hintEn: 'Needs Action, follow-ups, expert help',
   },
   {
     href: '/leads',
@@ -35,22 +45,15 @@ export const PRIMARY_NAV: NavItem[] = [
     hintEn: 'Monitor stages 1–6',
   },
   {
-    href: '/conversions',
-    labelId: 'Pembayaran',
-    labelEn: 'Payments',
-    hintId: 'Uang masuk verified',
-    hintEn: 'Verified payments',
-  },
-  {
     href: '/dashboard',
     labelId: 'Laporan',
     labelEn: 'Reports',
-    hintId: 'Ringkasan untuk tim & owner',
-    hintEn: 'Summary for team & owners',
+    hintId: 'Ringkasan kerja & performa',
+    hintEn: 'Work summary & performance',
   },
 ]
 
-/** Tools nested under Hari Ini (routes preserved). */
+/** Tools nested under Antrian / Hari Ini (routes preserved). */
 export const TODAY_TOOLS = [
   {
     href: '/work-queue',
@@ -86,7 +89,41 @@ export const TODAY_TOOLS = [
   },
 ]
 
-/** Secondary links under Laporan. */
+/**
+ * One Dashboard menu for owner — Client + Team reports live as toggles inside.
+ */
+export const OWNER_PRIMARY_NAV: NavItem[] = [
+  {
+    href: '/dashboard',
+    labelId: 'Dashboard',
+    labelEn: 'Dashboard',
+    hintId: 'Ringkasan klien & tim dalam satu tempat',
+    hintEn: 'Client & team summary in one place',
+  },
+  {
+    href: '/pipeline',
+    labelId: 'Pipeline',
+    labelEn: 'Pipeline',
+    hintId: 'Pantau tahap 1–6',
+    hintEn: 'Monitor stages 1–6',
+  },
+  {
+    href: '/leads',
+    labelId: 'Leads',
+    labelEn: 'Leads',
+    hintId: 'Data master lead',
+    hintEn: 'Lead master data',
+  },
+  {
+    href: '/conversions',
+    labelId: 'Pembayaran',
+    labelEn: 'Payments',
+    hintId: 'Uang masuk verified',
+    hintEn: 'Verified payments',
+  },
+]
+
+/** Tabs inside Dashboard / Laporan — one menu, many views. */
 export const LAPORAN_LINKS = [
   {
     href: '/dashboard',
@@ -115,61 +152,22 @@ export const LAPORAN_LINKS = [
   },
 ]
 
-/** Owner/admin primary nav — fewer ops tools, more monitoring. */
-export const OWNER_PRIMARY_NAV: NavItem[] = [
-  {
-    href: '/client-report',
-    labelId: 'Laporan Klien',
-    labelEn: 'Client Report',
-    hintId: 'Ringkas untuk owner & klien',
-    hintEn: 'Clean summary for owners & clients',
-  },
-  {
-    href: '/dashboard',
-    labelId: 'Laporan Tim',
-    labelEn: 'Team Reports',
-    hintId: 'KPI operasional lengkap',
-    hintEn: 'Full operational KPIs',
-  },
-  {
-    href: '/pipeline',
-    labelId: 'Pipeline',
-    labelEn: 'Pipeline',
-    hintId: 'Pantau tahap 1–6',
-    hintEn: 'Monitor stages 1–6',
-  },
-  {
-    href: '/leads',
-    labelId: 'Leads',
-    labelEn: 'Leads',
-    hintId: 'Data master lead',
-    hintEn: 'Lead master data',
-  },
-  {
-    href: '/conversions',
-    labelId: 'Pembayaran',
-    labelEn: 'Payments',
-    hintId: 'Uang masuk verified',
-    hintEn: 'Verified payments',
-  },
-]
-
 export function isNavActive(pathname: string, href: string): boolean {
+  if (href === '/work-queue') {
+    return pathname.startsWith('/work-queue')
+  }
   if (href === '/today') {
     return (
       pathname === '/today' ||
-      pathname.startsWith('/work-queue') ||
       pathname.startsWith('/needs-action') ||
       pathname.startsWith('/follow-ups') ||
       pathname.startsWith('/expert-queue')
     )
   }
-  if (href === '/client-report') {
-    return pathname.startsWith('/client-report')
-  }
   if (href === '/dashboard') {
     return (
       pathname.startsWith('/dashboard') ||
+      pathname.startsWith('/client-report') ||
       pathname.startsWith('/reports') ||
       pathname.startsWith('/analytics') ||
       pathname.startsWith('/playbook')
