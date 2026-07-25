@@ -1,4 +1,5 @@
 import { Header } from '@/components/layout/header'
+import { LaporanSubnav } from '@/components/layout/laporan-subnav'
 import { createClient } from '@/lib/supabase/server'
 import { AnalyticsDashboard } from '@/components/analytics/analytics-dashboard'
 
@@ -28,6 +29,7 @@ export default async function AnalyticsPage() {
     <>
       <Header title="Performa" subtitle="Ringkasan hasil leads, revenue, campaign, dan kerja tim CRO." />
       <div className="w-full p-6 animate-fade-in">
+        <LaporanSubnav />
         <AnalyticsDashboard
           allLeads={allLeads}
           payments={payments}

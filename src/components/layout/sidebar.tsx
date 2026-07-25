@@ -9,69 +9,38 @@ import { createClient } from '@/lib/supabase/client'
 import { useLayoutStore } from '@/lib/store'
 import { useLanguage } from '@/lib/language'
 import { PRODUCT } from '@/lib/brand'
+import { PRIMARY_NAV, isNavActive } from '@/lib/navigation'
 import {
   LayoutDashboard,
   Users,
   Settings,
   LogOut,
   KanbanSquare,
-  BarChart3,
-  ClipboardList,
-  Tags,
-  UserRoundCheck,
   ClipboardCheck,
-  AlertCircle,
-  Clock3,
+  Wallet,
+  type LucideIcon,
 } from 'lucide-react'
 
-const harianNav = [
-  { href: '/work-queue', label: 'Kerjaan Hari Ini', icon: ClipboardCheck },
-  { href: '/needs-action', label: 'Needs Action', icon: AlertCircle },
-  { href: '/follow-ups', label: 'Jadwal Follow-Up', icon: Clock3 },
-  { href: '/expert-queue', label: 'Butuh Dibantu', icon: UserRoundCheck },
-]
+const NAV_ICONS: Record<string, LucideIcon> = {
+  '/today': ClipboardCheck,
+  '/leads': Users,
+  '/pipeline': KanbanSquare,
+  '/conversions': Wallet,
+  '/dashboard': LayoutDashboard,
+}
 
-const dataNav = [
-  { href: '/leads', label: 'Data Leads', icon: Users },
-  { href: '/pipeline', label: 'Alur Leads', icon: KanbanSquare },
-]
-
-const insightNav = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/reports', label: 'Report Harian', icon: ClipboardList },
-  { href: '/analytics', label: 'Performa', icon: BarChart3 },
-  { href: '/playbook', label: 'Alasan Gagal', icon: Tags },
-]
-
-const SIDEBAR_COPY = {
+const COPY = {
   en: {
-    sectionHarian: 'Daily work',
-    sectionData: 'Data',
-    sectionInsight: 'Insights',
     settings: 'Settings',
     logout: 'Logout',
-    whereHint: 'Work here first',
-    labels: {
-      Dashboard: 'Dashboard',
-      'Kerjaan Hari Ini': 'Today Work',
-      'Needs Action': 'Needs Action',
-      'Jadwal Follow-Up': 'Follow-Up Schedule',
-      'Data Leads': 'Lead Data',
-      'Alur Leads': 'Lead Flow',
-      'Butuh Dibantu': 'Help Needed',
-      'Report Harian': 'Daily Report',
-      Performa: 'Performance',
-      'Alasan Gagal': 'Lost Reasons',
-    } as Record<string, string>,
+    legend: 'Where to work',
+    legendBody: 'Input in Today or Lead detail. Pipeline & Reports are for monitoring.',
   },
   id: {
-    sectionHarian: 'Kerja harian',
-    sectionData: 'Data',
-    sectionInsight: 'Pantau',
     settings: 'Pengaturan',
     logout: 'Keluar',
-    whereHint: 'Mulai kerja di sini',
-    labels: {} as Record<string, string>,
+    legend: 'Data ini ke mana?',
+    legendBody: 'Input di Hari Ini atau Detail Lead. Pipeline & Laporan untuk pantau.',
   },
 } as const
 
@@ -80,7 +49,7 @@ export function Sidebar() {
   const router = useRouter()
   const { sidebarOpen, closeSidebar } = useLayoutStore()
   const { lang } = useLanguage()
-  const copy = SIDEBAR_COPY[lang]
+  const copy = COPY[lang]
   const supabase = createClient()
 
   useEffect(() => {
@@ -93,51 +62,12 @@ export function Sidebar() {
     closeSidebar()
   }
 
-  function NavItem({
-    href,
-    label,
-    icon: Icon,
-  }: {
-    href: string
-    label: string
-    icon: React.ComponentType<{ size?: number; className?: string }>
-  }) {
-    const isActive = pathname === href || pathname.startsWith(href + '/')
-
-    return (
-      <Link
-        href={href}
-        prefetch={true}
-        onClick={closeSidebar}
-        className={cn(
-          'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors duration-150 group relative border',
-          isActive
-            ? 'text-primary bg-secondary border-border'
-            : 'text-muted-foreground border-transparent hover:text-foreground hover:bg-secondary/70'
-        )}
-      >
-        <Icon
-          size={16}
-          className={cn(
-            'transition-colors flex-shrink-0',
-            isActive ? 'text-accent' : 'text-muted-foreground/80 group-hover:text-foreground'
-          )}
-        />
-        <span className="truncate text-[13px] mr-1">{copy.labels[label] || label}</span>
-        <span className="flex-1" />
-        {isActive && (
-          <span className="absolute right-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-l-full bg-accent" />
-        )}
-      </Link>
-    )
-  }
-
   return (
     <>
       {sidebarOpen && (
         <div
           onClick={closeSidebar}
-          className="fixed inset-0 z-20 bg-ink/40 backdrop-blur-[2px] lg:hidden"
+          className="fixed inset-0 z-20 lg:hidden"
           style={{ background: 'rgba(27, 42, 74, 0.35)' }}
         />
       )}
@@ -169,39 +99,58 @@ export function Sidebar() {
           </div>
         </div>
 
-        <nav className="flex-1 px-3 py-4 space-y-5 overflow-y-auto">
-          <div className="space-y-0.5">
-            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.14em] px-3 mb-1.5 flex items-center justify-between gap-2">
-              <span>{copy.sectionHarian}</span>
-              <span className="normal-case tracking-normal font-medium text-[9px] text-accent">
-                {copy.whereHint}
-              </span>
+        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+          <p className="px-3 mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+            Menu utama
+          </p>
+          {PRIMARY_NAV.map((item) => {
+            const Icon = NAV_ICONS[item.href] || Users
+            const active = isNavActive(pathname, item.href)
+            const label = lang === 'en' ? item.labelEn : item.labelId
+            const hint = lang === 'en' ? item.hintEn : item.hintId
+
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                prefetch={true}
+                onClick={closeSidebar}
+                className={cn(
+                  'flex items-start gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors border',
+                  active
+                    ? 'text-primary bg-secondary border-border'
+                    : 'text-muted-foreground border-transparent hover:text-foreground hover:bg-secondary/70'
+                )}
+              >
+                <Icon
+                  size={16}
+                  className={cn(
+                    'mt-0.5 flex-shrink-0',
+                    active ? 'text-accent' : 'text-muted-foreground/80'
+                  )}
+                />
+                <span className="min-w-0">
+                  <span className={cn('block text-[13px] font-medium', active && 'text-foreground')}>
+                    {label}
+                  </span>
+                  <span className="block text-[10px] text-muted-foreground leading-snug mt-0.5">
+                    {hint}
+                  </span>
+                </span>
+                {active && (
+                  <span className="ml-auto mt-1 w-0.5 h-5 rounded-l-full bg-accent flex-shrink-0" />
+                )}
+              </Link>
+            )
+          })}
+
+          <div className="mt-5 mx-1 rounded-xl border border-border bg-secondary/50 px-3 py-3">
+            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-accent">
+              {copy.legend}
             </p>
-            {harianNav.map((item) => (
-              <NavItem key={item.href} {...item} />
-            ))}
-          </div>
-
-          <div className="border-t border-border" />
-
-          <div className="space-y-0.5">
-            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.14em] px-3 mb-1.5">
-              {copy.sectionData}
+            <p className="text-[11px] text-muted-foreground mt-1.5 leading-relaxed">
+              {copy.legendBody}
             </p>
-            {dataNav.map((item) => (
-              <NavItem key={item.href} {...item} />
-            ))}
-          </div>
-
-          <div className="border-t border-border" />
-
-          <div className="space-y-0.5">
-            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.14em] px-3 mb-1.5">
-              {copy.sectionInsight}
-            </p>
-            {insightNav.map((item) => (
-              <NavItem key={item.href} {...item} />
-            ))}
           </div>
         </nav>
 
@@ -211,7 +160,7 @@ export function Sidebar() {
             prefetch={true}
             onClick={closeSidebar}
             className={cn(
-              'flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium transition-colors duration-150 border',
+              'flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium transition-colors border',
               pathname.startsWith('/settings')
                 ? 'text-primary bg-secondary border-border'
                 : 'text-muted-foreground border-transparent hover:text-foreground hover:bg-secondary/70'
@@ -222,7 +171,7 @@ export function Sidebar() {
           </Link>
           <button
             onClick={handleSignOut}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/5 transition-colors duration-150"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/5 transition-colors"
           >
             <LogOut size={16} className="flex-shrink-0" />
             {copy.logout}

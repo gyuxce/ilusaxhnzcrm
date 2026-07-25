@@ -1,4 +1,5 @@
 import { Header } from '@/components/layout/header'
+import { LaporanSubnav } from '@/components/layout/laporan-subnav'
 import { TeamReportDashboard, type ActivityRow, type InterventionRow } from '@/components/reports/team-report-dashboard'
 import { createClient } from '@/lib/supabase/server'
 import type { UserSummary } from '@/types/crm'
@@ -162,6 +163,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
     <>
       <Header title="Report Harian" subtitle="Ringkasan kerja harian otomatis dari aktivitas tim di CRM." />
       <div className="w-full p-6 animate-fade-in">
+        <LaporanSubnav />
         <TeamReportDashboard
           activities={mergedActivities}
           interventions={(interventionsRes.data || []) as InterventionRow[]}

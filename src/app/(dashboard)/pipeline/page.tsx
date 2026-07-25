@@ -19,12 +19,12 @@ export default async function PipelinePage() {
 
   return (
     <>
-      <Header title="Alur Leads" subtitle="Tampilan visual posisi lead. Ini untuk memantau alur, bukan tempat input kerja utama." />
+      <Header title="Pipeline" subtitle="Pantau tahap lead 1–6. Untuk input kerja harian, pakai menu Hari Ini." />
       <div className="p-6 animate-fade-in">
-        <div className="mb-4 rounded-2xl border border-primary/15 bg-primary/5 px-5 py-4">
-          <p className="text-sm font-extrabold text-foreground">Alur Leads = tampilan ringkas untuk memantau posisi lead</p>
+        <div className="mb-4 rounded-2xl border border-border bg-secondary/60 px-5 py-4">
+          <p className="text-sm font-semibold text-foreground">Pipeline = pantau posisi, bukan tempat input utama</p>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-            Kolom di sini sengaja diringkas agar mudah dipantau. Untuk kerja harian, catatan chat, kendala, follow-up, dan report, gunakan Kerjaan Hari Ini.
+            Kolom diringkas agar mudah dipantau. Catatan chat, kendala, follow-up, dan next action dikerjakan dari Hari Ini.
           </p>
         </div>
         <PipelineBoard initialLeads={leads || []} />

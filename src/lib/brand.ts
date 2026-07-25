@@ -128,3 +128,33 @@ export function getStageBadgeClasses(status: string): string {
   }
   return `stage-badge stage-badge-${stage.id}`
 }
+
+/** Terminal win outcomes (subset of stage 6). */
+export const WON_STATUSES = ['Seat Lock Paid', 'Onboarding', 'Class Started'] as const
+
+/** Terminal lost outcomes (subset of stage 6). */
+export const LOST_OUTCOME_STATUSES = ['Not Interested', 'Not Eligible'] as const
+
+export function isWonStatus(status: string): boolean {
+  return (WON_STATUSES as readonly string[]).includes(status)
+}
+
+export function isLostOutcomeStatus(status: string): boolean {
+  return (LOST_OUTCOME_STATUSES as readonly string[]).includes(status)
+}
+
+/** Statuses used for pipeline funnel bars (stage 6 = win only; lost is a separate KPI). */
+export function countLeadsByFunnelStage(
+  leads: { current_status: string }[]
+): { stageId: FunnelStageId; count: number }[] {
+  return FUNNEL_STAGES.map((stage) => {
+    const statuses =
+      stage.id === 6
+        ? ([...WON_STATUSES] as string[])
+        : ([...stage.statuses] as string[])
+    return {
+      stageId: stage.id,
+      count: leads.filter((lead) => statuses.includes(lead.current_status)).length,
+    }
+  })
+}

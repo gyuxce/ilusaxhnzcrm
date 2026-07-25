@@ -28,15 +28,20 @@ interface NotifItem {
 const HEADER_COPY = {
   en: {
     titles: {
-      Dashboard: 'Dashboard',
+      Dashboard: 'Reports',
+      Laporan: 'Reports',
+      'Hari Ini': 'Today',
       'Kerjaan Hari Ini': 'Today Work',
       'Data Leads': 'Lead Data',
+      Leads: 'Leads',
       'Alur Leads': 'Lead Flow',
+      Pipeline: 'Pipeline',
       'Butuh Dibantu': 'Help Needed',
       'Report Harian': 'Daily Report',
       Performa: 'Performance',
       'Alasan Gagal': 'Lost Reasons',
-      'Detail Pembayaran': 'Payment Details',
+      'Detail Pembayaran': 'Payments',
+      Pembayaran: 'Payments',
       'Tambah Lead Baru': 'Add New Lead',
       'Detail Lead': 'Lead Detail',
       'Edit Lead': 'Edit Lead',
