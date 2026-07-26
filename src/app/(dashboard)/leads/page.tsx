@@ -2,16 +2,15 @@ import { Suspense } from 'react'
 import { Header } from '@/components/layout/header'
 import { LeadsTable } from '@/components/leads/leads-table'
 import { createClient } from '@/lib/supabase/server'
+import { getPrdTrialSince } from '@/app/actions/prd-trial-mode'
 
 export const dynamic = 'force-dynamic'
 
 export default async function LeadsPage() {
   const supabase = await createClient()
+  const trialSince = await getPrdTrialSince()
 
-  // Keep the initial table payload bounded; large imports should not force
-  // the browser to receive and render the entire database at once.
-  const [leadsRes, picsRes] = await Promise.all([
-    supabase
+  let leadsQuery = supabase
       .from('leads')
       .select(`
         *,
@@ -22,7 +21,13 @@ export default async function LeadsPage() {
         expert_consultations(*)
       `)
       .order('lead_entry_date', { ascending: false })
-      .limit(5000),
+      .limit(5000)
+  if (trialSince) {
+    leadsQuery = leadsQuery.gte('created_at', trialSince)
+  }
+
+  const [leadsRes, picsRes] = await Promise.all([
+    leadsQuery,
     supabase
       .from('users')
       .select('id, name, email')

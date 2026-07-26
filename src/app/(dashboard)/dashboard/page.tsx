@@ -24,6 +24,7 @@ import { FunnelStageStrip } from '@/components/reports/funnel-stage-strip'
 import { RankedStatList } from '@/components/reports/ranked-stat-list'
 import { NEEDS_ACTION_STATUSES } from '@/lib/funnel-framework'
 import { getTodayInWIB } from '@/lib/utils'
+import { readPrdTrialSinceClient, PRD_TRIAL_MODE_CHANGED } from '@/lib/prd-trial-mode'
 import type { LeadInterventionRow, LeadRow, PaymentRow } from '@/lib/supabase/types'
 
 type LeadSummary = Pick<
@@ -40,6 +41,7 @@ type StalePreview = { id: string; name: string; status: string; days: number }
 
 type DashboardStatsCache = {
   at: number
+  trialSinceKey: string
   leads: LeadSummary[]
   newToday: number
   workCount: number
@@ -161,7 +163,12 @@ export default function DashboardPage() {
   }, [])
 
   const fetchStats = useCallback(async () => {
-    if (dashboardStatsCache && Date.now() - dashboardStatsCache.at < DASHBOARD_CACHE_MS) {
+    const trialSince = readPrdTrialSinceClient() ?? ''
+    if (
+      dashboardStatsCache &&
+      dashboardStatsCache.trialSinceKey === trialSince &&
+      Date.now() - dashboardStatsCache.at < DASHBOARD_CACHE_MS
+    ) {
       applyCache(dashboardStatsCache)
       return
     }
@@ -170,11 +177,16 @@ export default function DashboardPage() {
     const today = getTodayInWIB()
     const weekStart = startOfWeekWIB(today)
 
+    let leadsQuery = supabase
+      .from('leads')
+      .select('id, full_name, current_status, source_campaign, updated_at, lead_entry_date')
+      .limit(3000)
+    if (trialSince) {
+      leadsQuery = leadsQuery.gte('created_at', trialSince)
+    }
+
     const [leadsRes, fuRes, paymentsRes, interventionsRes] = await Promise.all([
-      supabase
-        .from('leads')
-        .select('id, full_name, current_status, source_campaign, updated_at, lead_entry_date')
-        .limit(3000),
+      leadsQuery,
       supabase
         .from('follow_ups')
         .select('*', { count: 'exact', head: true })
@@ -182,7 +194,7 @@ export default function DashboardPage() {
         .lte('scheduled_date', today),
       supabase
         .from('payments')
-        .select('payment_type, amount')
+        .select('lead_id, payment_type, amount')
         .eq('verification_status', 'verified')
         .limit(3000),
       supabase
@@ -193,6 +205,7 @@ export default function DashboardPage() {
     ])
 
     const leadRows = (leadsRes.data || []) as LeadSummary[]
+    const trialIds = trialSince ? new Set(leadRows.map((l) => l.id)) : null
 
     const stuck = leadRows.filter((l) => NEEDS_ACTION_STATUSES.includes(l.current_status)).length
     const fresh = leadRows.filter((l) => l.current_status === 'New Lead').length
@@ -225,7 +238,9 @@ export default function DashboardPage() {
       .slice(0, 6)
 
     const objectionCounts: Record<string, number> = {}
-    ;((interventionsRes.data || []) as InterventionSummary[]).forEach((item) => {
+    ;((interventionsRes.data || []) as InterventionSummary[])
+      .filter((item) => !trialIds || trialIds.has(item.lead_id))
+      .forEach((item) => {
       if (!item.objection_category) return
       objectionCounts[item.objection_category] = (objectionCounts[item.objection_category] || 0) + 1
     })
@@ -236,7 +251,9 @@ export default function DashboardPage() {
 
     let map = 0
     let seat = 0
-    ;((paymentsRes.data || []) as Pick<PaymentRow, 'payment_type' | 'amount'>[]).forEach((p) => {
+    ;((paymentsRes.data || []) as Pick<PaymentRow, 'lead_id' | 'payment_type' | 'amount'>[])
+      .filter((p) => !trialIds || (p.lead_id && trialIds.has(p.lead_id)))
+      .forEach((p) => {
       const amt = Number(p.amount) || 0
       if (p.payment_type === 'pemetaan' || p.payment_type === 'roadmap_session') map += amt
       else if (p.payment_type === 'seat_lock') seat += amt
@@ -245,6 +262,7 @@ export default function DashboardPage() {
 
     const cache: DashboardStatsCache = {
       at: Date.now(),
+      trialSinceKey: trialSince,
       leads: leadRows,
       newToday: nextNewToday,
       workCount: nextWorkCount,
@@ -261,6 +279,15 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchStats()
+  }, [fetchStats])
+
+  useEffect(() => {
+    const onTrialChange = () => {
+      dashboardStatsCache = null
+      void fetchStats()
+    }
+    window.addEventListener(PRD_TRIAL_MODE_CHANGED, onTrialChange)
+    return () => window.removeEventListener(PRD_TRIAL_MODE_CHANGED, onTrialChange)
   }, [fetchStats])
 
   const stageCounts = useMemo(() => countLeadsByFunnelStage(leads), [leads])

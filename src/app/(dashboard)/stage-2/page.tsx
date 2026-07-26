@@ -10,6 +10,7 @@ import {
   STAGE2_UPDATE_STATUS_OPTIONS,
   STAGE2_VISIBLE_STATUSES,
 } from '@/lib/prd-stages'
+import { readPrdTrialSinceClient, PRD_TRIAL_MODE_CHANGED } from '@/lib/prd-trial-mode'
 import {
   CheckCircle2,
   Loader2,
@@ -61,12 +62,17 @@ export default function Stage2Page() {
 
   async function fetchLeads() {
     setLoading(true)
-    const { data, error } = await supabase
+    const trialSince = readPrdTrialSinceClient()
+    let q = supabase
       .from('leads')
       .select('id, full_name, whatsapp_number, source_campaign, current_status, lead_entry_date, last_contacted_date, users:assigned_cro_id(id, name)')
       .in('current_status', STAGE2_VISIBLE_STATUSES as unknown as string[])
       .order('updated_at', { ascending: false })
       .limit(1000)
+    if (trialSince) {
+      q = q.gte('created_at', trialSince)
+    }
+    const { data, error } = await q
     if (error) {
       setMessage({ type: 'error', text: error.message })
       setLeads([])
@@ -78,6 +84,9 @@ export default function Stage2Page() {
 
   useEffect(() => {
     void fetchLeads()
+    const onTrialChange = () => void fetchLeads()
+    window.addEventListener(PRD_TRIAL_MODE_CHANGED, onTrialChange)
+    return () => window.removeEventListener(PRD_TRIAL_MODE_CHANGED, onTrialChange)
   }, [])
 
   const counts = useMemo(() => {
