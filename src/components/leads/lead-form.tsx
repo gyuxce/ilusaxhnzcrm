@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
-import { CheckCircle2, Loader2, Phone, User, Calendar, MessageSquare, Mail, TrendingUp, AlertCircle } from 'lucide-react'
+import { CheckCircle2, Loader2, Phone, User, MessageSquare, TrendingUp, AlertCircle } from 'lucide-react'
 import { LOST_REASON_OPTIONS, LOST_STATUSES } from '@/lib/lost-reasons'
 import {
   STAGE1_CURRENT_STATUS_OPTIONS,
@@ -20,7 +20,7 @@ import { revalidateLeadsListing } from '@/app/actions/revalidate-leads'
 import { markLeadsListNeedsRefresh } from '@/lib/leads-list-refresh'
 
 interface LeadFormProps {
-  pics: { id: string; name: string }[]
+  pics?: { id: string; name: string }[]
   defaultValues?: Partial<{
     whatsapp_number: string
     full_name: string
@@ -31,20 +31,22 @@ interface LeadFormProps {
     assigned_cro_id: string
     notes: string
     lead_entry_date: string
-    referral_source: string
-    whatsapp_normalized: string
     lost_reason: string
-    lead_quality: string
-    lead_segment: string
-    entry_channel: string
-    next_action: string
-    next_follow_up_date: string
-    funnel_notes: string
   }>
   leadId?: string
 }
 
-export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
+const EDIT_STATUS_OPTIONS = [
+  ...STAGE1_CURRENT_STATUS_OPTIONS,
+  ...STAGE2_ENTRY_STATUSES,
+  ...STAGE3_STATUS_OPTIONS,
+  'Not Interested',
+  'Not Eligible',
+  'Cold Leads',
+  'Failed',
+]
+
+export function LeadForm({ defaultValues, leadId }: LeadFormProps) {
   const router = useRouter()
   const isEditMode = Boolean(leadId)
   const [loading, setLoading] = useState(false)
@@ -54,7 +56,6 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
   const {
     register,
     handleSubmit: handleFormSubmit,
-    setValue,
     watch,
     formState: { errors },
   } = useForm<LeadFormValues>({
@@ -64,18 +65,13 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
       full_name: defaultValues?.full_name || '',
       email: defaultValues?.email || '',
       source_campaign: defaultValues?.source_campaign || '',
-      lead_type: (defaultValues?.lead_type as 'inbound' | 'outbound') || 'inbound',
-      current_status: defaultValues?.current_status || 'New Lead',
-      assigned_cro_id: defaultValues?.assigned_cro_id || '',
+      lead_type: 'inbound',
+      current_status: defaultValues?.current_status || 'Input Manual',
+      assigned_cro_id: '',
       notes: defaultValues?.notes || '',
       lead_entry_date: defaultValues?.lead_entry_date?.split('T')[0] || new Date().toISOString().split('T')[0],
       lost_reason: defaultValues?.lost_reason || '',
-      lead_quality: defaultValues?.lead_quality || '',
-      lead_segment: defaultValues?.lead_segment || '',
-      entry_channel: defaultValues?.entry_channel || 'Manual Input',
-      next_action: defaultValues?.next_action || '',
-      next_follow_up_date: defaultValues?.next_follow_up_date?.split('T')[0] || '',
-      funnel_notes: defaultValues?.funnel_notes || '',
+      entry_channel: 'Manual Input',
     },
   })
 
@@ -91,20 +87,19 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
 
   async function onSubmit(dataValues: LeadFormValues) {
     const cleanPhone = normalizeWhatsApp(dataValues.whatsapp_number)
-
     setLoading(true)
     setError('')
     setSuccess('')
 
     const supabase = createClient()
-
+    const status = isEditMode ? dataValues.current_status : 'Input Manual'
     const params = {
       p_full_name: dataValues.full_name,
       p_whatsapp_number: cleanPhone,
-      p_email: dataValues.email || null,
-      p_source_campaign: dataValues.source_campaign || 'General',
-      p_current_status: dataValues.current_status,
-      p_assigned_cro_id: dataValues.assigned_cro_id || null,
+      p_email: null,
+      p_source_campaign: dataValues.source_campaign || 'WhatsApp Manual',
+      p_current_status: status,
+      p_assigned_cro_id: null,
       p_notes: dataValues.notes || null,
     }
 
@@ -112,13 +107,13 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
       ? await supabase.rpc('update_lead_core_fast', {
           p_lead_id: leadId,
           ...params,
-          p_lost_reason: LOST_STATUSES.includes(dataValues.current_status) ? dataValues.lost_reason : null,
+          p_lost_reason: LOST_STATUSES.includes(status) ? dataValues.lost_reason : null,
           p_lead_entry_date: dataValues.lead_entry_date ? new Date(dataValues.lead_entry_date).toISOString() : null,
         })
       : await supabase.rpc('create_lead_fast', {
           ...params,
-          p_lead_type: dataValues.lead_type,
-          p_lead_entry_date: dataValues.lead_entry_date ? new Date(dataValues.lead_entry_date).toISOString() : new Date().toISOString(),
+          p_lead_type: 'inbound',
+          p_lead_entry_date: new Date().toISOString(),
         })
 
     if (rpcErr) {
@@ -135,7 +130,7 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
     }
 
     setLoading(false)
-    setSuccess(leadId ? 'Perubahan lead berhasil disimpan. Mengalihkan ke Data Leads...' : 'Lead baru berhasil ditambahkan. Mengalihkan ke menu Leads...')
+    setSuccess(leadId ? 'Perubahan tersimpan. Mengalihkan...' : 'Lead tersimpan. Mengalihkan ke Leads...')
     markLeadsListNeedsRefresh()
 
     const targetLeadId = leadId || result?.id || null
@@ -144,249 +139,166 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
       await supabase.from('lead_activities').insert({
         lead_id: targetLeadId,
         activity_type: leadId ? 'Lead Updated' : 'Lead Created',
-        description: leadId ? 'Data lead diperbarui via form edit' : `Lead baru dibuat (${dataValues.full_name})`,
+        description: leadId
+          ? `Data lead diperbarui → ${status}`
+          : `Lead input manual dari WA (${dataValues.full_name})`,
         created_by: auth.user?.id || null,
       })
     }
 
     await revalidateLeadsListing()
     if (leadId) {
-      router.push('/leads')
+      router.push(`/leads/${leadId}`)
       router.refresh()
       return
     }
     window.location.assign('/leads')
   }
 
-  const inputClass = "w-full px-4 py-2.5 rounded-xl text-sm text-foreground placeholder-muted-foreground/60 outline-none transition-all bg-card border border-border focus:ring-1 focus:ring-primary focus:border-primary"
-  const inputStyle = {}
-
-  const statusOptions = [...STAGE1_CURRENT_STATUS_OPTIONS, ...STAGE2_ENTRY_STATUSES, ...STAGE3_STATUS_OPTIONS, 'Not Interested', 'Not Eligible']
+  const inputClass =
+    'w-full px-3.5 py-2.5 rounded-xl text-sm text-foreground placeholder-muted-foreground/60 outline-none bg-card border border-border focus:ring-1 focus:ring-primary focus:border-primary'
 
   return (
-    <form onSubmit={handleFormSubmit(onSubmit)} className="space-y-6">
-      {!isEditMode && (
-        <div className="rounded-2xl border border-border bg-secondary/60 p-4">
-          <h2 className="font-display text-base font-semibold tracking-tight text-foreground">Tambah Lead</h2>
+    <form onSubmit={handleFormSubmit(onSubmit)} className="mx-auto max-w-xl space-y-4">
+      <div className="rounded-2xl border border-border bg-card p-5 space-y-4">
+        <div>
+          <h2 className="font-display text-base font-semibold tracking-tight text-foreground">
+            {isEditMode ? 'Edit Lead' : 'Tambah Lead Manual'}
+          </h2>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-            Isi nama, WhatsApp, dan campaign. Setelah simpan, lead langsung masuk ke menu Leads.
+            {isEditMode
+              ? 'Perbarui data lead sesuai alur PRD V3.'
+              : 'Untuk lead dari WhatsApp. Status otomatis: Input Manual. Import CSV memakai Bridging/Pitching.'}
           </p>
         </div>
-      )}
 
-      {/* Section 1: Informasi Kontak */}
-      <div className="bg-card text-card-foreground border border-border/80 p-5 rounded-2xl space-y-4 shadow-xs">
-        <h3 className="text-xs font-bold text-foreground uppercase tracking-wider border-b border-border pb-2 mb-3">
-          📞 Informasi Kontak
-        </h3>
-
-        {/* Nama Lengkap */}
         <div>
-          <label className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground mb-2">
+          <label className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground mb-1.5">
             <User size={12} /> Nama Lengkap <span className="text-red-500">*</span>
           </label>
           <input
             {...register('full_name')}
-            placeholder="Nama lengkap lead..."
-            className={cn(inputClass, errors.full_name && 'border-red-500 focus:border-red-500 focus:ring-red-500')}
-            style={inputStyle}
+            placeholder="Nama lead..."
+            className={cn(inputClass, errors.full_name && 'border-red-500')}
           />
           {errors.full_name && (
-            <p className="mt-1 flex items-center gap-1 text-xs font-bold text-red-500">
+            <p className="mt-1 flex items-center gap-1 text-xs font-semibold text-red-500">
               <AlertCircle size={11} /> {errors.full_name.message}
             </p>
           )}
         </div>
 
-        {/* WhatsApp & Email */}
-        <div className={cn('grid grid-cols-1 gap-4', isEditMode && 'sm:grid-cols-2')}>
-          <div>
-            <label className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground mb-2">
-              <Phone size={12} /> Nomor WhatsApp <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="tel"
-              {...register('whatsapp_number')}
-              placeholder="Contoh: 08123456789"
-              className={cn(inputClass, errors.whatsapp_number && 'border-red-500 focus:border-red-500 focus:ring-red-500')}
-              style={inputStyle}
-            />
-            {errors.whatsapp_number && (
-              <p className="mt-1 flex items-center gap-1 text-xs font-bold text-red-500">
-                <AlertCircle size={11} /> {errors.whatsapp_number.message}
-              </p>
-            )}
-          </div>
-
-          {isEditMode && (
-            <div>
-              <label className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground mb-2">
-                <Mail size={12} /> Alamat Email
-              </label>
-              <input
-                type="email"
-                {...register('email')}
-                placeholder="nama@domain.com"
-                className={cn(inputClass, errors.email && 'border-red-500 focus:border-red-500 focus:ring-red-500')}
-                style={inputStyle}
-              />
-              {errors.email && (
-                <p className="mt-1 flex items-center gap-1 text-xs font-bold text-red-500">
-                  <AlertCircle size={11} /> {errors.email.message}
-                </p>
-              )}
-            </div>
+        <div>
+          <label className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground mb-1.5">
+            <Phone size={12} /> Nomor WhatsApp <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="tel"
+            {...register('whatsapp_number')}
+            placeholder="08123456789"
+            className={cn(inputClass, errors.whatsapp_number && 'border-red-500')}
+          />
+          {errors.whatsapp_number && (
+            <p className="mt-1 flex items-center gap-1 text-xs font-semibold text-red-500">
+              <AlertCircle size={11} /> {errors.whatsapp_number.message}
+            </p>
           )}
         </div>
-      </div>
 
-      {/* Section 2: Kampanye & PIC */}
-      <div className="bg-card text-card-foreground border border-border/80 p-5 rounded-2xl space-y-4 shadow-xs">
-        <h3 className="text-xs font-bold text-foreground uppercase tracking-wider border-b border-border pb-2 mb-3">
-          📊 Kampanye & PIC
-        </h3>
-
-        {/* Source Campaign */}
         <div>
-          <label className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground mb-2">
+          <label className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground mb-1.5">
             <TrendingUp size={12} /> Source Campaign <span className="text-red-500">*</span>
           </label>
           <input
             {...register('source_campaign')}
-            placeholder="Contoh: Campaign Construction, Webinar Regular, Organic..."
-            className={cn(inputClass, errors.source_campaign && 'border-red-500 focus:border-red-500 focus:ring-red-500')}
-            style={inputStyle}
+            placeholder="Contoh: WhatsApp Organic, Campaign Construction..."
+            className={cn(inputClass, errors.source_campaign && 'border-red-500')}
           />
           {errors.source_campaign && (
-            <p className="mt-1 flex items-center gap-1 text-xs font-bold text-red-500">
-              <AlertCircle size={11} /> {errors.source_campaign.message}
+            <p className="mt-1 flex items-center gap-1 text-xs font-semibold text-red-500">
+              <AlertCircle size={11} /> {errors.source_campaign.message || 'Campaign wajib diisi'}
             </p>
           )}
         </div>
 
-        {/* PIC & Status */}
-        <div className={cn('grid grid-cols-1 gap-4', isEditMode && 'sm:grid-cols-2')}>
+        {isEditMode ? (
           <div>
-            <label className="block text-xs font-bold text-muted-foreground mb-2">PIC CRO</label>
-            <select {...register('assigned_cro_id')} className={inputClass} style={inputStyle}>
-              <option value="" className="bg-card text-foreground">Pilih PIC</option>
-              {pics.map(p => <option key={p.id} value={p.id} className="bg-card text-foreground">{p.name}</option>)}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-muted-foreground mb-2">Current Status</label>
-            <select {...register('current_status')} className={inputClass} style={inputStyle}>
-              {(isEditMode
-                ? statusOptions
-                : STAGE1_CURRENT_STATUS_OPTIONS
-              ).map(s => <option key={s} value={s} className="bg-card text-foreground">{s}</option>)}
-            </select>
-          </div>
-        </div>
-
-        {LOST_STATUSES.includes(currentStatus || '') && (
-          <div>
-            <label className="block text-xs font-bold text-muted-foreground mb-2">Kategori Alasan Penolakan <span className="text-red-500">*</span></label>
-            <select
-              {...register('lost_reason')}
-              className={cn(inputClass, errors.lost_reason && 'border-red-500 focus:border-red-500 focus:ring-red-500')}
-              style={inputStyle}
-            >
-              <option value="" className="bg-card text-foreground">Pilih kategori alasan...</option>
-              {LOST_REASON_OPTIONS.map(reason => (
-                <option key={reason} value={reason} className="bg-card text-foreground">{reason}</option>
+            <label className="block text-xs font-semibold text-muted-foreground mb-1.5">Current Status</label>
+            <select {...register('current_status')} className={inputClass}>
+              {EDIT_STATUS_OPTIONS.map((s) => (
+                <option key={s} value={s}>{s}</option>
               ))}
             </select>
-            {errors.lost_reason && (
-              <p className="mt-1 flex items-center gap-1 text-xs font-bold text-red-500">
-                <AlertCircle size={11} /> {errors.lost_reason.message}
-              </p>
-            )}
-            <p className="mt-1.5 text-[11px] text-muted-foreground">
-              Dipakai untuk membaca pola penolakan dan menentukan strategi follow up berikutnya.
-            </p>
+          </div>
+        ) : (
+          <div className="rounded-xl border border-border bg-secondary/50 px-3.5 py-2.5 text-xs">
+            <span className="text-muted-foreground">Status: </span>
+            <span className="font-semibold text-foreground">Input Manual</span>
+            <span className="text-muted-foreground"> · dari WhatsApp / input manual</span>
           </div>
         )}
 
-        <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-xs font-bold text-emerald-700 dark:text-emerald-300">
-          Tipe lead: Inbound
-        </div>
-      </div>
+        {isEditMode && LOST_STATUSES.includes(currentStatus || '') && (
+          <div>
+            <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
+              Alasan penolakan <span className="text-red-500">*</span>
+            </label>
+            <select
+              {...register('lost_reason')}
+              className={cn(inputClass, errors.lost_reason && 'border-red-500')}
+            >
+              <option value="">Pilih alasan...</option>
+              {LOST_REASON_OPTIONS.map((reason) => (
+                <option key={reason} value={reason}>{reason}</option>
+              ))}
+            </select>
+          </div>
+        )}
 
-      {/* Section 3: Catatan & Tanggal */}
-      <div className="bg-card text-card-foreground border border-border/80 p-5 rounded-2xl space-y-4 shadow-xs">
-        <h3 className="text-xs font-bold text-foreground uppercase tracking-wider border-b border-border pb-2 mb-3">
-          📅 Catatan & Tanggal
-        </h3>
-
-        {/* Entry Date / Last Update */}
         <div>
-          <label className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground mb-2">
-            <Calendar size={12} /> {isEditMode ? 'Tanggal Lead Masuk' : 'Last Update'}
-          </label>
-          <input
-            type="date"
-            {...register('lead_entry_date')}
-            className={inputClass}
-            style={inputStyle}
-          />
-        </div>
-
-        {/* Notes */}
-        <div>
-          <label className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground mb-2">
-            <MessageSquare size={12} /> Catatan Tambahan
+          <label className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground mb-1.5">
+            <MessageSquare size={12} /> Catatan (opsional)
           </label>
           <textarea
             {...register('notes')}
-            placeholder="Tulis informasi tambahan atau kualifikasi awal..."
+            placeholder="Catatan singkat..."
             rows={3}
-            className={inputClass}
-            style={{ ...inputStyle, resize: 'none' }}
+            className={cn(inputClass, 'resize-none')}
           />
         </div>
       </div>
 
       {error && (
-        <div className="px-4 py-2.5 rounded-xl text-sm bg-red-50 border border-red-100 text-red-700 dark:bg-red-500/10 dark:border-red-500/20 dark:text-red-400 font-bold flex items-center gap-2">
+        <div className="px-4 py-2.5 rounded-xl text-sm bg-red-50 border border-red-100 text-red-700 dark:bg-red-500/10 dark:border-red-500/20 dark:text-red-400 font-semibold flex items-center gap-2">
           <AlertCircle size={16} />
           {error}
         </div>
       )}
 
       {success && (
-        <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm bg-emerald-50 border border-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:border-emerald-500/20 dark:text-emerald-300 font-bold">
+        <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm bg-emerald-50 border border-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:border-emerald-500/20 dark:text-emerald-300 font-semibold">
           <CheckCircle2 size={16} />
           {success}
         </div>
       )}
 
-      {/* Actions */}
-      <div className="flex gap-3 pt-1">
+      <div className="flex gap-3">
         <button
           type="button"
-          onClick={() => router.back()}
-          className="flex-1 py-2.5 rounded-xl text-sm font-bold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-white/5 border border-border transition-all duration-150 cursor-pointer bg-card"
+          onClick={() => router.push('/leads')}
+          className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-muted-foreground hover:text-foreground border border-border bg-card"
         >
           Batal
         </button>
         <button
           type="submit"
           disabled={loading || Boolean(success)}
-          className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-accent-foreground bg-accent hover:opacity-90 transition-opacity disabled:opacity-60 cursor-pointer flex items-center justify-center gap-1.5"
+          className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-accent-foreground bg-accent hover:opacity-90 disabled:opacity-60 flex items-center justify-center gap-1.5"
         >
           {loading && <Loader2 size={14} className="animate-spin" />}
-          {success ? 'Berhasil Disimpan' : loading ? 'Menyimpan...' : leadId ? 'Simpan Perubahan' : 'Tambah Lead'}
+          {success ? 'Tersimpan' : loading ? 'Menyimpan...' : leadId ? 'Simpan' : 'Tambah Lead'}
         </button>
       </div>
-
-      {loading && (
-        <div className="fixed bottom-5 right-5 z-50 flex items-center gap-2 rounded-2xl border border-border bg-card px-4 py-3 text-sm font-bold text-foreground shadow-2xl">
-          <Loader2 size={16} className="animate-spin text-primary" />
-          Menyimpan lead...
-        </div>
-      )}
     </form>
   )
 }

@@ -1,14 +1,21 @@
 'use client'
 
-import { useEffect, useState, useMemo, useRef } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
-  Search, Filter,
-  ChevronUp, ChevronDown,
-  ChevronLeft, ChevronRight,
-  FileUp, Loader2, Trash2, Pencil, ClipboardCheck, Clock,
+  Search,
+  ChevronUp,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  FileUp,
+  Loader2,
+  Trash2,
+  Pencil,
+  ClipboardCheck,
+  Clock,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
@@ -20,6 +27,8 @@ import {
   fetchLeadsListingClient,
 } from '@/lib/leads-list-refresh'
 import { readPrdTrialSinceClient } from '@/lib/prd-trial-mode'
+import { STAGE1_LEGACY_NEW_LEAD } from '@/lib/prd-stages'
+
 type LeadWithRelations = Lead & {
   users?: { id: string; name: string } | null
   updated_by_user?: { id: string; name: string } | null
@@ -33,55 +42,14 @@ interface LeadsTableProps {
   pics: { id: string; name: string; email?: string }[]
 }
 
-type QuickFilter = 'all' | 'new' | 'bridging' | 'pitching' | 'duplicate' | 'pemetaan' | 'seatlock' | 'interested' | 'lainnya'
-
-const quickFilterLabels: Record<QuickFilter, string> = {
-  all: 'Semua',
-  new: 'New Lead',
-  bridging: 'Bridging',
-  pitching: 'Pitching',
-  duplicate: 'Duplikat',
-  pemetaan: 'Pemetaan',
-  seatlock: 'Seat Lock',
-  interested: 'Interested',
-  lainnya: 'Lainnya',
-}
-
-const PEMETAAN_STATUSES = ['Menunggu jadwal pemetaan', 'Menunggu hasil pemetaan'] as const
-const SEATLOCK_STATUSES = [
-  'Menunggu pembayaran seat-lock',
-  'Jalur Akselerasi',
-  'Closing Seat Lock',
-] as const
-const INTERESTED_STATUSES = [
-  'Interested to Pemetaan',
-  'Interested to Interview',
-  'Interested in Webinar',
-  'In-doubt',
-  'No Response',
-] as const
-const QUICK_FILTER_STATUSES = new Set<string>([
-  'New Lead',
-  'Bridging',
-  'Pitching',
-  ...PEMETAAN_STATUSES,
-  ...SEATLOCK_STATUSES,
-  ...INTERESTED_STATUSES,
-])
-
-function hasVerifiedPayment(lead: LeadWithRelations, types: string[]) {
-  return (lead.payments || []).some(
-    (p) => p.verification_status === 'verified' && types.includes(p.payment_type)
-  )
+function displayStatus(status: string) {
+  return status === STAGE1_LEGACY_NEW_LEAD ? 'Input Manual' : status
 }
 
 function daysSinceLastTouch(lead: LeadWithRelations) {
   const latestDate = lead.last_contacted_date || lead.updated_at || lead.lead_entry_date
   if (!latestDate) return 0
-
-  const start = new Date(latestDate)
-  const now = new Date()
-  const diffMs = now.getTime() - start.getTime()
+  const diffMs = Date.now() - new Date(latestDate).getTime()
   return Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)))
 }
 
@@ -92,45 +60,19 @@ function lastTouchLabel(lead: LeadWithRelations) {
   return `${days} hari lalu`
 }
 
-function normalizePhone(value: string | null | undefined) {
-  return (value || '').replace(/\D/g, '')
-}
-
-
 export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [leads, setLeads] = useState<LeadWithRelations[]>(initialLeads)
-  const [leadsSyncing, setLeadsSyncing] = useState(false)
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState(searchParams.get('status') || 'all')
-
-  useEffect(() => {
-    const statusParam = searchParams.get('status')
-    if (statusParam) {
-      setFilterStatus(statusParam)
-      setShowFilters(true)
-    }
-  }, [searchParams])
-  const [filterPic, setFilterPic] = useState('all')
-  const [filterCampaign, setFilterCampaign] = useState('all')
-  const [filterPayment, setFilterPayment] = useState('all')
-  const [filterSeatLock, setFilterSeatLock] = useState('all')
-  const [quickFilter, setQuickFilter] = useState<QuickFilter>('all')
-  const [startDate, setStartDate] = useState('')
-  const [endDate, setEndDate] = useState('')
-  
   const [sortField, setSortField] = useState<'full_name' | 'lead_entry_date' | 'current_status'>('lead_entry_date')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
-  const [showFilters, setShowFilters] = useState(false)
   const [csvModalOpen, setCsvModalOpen] = useState(false)
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)
   const [leadToDelete, setLeadToDelete] = useState<{ id: string; name: string } | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [deleteError, setDeleteError] = useState('')
-  const [duplicateModalOpen, setDuplicateModalOpen] = useState(false)
-  const [bulkDeletingDuplicates, setBulkDeletingDuplicates] = useState(false)
-  const [duplicateError, setDuplicateError] = useState('')
   const [toast, setToast] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [mounted, setMounted] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
@@ -144,9 +86,13 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
     setLeads(initialLeads)
   }, [initialLeads])
 
+  useEffect(() => {
+    const statusParam = searchParams.get('status')
+    if (statusParam) setFilterStatus(statusParam)
+  }, [searchParams])
+
   const refreshLeadsFromServer = async (force = false) => {
     if (!force && !consumeLeadsListNeedsRefresh()) return
-    setLeadsSyncing(true)
     try {
       const supabase = createClient()
       const trialSince = readPrdTrialSinceClient()
@@ -154,8 +100,6 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
       setLeads(data as LeadWithRelations[])
     } catch {
       router.refresh()
-    } finally {
-      setLeadsSyncing(false)
     }
   }
 
@@ -163,148 +107,52 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
     if (consumeLeadsListNeedsRefresh()) {
       void refreshLeadsFromServer(true)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only sync after tambah/import lead
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Get unique campaigns for filter dropdown
-  const campaignsList = useMemo(() => {
-    const set = new Set<string>()
-    leads.forEach(l => {
-      if (l.source_campaign) set.add(l.source_campaign)
-    })
-    return Array.from(set)
-  }, [leads])
-
-  // Get unique statuses for filter dropdown
   const statusesList = useMemo(() => {
     const set = new Set<string>()
-    leads.forEach(l => {
-      if (l.current_status) set.add(l.current_status)
+    leads.forEach((l) => {
+      if (l.current_status) set.add(displayStatus(l.current_status))
     })
-    return Array.from(set)
+    return Array.from(set).sort((a, b) => a.localeCompare(b))
   }, [leads])
-
-  const duplicateGroups = useMemo(() => {
-    const groups = new Map<string, LeadWithRelations[]>()
-
-    leads.forEach(lead => {
-      const phone = lead.whatsapp_normalized || normalizePhone(lead.whatsapp_number)
-      if (!phone) return
-      const current = groups.get(phone) || []
-      current.push(lead)
-      groups.set(phone, current)
-    })
-
-    return Array.from(groups.entries())
-      .filter(([, leads]) => leads.length > 1)
-      .map(([phone, leads]) => {
-        const sorted = [...leads].sort((a, b) => {
-          const aTime = new Date(a.created_at || a.lead_entry_date || 0).getTime()
-          const bTime = new Date(b.created_at || b.lead_entry_date || 0).getTime()
-          return aTime - bTime
-        })
-        return {
-          phone,
-          keep: sorted[0],
-          duplicates: sorted.slice(1),
-        }
-      })
-  }, [leads])
-
-  const duplicateDeleteIds = useMemo(() => {
-    return duplicateGroups.flatMap(group => group.duplicates.map(lead => lead.id))
-  }, [duplicateGroups])
-
-  const duplicateLeadIds = useMemo(() => {
-    return new Set(duplicateGroups.flatMap(group => [group.keep.id, ...group.duplicates.map(lead => lead.id)]))
-  }, [duplicateGroups])
 
   const filtered = useMemo(() => {
     let data = [...leads]
 
-    if (quickFilter === 'new') {
-      data = data.filter(l => l.current_status === 'New Lead')
-    } else if (quickFilter === 'bridging') {
-      data = data.filter(l => l.current_status === 'Bridging')
-    } else if (quickFilter === 'pitching') {
-      data = data.filter(l => l.current_status === 'Pitching')
-    } else if (quickFilter === 'duplicate') {
-      data = data.filter(l => duplicateLeadIds.has(l.id))
-    } else if (quickFilter === 'pemetaan') {
-      data = data.filter(
-        l => PEMETAAN_STATUSES.includes(l.current_status as never) || hasVerifiedPayment(l, ['pemetaan', 'roadmap_session'])
-      )
-    } else if (quickFilter === 'seatlock') {
-      data = data.filter(
-        l => SEATLOCK_STATUSES.includes(l.current_status as never) || hasVerifiedPayment(l, ['seat_lock'])
-      )
-    } else if (quickFilter === 'interested') {
-      data = data.filter(l => INTERESTED_STATUSES.includes(l.current_status as never))
-    } else if (quickFilter === 'lainnya') {
-      data = data.filter(l => !QUICK_FILTER_STATUSES.has(l.current_status))
-    }
-
     if (search) {
       const q = search.toLowerCase()
-      data = data.filter(l =>
-        l.full_name.toLowerCase().includes(q) ||
-        l.whatsapp_number.includes(q) ||
-        l.email?.toLowerCase().includes(q) ||
-        l.notes?.toLowerCase().includes(q) ||
-        l.lead_quality?.toLowerCase().includes(q) ||
-        l.lead_segment?.toLowerCase().includes(q) ||
-        l.next_action?.toLowerCase().includes(q)
+      data = data.filter(
+        (l) =>
+          l.full_name.toLowerCase().includes(q) ||
+          l.whatsapp_number.includes(q) ||
+          l.source_campaign?.toLowerCase().includes(q)
       )
     }
 
     if (filterStatus !== 'all') {
-      data = data.filter(l => l.current_status === filterStatus)
+      data = data.filter((l) => displayStatus(l.current_status) === filterStatus)
     }
 
-    if (filterPic !== 'all') {
-      data = data.filter(l => l.assigned_cro_id === filterPic)
-    }
-
-    if (filterCampaign !== 'all') {
-      data = data.filter(l => l.source_campaign === filterCampaign)
-    }
-
-    if (filterPayment !== 'all') {
-      data = data.filter(l => {
-        const pm = l.payments?.find(p => p.payment_type === 'pemetaan')
-        const status = pm ? pm.verification_status : 'pending_payment'
-        return status === filterPayment
-      })
-    }
-
-    if (filterSeatLock !== 'all') {
-      data = data.filter(l => {
-        const pm = l.payments?.find(p => p.payment_type === 'seat_lock')
-        const status = pm ? pm.verification_status : 'not_paid'
-        return status === filterSeatLock
-      })
-    }
-
-    if (startDate) {
-      data = data.filter(l => new Date(l.lead_entry_date) >= new Date(startDate))
-    }
-
-    if (endDate) {
-      // Add 1 day to end date to make it inclusive
-      const end = new Date(endDate)
-      end.setDate(end.getDate() + 1)
-      data = data.filter(l => new Date(l.lead_entry_date) <= end)
-    }
-
-    // Sorting
     data.sort((a, b) => {
-      const av = sortField === 'lead_entry_date' ? a.lead_entry_date : sortField === 'full_name' ? a.full_name : a.current_status
-      const bv = sortField === 'lead_entry_date' ? b.lead_entry_date : sortField === 'full_name' ? b.full_name : b.current_status
+      const av =
+        sortField === 'lead_entry_date'
+          ? a.lead_entry_date
+          : sortField === 'full_name'
+            ? a.full_name
+            : displayStatus(a.current_status)
+      const bv =
+        sortField === 'lead_entry_date'
+          ? b.lead_entry_date
+          : sortField === 'full_name'
+            ? b.full_name
+            : displayStatus(b.current_status)
       return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av)
     })
 
     return data
-  }, [leads, quickFilter, duplicateLeadIds, search, filterStatus, filterPic, filterCampaign, filterPayment, filterSeatLock, startDate, endDate, sortField, sortDir])
+  }, [leads, search, filterStatus, sortField, sortDir])
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
   const safeCurrentPage = Math.min(currentPage, totalPages)
@@ -316,357 +164,161 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
   }, [filtered, safeCurrentPage])
 
   function toggleSort(field: typeof sortField) {
-    if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
-    else { setSortField(field); setSortDir('asc') }
+    if (sortField === field) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
+    else {
+      setSortField(field)
+      setSortDir('asc')
+    }
   }
 
   function SortIcon({ field }: { field: typeof sortField }) {
-    if (sortField !== field) return <ChevronUp size={12} className="text-white/20" />
-    return sortDir === 'asc'
-      ? <ChevronUp size={12} className="text-accent" />
-      : <ChevronDown size={12} className="text-accent" />
+    if (sortField !== field) return <ChevronUp size={12} className="text-muted-foreground/30" />
+    return sortDir === 'asc' ? (
+      <ChevronUp size={12} className="text-accent" />
+    ) : (
+      <ChevronDown size={12} className="text-accent" />
+    )
   }
-
-  const quickCounts = useMemo(() => {
-    return {
-      all: leads.length,
-      new: leads.filter(l => l.current_status === 'New Lead').length,
-      bridging: leads.filter(l => l.current_status === 'Bridging').length,
-      pitching: leads.filter(l => l.current_status === 'Pitching').length,
-      duplicate: duplicateLeadIds.size,
-      pemetaan: leads.filter(
-        l => PEMETAAN_STATUSES.includes(l.current_status as never) || hasVerifiedPayment(l, ['pemetaan', 'roadmap_session'])
-      ).length,
-      seatlock: leads.filter(
-        l => SEATLOCK_STATUSES.includes(l.current_status as never) || hasVerifiedPayment(l, ['seat_lock'])
-      ).length,
-      interested: leads.filter(l => INTERESTED_STATUSES.includes(l.current_status as never)).length,
-      lainnya: leads.filter(l => !QUICK_FILTER_STATUSES.has(l.current_status)).length,
-    }
-  }, [leads, duplicateLeadIds])
 
   const showToast = (type: 'success' | 'error', text: string) => {
     setToast({ type, text })
     window.setTimeout(() => setToast(null), 3200)
   }
 
-  const setQuick = (value: QuickFilter) => {
-    setQuickFilter(value)
-    setCurrentPage(1)
-  }
-
-  const promptDelete = (id: string, name: string) => {
-    setDeleteError('')
-    setLeadToDelete({ id, name })
-    setDeleteModalOpen(true)
-  }
-
   const confirmDelete = async () => {
     if (!leadToDelete) return
-
     setDeletingId(leadToDelete.id)
     setDeleteError('')
-
     const supabase = createClient()
-    const { error } = await supabase
-      .from('leads')
-      .delete()
-      .eq('id', leadToDelete.id)
-
+    const { error } = await supabase.from('leads').delete().eq('id', leadToDelete.id)
     if (error) {
       setDeleteError(error.message)
       setDeletingId(null)
       return
     }
-
+    setLeads((prev) => prev.filter((l) => l.id !== leadToDelete.id))
     setDeleteModalOpen(false)
     setLeadToDelete(null)
     setDeletingId(null)
     showToast('success', 'Lead berhasil dihapus.')
-    router.refresh()
-  }
-
-  const deleteDuplicateLeads = async () => {
-    if (duplicateDeleteIds.length === 0) return
-
-    setBulkDeletingDuplicates(true)
-    setDuplicateError('')
-
-    const supabase = createClient()
-    const chunkSize = 500
-    for (let i = 0; i < duplicateDeleteIds.length; i += chunkSize) {
-      const chunk = duplicateDeleteIds.slice(i, i + chunkSize)
-      const { error } = await supabase
-        .from('leads')
-        .delete()
-        .in('id', chunk)
-
-      if (error) {
-        setDuplicateError(error.message)
-        setBulkDeletingDuplicates(false)
-        showToast('error', 'Gagal menghapus sebagian duplikat.')
-        return
-      }
-    }
-
-    setBulkDeletingDuplicates(false)
-    setDuplicateModalOpen(false)
-    showToast('success', `${duplicateDeleteIds.length} data duplikat berhasil dihapus.`)
-    router.refresh()
-  }
-
-  // Format Helper
-  const formatCellDate = (dateStr: string | null) => {
-    if (!dateStr) return '-'
-    const d = new Date(dateStr)
-    return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
   }
 
   return (
     <div className="space-y-4">
       {toast && (
-        <div className={cn(
-          'fixed right-5 top-5 z-50 rounded-2xl border px-4 py-3 text-sm font-bold shadow-xl',
-          toast.type === 'success'
-            ? 'border-emerald-500/20 bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300'
-            : 'border-red-500/20 bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-300'
-        )}>
+        <div
+          className={cn(
+            'fixed right-5 top-5 z-50 rounded-2xl border px-4 py-3 text-sm font-semibold shadow-xl',
+            toast.type === 'success'
+              ? 'border-emerald-500/20 bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300'
+              : 'border-red-500/20 bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-300'
+          )}
+        >
           {toast.text}
         </div>
       )}
 
-      {/* Top bar info */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground">
-          Ditemukan <span className="text-foreground font-bold">{filtered.length}</span> dari {leads.length} leads
+          Ditemukan <span className="text-foreground font-semibold">{filtered.length}</span> dari {leads.length} leads
           {filtered.length > 0 && (
             <span className="ml-2 text-xs">
-              Menampilkan {pageStartIndex}-{pageEndIndex}
+              · {pageStartIndex}-{pageEndIndex}
             </span>
           )}
         </p>
         <div className="flex items-center gap-2">
-          {duplicateDeleteIds.length > 0 && (
-            <button
-              type="button"
-              onClick={() => {
-                setDuplicateError('')
-                setDuplicateModalOpen(true)
-              }}
-              className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-red-600 bg-red-50 border border-red-200 transition-all hover:bg-red-100 dark:text-red-300 dark:bg-red-500/10 dark:border-red-500/20"
-            >
-              <Trash2 size={14} />
-              Hapus Duplikat ({duplicateDeleteIds.length})
-            </button>
-          )}
           <button
+            type="button"
             onClick={() => setCsvModalOpen(true)}
-            className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold text-foreground bg-card border border-border transition-colors hover:bg-secondary"
+            className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold text-foreground bg-card border border-border hover:bg-secondary"
           >
             <FileUp size={14} />
             Import CSV
           </button>
           <Link
             href="/leads/new"
-            className="flex items-center justify-center px-4 py-2 rounded-xl text-xs font-semibold text-accent-foreground bg-accent hover:opacity-90 transition-opacity"
+            className="flex items-center justify-center px-4 py-2 rounded-xl text-xs font-semibold text-accent-foreground bg-accent hover:opacity-90"
           >
             + Tambah Lead
           </Link>
         </div>
       </div>
 
-      {/* Search & Filter Component */}
-      <div className="glass-card rounded-2xl p-4 space-y-4 border border-border">
-        <div className="flex flex-wrap gap-2">
-          {(Object.keys(quickFilterLabels) as QuickFilter[]).map(key => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setQuick(key)}
-              className={cn(
-                'inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-[11px] font-semibold transition-colors',
-                quickFilter === key
-                  ? 'border-primary bg-primary text-primary-foreground'
-                  : 'border-border bg-card text-muted-foreground hover:text-foreground hover:bg-secondary/70'
-              )}
-            >
-              {quickFilterLabels[key]}
-              <span
-                className={cn(
-                  'rounded-md px-1.5 py-0.5 text-[10px]',
-                  quickFilter === key
-                    ? 'bg-primary-foreground/15 text-primary-foreground'
-                    : 'bg-muted text-foreground'
-                )}
-              >
-                {quickCounts[key]}
-              </span>
-            </button>
-          ))}
+      <div className="glass-card rounded-2xl border border-border p-3">
+        <div className="relative max-w-md">
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/60" />
+          <input
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value)
+              setCurrentPage(1)
+            }}
+            placeholder="Cari nama, WhatsApp, campaign..."
+            className="w-full pl-9 pr-3 py-2 rounded-xl text-xs text-foreground placeholder-muted-foreground bg-card border border-border outline-none focus:ring-1 focus:ring-primary focus:border-primary"
+          />
         </div>
-
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="flex-1 relative">
-            <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/60" />
-            <input
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Cari nama, WhatsApp, email..."
-              className="w-full pl-10 pr-4 py-2 rounded-xl text-xs text-foreground placeholder-muted-foreground bg-card border border-border outline-none focus:ring-1 focus:ring-primary focus:border-primary"
-            />
-          </div>
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className={cn(
-              'flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-colors border cursor-pointer',
-              showFilters
-                ? 'text-primary bg-secondary border-border'
-                : 'text-muted-foreground hover:text-foreground bg-card border-border hover:bg-secondary/70'
-            )}
-          >
-            <Filter size={14} />
-            Filter Lanjutan
-          </button>
-        </div>
-
-        {showFilters && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-border">
-            {/* Status */}
-            <div>
-              <label className="block text-[10px] text-muted-foreground font-bold uppercase mb-1.5">Status Pipeline</label>
-              <select
-                value={filterStatus}
-                onChange={e => setFilterStatus(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl text-xs text-foreground bg-card border border-border outline-none cursor-pointer focus:ring-1 focus:ring-primary focus:border-primary"
-              >
-                <option value="all">Semua Status</option>
-                {statusesList.map(s => (
-                  <option key={s} value={s}>{s}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* PIC */}
-            <div>
-              <label className="block text-[10px] text-muted-foreground font-bold uppercase mb-1.5">PIC CRO</label>
-              <select
-                value={filterPic}
-                onChange={e => setFilterPic(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl text-xs text-foreground bg-card border border-border outline-none cursor-pointer focus:ring-1 focus:ring-primary focus:border-primary"
-              >
-                <option value="all">Semua PIC</option>
-                {pics.map(p => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Campaign Source */}
-            <div>
-              <label className="block text-[10px] text-muted-foreground font-bold uppercase mb-1.5">Source Campaign</label>
-              <select
-                value={filterCampaign}
-                onChange={e => setFilterCampaign(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl text-xs text-foreground bg-card border border-border outline-none cursor-pointer focus:ring-1 focus:ring-primary focus:border-primary"
-              >
-                <option value="all">Semua Campaign</option>
-                {campaignsList.map(c => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Payment Status */}
-            <div>
-              <label className="block text-[10px] text-muted-foreground font-bold uppercase mb-1.5">Status Pembayaran</label>
-              <select
-                value={filterPayment}
-                onChange={e => setFilterPayment(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl text-xs text-foreground bg-card border border-border outline-none cursor-pointer focus:ring-1 focus:ring-primary focus:border-primary"
-              >
-                <option value="all">Semua Status</option>
-                <option value="verified">Verified</option>
-                <option value="pending">Pending</option>
-                <option value="rejected">Rejected</option>
-                <option value="pending_payment">Belum Bayar</option>
-              </select>
-            </div>
-
-            {/* Seat Lock Status */}
-            <div>
-              <label className="block text-[10px] text-muted-foreground font-bold uppercase mb-1.5">Status Seat Lock</label>
-              <select
-                value={filterSeatLock}
-                onChange={e => setFilterSeatLock(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl text-xs text-foreground bg-card border border-border outline-none cursor-pointer focus:ring-1 focus:ring-primary focus:border-primary"
-              >
-                <option value="all">Semua Status</option>
-                <option value="verified">Paid / Verified</option>
-                <option value="pending">Pending Verification</option>
-                <option value="not_paid">Belum Seat Lock</option>
-              </select>
-            </div>
-
-            {/* Date Range Start */}
-            <div>
-              <label className="block text-[10px] text-muted-foreground font-bold uppercase mb-1.5">Mulai Tanggal</label>
-              <input
-                type="date"
-                value={startDate}
-                onChange={e => setStartDate(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl text-xs text-foreground bg-card border border-border outline-none focus:ring-1 focus:ring-primary focus:border-primary"
-              />
-            </div>
-
-            {/* Date Range End */}
-            <div>
-              <label className="block text-[10px] text-muted-foreground font-bold uppercase mb-1.5">Hingga Tanggal</label>
-              <input
-                type="date"
-                value={endDate}
-                onChange={e => setEndDate(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl text-xs text-foreground bg-card border border-border outline-none focus:ring-1 focus:ring-primary focus:border-primary"
-              />
-            </div>
-          </div>
-        )}
       </div>
 
-      {/* Table Data — PRD A.1: Nama | WhatsApp | Current Status | Last update | Edit | Kerjakan */}
       <div className="glass-card rounded-2xl overflow-hidden border border-border">
         <div className="overflow-x-auto">
           <table className="w-full text-xs text-left">
             <thead>
               <tr className="border-b border-border bg-secondary/40">
-                {[
-                  { label: 'Nama', field: 'full_name' as const },
-                  { label: 'Nomor WhatsApp', field: null },
-                  { label: 'Current Status', field: 'current_status' as const },
-                  { label: 'Tanggal Last Update', field: null },
-                  { label: 'Aksi', field: null },
-                  { label: 'Kerjakan', field: null },
-                ].map((col) => (
-                  <th
-                    key={col.label}
-                    className={cn(
-                      'px-3 py-2.5 text-[11px] font-semibold text-muted-foreground whitespace-nowrap',
-                      col.field && 'cursor-pointer hover:text-foreground select-none'
-                    )}
-                    onClick={() => col.field && toggleSort(col.field)}
-                  >
-                    <span className="flex items-center gap-1">
-                      {col.label}
-                      {col.field && <SortIcon field={col.field} />}
-                    </span>
-                  </th>
-                ))}
+                <th
+                  className="px-3 py-2.5 text-[11px] font-semibold text-muted-foreground whitespace-nowrap cursor-pointer select-none"
+                  onClick={() => toggleSort('full_name')}
+                >
+                  <span className="flex items-center gap-1">
+                    Nama <SortIcon field="full_name" />
+                  </span>
+                </th>
+                <th className="px-3 py-2.5 text-[11px] font-semibold text-muted-foreground whitespace-nowrap">
+                  Nomor WhatsApp
+                </th>
+                <th className="px-3 py-2.5 text-[11px] font-semibold text-muted-foreground whitespace-nowrap">
+                  <div className="flex flex-col gap-1">
+                    <button
+                      type="button"
+                      className="flex items-center gap-1 cursor-pointer select-none text-left"
+                      onClick={() => toggleSort('current_status')}
+                    >
+                      Current Status <SortIcon field="current_status" />
+                    </button>
+                    <select
+                      value={filterStatus}
+                      onChange={(e) => {
+                        setFilterStatus(e.target.value)
+                        setCurrentPage(1)
+                      }}
+                      className="w-full max-w-[11rem] rounded-md border border-border bg-card px-1.5 py-1 text-[10px] font-medium text-foreground outline-none"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <option value="all">Semua status</option>
+                      {statusesList.map((s) => (
+                        <option key={s} value={s}>
+                          {s}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </th>
+                <th className="px-3 py-2.5 text-[11px] font-semibold text-muted-foreground whitespace-nowrap">
+                  Last Update
+                </th>
+                <th className="px-3 py-2.5 text-[11px] font-semibold text-muted-foreground whitespace-nowrap">
+                  Aksi
+                </th>
+                <th className="px-3 py-2.5 text-[11px] font-semibold text-muted-foreground whitespace-nowrap">
+                  Kerjakan
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {filtered.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-4 py-16 text-center text-muted-foreground/40 text-sm">
-                    Tidak ada data leads yang cocok dengan filter.
+                    Tidak ada data leads yang cocok.
                   </td>
                 </tr>
               ) : (
@@ -683,11 +335,9 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
                         {lead.source_campaign || '—'}
                       </p>
                     </td>
-
                     <td className="px-3 py-2.5 font-mono text-[11px] text-muted-foreground whitespace-nowrap">
                       {lead.whatsapp_number}
                     </td>
-
                     <td className="px-3 py-2.5 whitespace-nowrap">
                       <span
                         className={cn(
@@ -695,27 +345,27 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
                           getStageBadgeClasses(lead.current_status)
                         )}
                       >
-                        {lead.current_status}
+                        {displayStatus(lead.current_status)}
                       </span>
                     </td>
-
                     <td className="px-3 py-2.5 whitespace-nowrap">
                       <span
                         className={cn(
                           'text-[11px] font-medium',
-                          daysSinceLastTouch(lead) >= 3 ? 'text-amber-700 dark:text-amber-300' : 'text-muted-foreground'
+                          daysSinceLastTouch(lead) >= 3
+                            ? 'text-amber-700 dark:text-amber-300'
+                            : 'text-muted-foreground'
                         )}
                       >
                         {lastTouchLabel(lead)}
                       </span>
                     </td>
-
                     <td className="px-3 py-2.5 whitespace-nowrap">
                       <div className="flex items-center gap-1.5">
                         <Link
                           href={`/leads/${lead.id}`}
                           className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground hover:text-foreground hover:bg-secondary"
-                          title="Riwayat / detail lead"
+                          title="Riwayat / detail"
                         >
                           <Clock size={15} />
                         </Link>
@@ -726,14 +376,24 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
                         >
                           <Pencil size={15} />
                         </Link>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setDeleteError('')
+                            setLeadToDelete({ id: lead.id, name: lead.full_name })
+                            setDeleteModalOpen(true)
+                          }}
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground hover:text-destructive hover:bg-destructive/5"
+                          title="Hapus"
+                        >
+                          <Trash2 size={14} />
+                        </button>
                       </div>
                     </td>
-
                     <td className="px-3 py-2.5 whitespace-nowrap">
                       <Link
                         href={`/stage-1?lead=${lead.id}`}
                         className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-[11px] font-semibold text-accent-foreground hover:opacity-90"
-                        title="Kerjakan Stage 1"
                       >
                         <ClipboardCheck size={13} />
                         Kerjakan
@@ -747,27 +407,25 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
         </div>
 
         {filtered.length > pageSize && (
-          <div className="flex flex-col gap-3 border-t border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-xs text-muted-foreground">
-              Halaman <span className="font-bold text-foreground">{safeCurrentPage}</span> dari {totalPages}
+          <div className="flex items-center justify-between gap-3 border-t border-border px-3 py-2.5">
+            <p className="text-[11px] text-muted-foreground">
+              Halaman {safeCurrentPage} / {totalPages}
             </p>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
               <button
                 type="button"
-                onClick={() => setCurrentPage(page => Math.max(1, page - 1))}
                 disabled={safeCurrentPage <= 1}
-                className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-xs font-bold text-foreground transition-all hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:bg-white/5"
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border disabled:opacity-40"
               >
                 <ChevronLeft size={14} />
-                Prev
               </button>
               <button
                 type="button"
-                onClick={() => setCurrentPage(page => Math.min(totalPages, page + 1))}
                 disabled={safeCurrentPage >= totalPages}
-                className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-xs font-bold text-foreground transition-all hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:bg-white/5"
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border disabled:opacity-40"
               >
-                Next
                 <ChevronRight size={14} />
               </button>
             </div>
@@ -775,129 +433,55 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
         )}
       </div>
 
-      {csvModalOpen && createPortal(
-        <CsvUploadModal
-          isOpen={csvModalOpen}
-          onClose={() => setCsvModalOpen(false)}
-          pics={pics}
-          onImportSuccess={() => void refreshLeadsFromServer(true)}
-        />,
-        document.body
-      )}
+      {csvModalOpen &&
+        createPortal(
+          <CsvUploadModal
+            isOpen={csvModalOpen}
+            onClose={() => setCsvModalOpen(false)}
+            pics={pics}
+            onImportSuccess={() => void refreshLeadsFromServer(true)}
+          />,
+          document.body
+        )}
 
-      {mounted && deleteModalOpen && leadToDelete && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl">
-            <div className="flex items-start gap-3">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-red-500/20 bg-red-500/10 text-red-600 dark:text-red-300">
-                <Trash2 size={20} />
-              </div>
-              <div>
-                <h3 className="font-display text-base font-semibold text-foreground">Hapus lead dari database?</h3>
-                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                  Lead <span className="font-bold text-foreground">{leadToDelete.name}</span> akan dihapus permanen. Gunakan ini hanya untuk data salah input, spam, atau duplikat.
-                </p>
-              </div>
-            </div>
-
-            {deleteError && (
-              <div className="mt-4 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-xs font-semibold text-red-700 dark:text-red-300">
-                Gagal menghapus: {deleteError}
-              </div>
-            )}
-
-            <div className="mt-6 flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  setDeleteModalOpen(false)
-                  setLeadToDelete(null)
-                  setDeleteError('')
-                }}
-                disabled={deletingId !== null}
-                className="rounded-xl border border-border bg-card px-4 py-2 text-xs font-bold text-foreground transition-colors hover:bg-slate-50 disabled:opacity-50 dark:hover:bg-white/5"
-              >
-                Batal
-              </button>
-              <button
-                type="button"
-                onClick={confirmDelete}
-                disabled={deletingId !== null}
-                className="rounded-xl bg-red-600 px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {deletingId !== null ? 'Menghapus...' : 'Ya, Hapus'}
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
-
-      {mounted && duplicateModalOpen && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-2xl rounded-2xl border border-border bg-card p-6 shadow-2xl">
-            <div className="flex items-start gap-3">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-red-500/20 bg-red-500/10 text-red-600 dark:text-red-300">
-                <Trash2 size={20} />
-              </div>
-              <div>
-                <h3 className="font-display text-base font-semibold text-foreground">Hapus data WhatsApp duplikat?</h3>
-                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                  Sistem menemukan <span className="font-bold text-foreground">{duplicateGroups.length}</span> nomor dobel. Data paling awal akan disimpan, lalu <span className="font-bold text-foreground">{duplicateDeleteIds.length}</span> data duplikat yang lebih baru akan dihapus.
-                </p>
+      {mounted &&
+        deleteModalOpen &&
+        leadToDelete &&
+        createPortal(
+          <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 p-4">
+            <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl">
+              <h3 className="font-display text-base font-semibold text-foreground">Hapus lead?</h3>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Lead <span className="font-semibold text-foreground">{leadToDelete.name}</span> akan dihapus permanen.
+              </p>
+              {deleteError && (
+                <p className="mt-2 text-xs font-semibold text-destructive">{deleteError}</p>
+              )}
+              <div className="mt-4 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDeleteModalOpen(false)
+                    setLeadToDelete(null)
+                  }}
+                  className="px-3 py-2 text-xs font-semibold text-muted-foreground"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  disabled={Boolean(deletingId)}
+                  onClick={confirmDelete}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-destructive px-3 py-2 text-xs font-semibold text-white disabled:opacity-60"
+                >
+                  {deletingId && <Loader2 size={14} className="animate-spin" />}
+                  Hapus
+                </button>
               </div>
             </div>
-
-            <div className="mt-4 max-h-56 overflow-auto rounded-2xl border border-border bg-slate-50/50 p-3 dark:bg-white/[0.02]">
-              <div className="space-y-2">
-                {duplicateGroups.slice(0, 8).map(group => (
-                  <div key={group.phone} className="rounded-xl border border-border bg-card px-3 py-2">
-                    <p className="text-xs font-semibold text-foreground">{group.phone}</p>
-                    <p className="mt-1 text-[11px] text-muted-foreground">
-                      Simpan: <span className="font-bold text-foreground">{group.keep.full_name}</span> | Hapus: {group.duplicates.map(lead => lead.full_name).join(', ')}
-                    </p>
-                  </div>
-                ))}
-                {duplicateGroups.length > 8 && (
-                  <p className="px-2 py-1 text-xs text-muted-foreground">
-                    + {duplicateGroups.length - 8} grup duplikat lainnya.
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {duplicateError && (
-              <div className="mt-4 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-xs font-semibold text-red-700 dark:text-red-300">
-                Gagal menghapus duplikat: {duplicateError}
-              </div>
-            )}
-
-            <div className="mt-6 flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  setDuplicateModalOpen(false)
-                  setDuplicateError('')
-                }}
-                disabled={bulkDeletingDuplicates}
-                className="rounded-xl border border-border bg-card px-4 py-2 text-xs font-bold text-foreground transition-colors hover:bg-slate-50 disabled:opacity-50 dark:hover:bg-white/5"
-              >
-                Batal
-              </button>
-              <button
-                type="button"
-                onClick={deleteDuplicateLeads}
-                disabled={bulkDeletingDuplicates}
-                className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {bulkDeletingDuplicates && <Loader2 size={13} className="animate-spin" />}
-                {bulkDeletingDuplicates ? 'Menghapus...' : `Hapus ${duplicateDeleteIds.length} Duplikat`}
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
+          </div>,
+          document.body
+        )}
     </div>
   )
 }

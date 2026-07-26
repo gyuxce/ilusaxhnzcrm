@@ -125,62 +125,15 @@ export const OWNER_PRIMARY_NAV: NavItem[] = [
   },
 ]
 
-/** Tabs inside Dashboard / Laporan — one menu, many views. */
-export const LAPORAN_LINKS = [
-  {
-    href: '/dashboard',
-    labelId: 'Ringkasan',
-    labelEn: 'Overview',
-  },
-  {
-    href: '/client-report',
-    labelId: 'Laporan Klien',
-    labelEn: 'Client Report',
-  },
-  {
-    href: '/reports',
-    labelId: 'Report Harian',
-    labelEn: 'Daily Report',
-  },
-  {
-    href: '/analytics',
-    labelId: 'Performa',
-    labelEn: 'Performance',
-  },
-  {
-    href: '/playbook',
-    labelId: 'Alasan tidak lanjut',
-    labelEn: 'Not continuing',
-  },
-]
-
 export function isNavActive(pathname: string, href: string): boolean {
   if (href === '/stage-3') {
-    // Stage 3 is the PRD pipeline; legacy /pipeline still routes here conceptually.
     return pathname.startsWith('/stage-3') || pathname.startsWith('/pipeline')
   }
   if (href === '/stage-2') {
     return pathname.startsWith('/stage-2')
   }
-  if (href === '/work-queue') {
-    return pathname.startsWith('/work-queue') || pathname.startsWith('/stage-1')
-  }
-  if (href === '/today') {
-    return (
-      pathname === '/today' ||
-      pathname.startsWith('/needs-action') ||
-      pathname.startsWith('/follow-ups') ||
-      pathname.startsWith('/expert-queue')
-    )
-  }
   if (href === '/dashboard') {
-    return (
-      pathname.startsWith('/dashboard') ||
-      pathname.startsWith('/client-report') ||
-      pathname.startsWith('/reports') ||
-      pathname.startsWith('/analytics') ||
-      pathname.startsWith('/playbook')
-    )
+    return pathname.startsWith('/dashboard')
   }
   if (href === '/guide') {
     return pathname.startsWith('/guide')

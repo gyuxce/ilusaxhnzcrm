@@ -13,9 +13,8 @@ import {
   Clock,
 } from 'lucide-react'
 import { Header } from '@/components/layout/header'
-import { LaporanSubnav } from '@/components/layout/laporan-subnav'
 import { createClient } from '@/lib/supabase/client'
-import { useLanguage, type Language } from '@/lib/language'
+import { useLanguage } from '@/lib/language'
 import { getTodayInWIB } from '@/lib/utils'
 import {
   STAGE1_CURRENT_STATUS_OPTIONS,
@@ -23,7 +22,6 @@ import {
   STAGE3_STATUS_OPTIONS,
   STAGE3_BOARD_COLUMNS,
   isStage3WonStatus,
-  isStage3ExitStatus,
 } from '@/lib/prd-stages'
 import { readPrdTrialSinceClient, PRD_TRIAL_MODE_CHANGED } from '@/lib/prd-trial-mode'
 import type { LeadRow, PaymentRow } from '@/lib/supabase/types'
@@ -104,7 +102,9 @@ export default function DashboardPage() {
   }, [fetchStats])
 
   const counts = useMemo(() => {
-    const stage1 = leads.filter((l) => includes(STAGE1_CURRENT_STATUS_OPTIONS, l.current_status)).length
+    const stage1 = leads.filter(
+      (l) => includes(STAGE1_CURRENT_STATUS_OPTIONS, l.current_status) || l.current_status === 'New Lead'
+    ).length
     const stage2 = leads.filter((l) => includes(STAGE2_VISIBLE_STATUSES, l.current_status)).length
     const stage3 = leads.filter((l) => includes(STAGE3_STATUS_OPTIONS, l.current_status)).length
     const won = leads.filter((l) => isStage3WonStatus(l.current_status)).length
@@ -123,7 +123,7 @@ export default function DashboardPage() {
 
   const kpis = [
     { key: 'today', labelId: 'Lead masuk hari ini', labelEn: 'New leads today', value: counts.newToday, href: '/leads', icon: Users },
-    { key: 's1', labelId: 'Stage 1 (New / Bridging / Pitching)', labelEn: 'Stage 1 (New / Bridging / Pitching)', value: counts.stage1, href: '/leads', icon: Users },
+    { key: 's1', labelId: 'Stage 1 (Input Manual / Bridging / Pitching)', labelEn: 'Stage 1 (Manual / Bridging / Pitching)', value: counts.stage1, href: '/leads', icon: Users },
     { key: 's2', labelId: 'Stage 2 (Interested)', labelEn: 'Stage 2 (Interested)', value: counts.stage2, href: '/stage-2', icon: ListChecks },
     { key: 's3', labelId: 'Stage 3 (Pipeline)', labelEn: 'Stage 3 (Pipeline)', value: counts.stage3, href: '/stage-3', icon: KanbanSquare },
     { key: 'won', labelId: 'Closing Seat Lock', labelEn: 'Closing Seat Lock', value: counts.won, href: '/stage-3', icon: Trophy },
@@ -134,9 +134,7 @@ export default function DashboardPage() {
   return (
     <>
       <Header title="Dashboard" subtitle="Ringkasan pipeline PRD V3 — Leads → Stage 2 → Stage 3." />
-      <div className="w-full p-6 space-y-6 animate-fade-in font-sans">
-        <LaporanSubnav />
-
+      <div className="w-full p-6 space-y-6 font-sans">
         {/* KPI PRD V3 */}
         <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-3">
           {kpis.map((kpi) => {
@@ -168,7 +166,7 @@ export default function DashboardPage() {
             <p className="text-xs text-muted-foreground mt-1">Stage 1 → Stage 2 → Stage 3 (Pemetaan → Expert → Seat Lock → Closing).</p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
-            <FunnelCard label="Stage 1" desc="New Lead · Bridging · Pitching" count={counts.stage1} href="/leads" />
+            <FunnelCard label="Stage 1" desc="Input Manual · Bridging · Pitching" count={counts.stage1} href="/leads" />
             <FunnelCard label="Stage 2" desc="Interested — jadwal pemetaan / expert" count={counts.stage2} href="/stage-2" />
             <FunnelCard label="Stage 3" desc="Pipeline Kanban menuju Closing" count={counts.stage3} href="/stage-3" />
           </div>

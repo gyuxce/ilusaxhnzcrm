@@ -9,12 +9,19 @@
  * these constants drive the new PRD menus and flows.
  */
 
-/** A.1 — Current Status pilihan saat upload / Stage 1. */
+/**
+ * A.1 — Current Status Stage 1.
+ * - Input Manual: lead dari WA / input manual (form Tambah Lead).
+ * - Bridging / Pitching: biasanya dari import CSV atau setelah Stage 1.
+ */
 export const STAGE1_CURRENT_STATUS_OPTIONS = [
-  'New Lead',
+  'Input Manual',
   'Bridging',
   'Pitching',
 ] as const
+
+/** Alias lama — dinormalisasi ke Input Manual. */
+export const STAGE1_LEGACY_NEW_LEAD = 'New Lead'
 
 /** A.2 — Hasil Follow-up, aktif kalau Current Status = Pitching. */
 export const STAGE1_HASIL_FOLLOWUP_OPTIONS = [

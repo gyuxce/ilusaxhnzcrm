@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Clock, Edit, ClipboardCheck, ListChecks, KanbanSquare, X, Loader2 } from 'lucide-react'
@@ -11,6 +11,7 @@ import {
   STAGE2_VISIBLE_STATUSES,
   STAGE3_STATUS_OPTIONS,
   ALL_PRD_STATUSES,
+  STAGE1_LEGACY_NEW_LEAD,
   getStage3Column,
   isStage2EntryStatus,
 } from '@/lib/prd-stages'
@@ -18,8 +19,15 @@ import type { LeadDetailProps, LeadWithUsers, ActivityWithUser, UserSummary } fr
 import { LOST_REASON_OPTIONS, LOST_STATUSES } from '@/lib/lost-reasons'
 import { isJsonRecord } from '@/types/crm'
 
+function displayStatus(status: string) {
+  return status === STAGE1_LEGACY_NEW_LEAD ? 'Input Manual' : status
+}
+
 function resolvePrdLane(status: string): 'stage1' | 'stage2' | 'stage3' | 'exit' | 'other' {
-  if ((STAGE1_CURRENT_STATUS_OPTIONS as readonly string[]).includes(status)) return 'stage1'
+  const s = displayStatus(status)
+  if ((STAGE1_CURRENT_STATUS_OPTIONS as readonly string[]).includes(s) || status === STAGE1_LEGACY_NEW_LEAD) {
+    return 'stage1'
+  }
   if ((STAGE2_VISIBLE_STATUSES as readonly string[]).includes(status) || isStage2EntryStatus(status)) return 'stage2'
   if ((STAGE3_STATUS_OPTIONS as readonly string[]).includes(status) || getStage3Column(status)) return 'stage3'
   if (LOST_STATUSES.includes(status) || status === 'Cold Leads' || status === 'Failed') return 'exit'
@@ -44,10 +52,8 @@ export function LeadDetailClient({
   const [isEditingCore, setIsEditingCore] = useState(false)
   const [editName, setEditName] = useState(lead.full_name)
   const [editPhone, setEditPhone] = useState(lead.whatsapp_number)
-  const [editEmail, setEditEmail] = useState(lead.email || '')
   const [editSource, setEditSource] = useState(lead.source_campaign)
-  const [editStatus, setEditStatus] = useState(lead.current_status)
-  const [editPic, setEditPic] = useState(lead.assigned_cro_id || '')
+  const [editStatus, setEditStatus] = useState(displayStatus(lead.current_status))
   const [editNotes, setEditNotes] = useState(lead.notes || '')
   const [editLostReason, setEditLostReason] = useState(lead.lost_reason || '')
   const [coreError, setCoreError] = useState('')
@@ -55,11 +61,6 @@ export function LeadDetailClient({
 
   const supabase = createClient()
   const lane = resolvePrdLane(lead.current_status)
-
-  const picName = useMemo(
-    () => pics.find((p) => p.id === lead.assigned_cro_id)?.name || 'Belum di-assign',
-    [pics, lead.assigned_cro_id]
-  )
 
   const normalizePhone = (value: string) => {
     let cleanPhone = value.replace(/\D/g, '')
@@ -103,7 +104,7 @@ export function LeadDetailClient({
     }
     const cleanPhone = normalizePhone(editPhone)
     if (cleanPhone.length < 9 || cleanPhone.length > 15) {
-      setCoreError('Nomor WhatsApp tidak valid (harus antara 9 sampai 15 digit angka).')
+      setCoreError('Nomor WhatsApp tidak valid.')
       return
     }
 
@@ -112,17 +113,17 @@ export function LeadDetailClient({
       p_lead_id: lead.id,
       p_full_name: editName,
       p_whatsapp_number: cleanPhone,
-      p_email: editEmail || null,
+      p_email: null,
       p_source_campaign: editSource,
       p_current_status: editStatus,
-      p_assigned_cro_id: editPic || null,
+      p_assigned_cro_id: lead.assigned_cro_id || null,
       p_notes: editNotes || null,
       p_lost_reason: LOST_STATUSES.includes(editStatus) ? editLostReason : null,
     })
     setSaving(false)
 
     if (error) {
-      setCoreError(error.message || 'Terjadi kesalahan saat menyimpan data lead.')
+      setCoreError(error.message || 'Gagal menyimpan.')
       return
     }
     if (!data?.ok) {
@@ -132,24 +133,21 @@ export function LeadDetailClient({
 
     const actorId = (await supabase.auth.getUser()).data.user?.id || null
     const updatedAt = new Date().toISOString()
-    const updatedLead = {
+    setLead({
       ...lead,
       full_name: editName,
       whatsapp_number: cleanPhone,
       whatsapp_normalized: cleanPhone,
-      email: editEmail || null,
       source_campaign: editSource,
       current_status: editStatus,
-      assigned_cro_id: editPic || null,
       notes: editNotes || null,
       lost_reason: LOST_STATUSES.includes(editStatus) ? editLostReason || null : null,
       updated_at: updatedAt,
       updated_by: actorId,
-    }
-    setLead(updatedLead)
+    })
     setEditPhone(cleanPhone)
     setIsEditingCore(false)
-    await logActivity('Lead Updated', 'Data lead diperbarui via detail', actorId)
+    await logActivity('Lead Updated', `Data lead diperbarui → ${editStatus}`, actorId)
   }
 
   const userLabel = (user?: UserSummary | null, fallback?: string | null) => {
@@ -163,7 +161,6 @@ export function LeadDetailClient({
 
   return (
     <div className="w-full p-4 sm:p-6 space-y-4">
-      {/* Identity */}
       <section className="rounded-2xl border border-border bg-card p-5">
         <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
           <div className="flex items-start gap-4 min-w-0">
@@ -174,12 +171,9 @@ export function LeadDetailClient({
               <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground truncate">
                 {lead.full_name}
               </h1>
-              <p className="text-sm text-muted-foreground mt-1">
-                {lead.whatsapp_number}
-                {lead.email ? ` · ${lead.email}` : ''}
-              </p>
+              <p className="text-sm text-muted-foreground mt-1">{lead.whatsapp_number}</p>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Campaign: {lead.source_campaign || '—'} · PIC: {picName}
+                Campaign: {lead.source_campaign || '—'}
               </p>
               <p className="text-[11px] text-muted-foreground mt-1">
                 Last update:{' '}
@@ -201,7 +195,7 @@ export function LeadDetailClient({
                 <span className={cn('text-[10px] px-2 py-0.5 rounded-md', getStageBadgeClasses(lead.current_status))}>
                   {LANE_LABEL[lane]}
                 </span>
-                <span className="text-[10px] text-muted-foreground">{lead.current_status}</span>
+                <span className="text-[10px] text-muted-foreground">{displayStatus(lead.current_status)}</span>
               </div>
             </div>
           </div>
@@ -246,16 +240,14 @@ export function LeadDetailClient({
         </div>
       </section>
 
-      {/* PRD position */}
       <section className="rounded-2xl border border-border bg-card p-5">
         <h2 className="text-sm font-semibold text-foreground">Posisi di alur PRD</h2>
         <p className="text-xs text-muted-foreground mt-0.5">
-          Lead diolah lewat Leads → Stage 1 → Stage 2 → Stage 3. Tidak ada antrian FU Hari Ini.
+          Leads → Stage 1 → Stage 2 → Stage 3.
         </p>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
           <InfoCard label="Lane" value={LANE_LABEL[lane]} />
-          <InfoCard label="Status" value={lead.current_status} />
-          <InfoCard label="PIC CRO" value={picName} />
+          <InfoCard label="Status" value={displayStatus(lead.current_status)} />
         </div>
         {lead.funnel_notes && (
           <div className="mt-4 rounded-xl border border-border bg-secondary/40 px-4 py-3">
@@ -265,7 +257,6 @@ export function LeadDetailClient({
         )}
       </section>
 
-      {/* History */}
       <section className="rounded-2xl border border-border bg-card p-5">
         <div className="flex items-center gap-2 mb-4">
           <Clock size={15} className="text-accent" />
@@ -313,18 +304,14 @@ export function LeadDetailClient({
                   </button>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <label className="block space-y-1 col-span-2 sm:col-span-1">
+                <div className="grid grid-cols-1 gap-3">
+                  <label className="block space-y-1">
                     <span className="text-[11px] font-semibold text-muted-foreground">Nama</span>
                     <input value={editName} onChange={(e) => setEditName(e.target.value)} className="detail-input" />
                   </label>
-                  <label className="block space-y-1 col-span-2 sm:col-span-1">
+                  <label className="block space-y-1">
                     <span className="text-[11px] font-semibold text-muted-foreground">WhatsApp</span>
                     <input value={editPhone} onChange={(e) => setEditPhone(e.target.value)} className="detail-input" />
-                  </label>
-                  <label className="block space-y-1">
-                    <span className="text-[11px] font-semibold text-muted-foreground">Email</span>
-                    <input value={editEmail} onChange={(e) => setEditEmail(e.target.value)} className="detail-input" />
                   </label>
                   <label className="block space-y-1">
                     <span className="text-[11px] font-semibold text-muted-foreground">Campaign</span>
@@ -333,17 +320,8 @@ export function LeadDetailClient({
                   <label className="block space-y-1">
                     <span className="text-[11px] font-semibold text-muted-foreground">Status</span>
                     <select value={editStatus} onChange={(e) => setEditStatus(e.target.value)} className="detail-input">
-                      {[...new Set([...ALL_PRD_STATUSES, lead.current_status])].map((status) => (
+                      {[...new Set([...ALL_PRD_STATUSES, displayStatus(lead.current_status)])].map((status) => (
                         <option key={status} value={status}>{status}</option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="block space-y-1">
-                    <span className="text-[11px] font-semibold text-muted-foreground">PIC</span>
-                    <select value={editPic} onChange={(e) => setEditPic(e.target.value)} className="detail-input">
-                      <option value="">Belum di-assign</option>
-                      {pics.map((p) => (
-                        <option key={p.id} value={p.id}>{p.name}</option>
                       ))}
                     </select>
                   </label>
