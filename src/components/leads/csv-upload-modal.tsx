@@ -8,14 +8,16 @@ import { useRouter } from 'next/navigation'
 import { parseRpcResult } from '@/lib/rpc'
 import { isJsonRecord, type JsonRecord } from '@/types/crm'
 import { revalidateLeadsListing } from '@/app/actions/revalidate-leads'
+import { markLeadsListNeedsRefresh } from '@/lib/leads-list-refresh'
 
 interface CsvUploadModalProps {
   isOpen: boolean
   onClose: () => void
   pics: { id: string; name: string; email?: string }[]
+  onImportSuccess?: () => void
 }
 
-export function CsvUploadModal({ isOpen, onClose, pics }: CsvUploadModalProps) {
+export function CsvUploadModal({ isOpen, onClose, pics, onImportSuccess }: CsvUploadModalProps) {
   const router = useRouter()
   const [file, setFile] = useState<File | null>(null)
   const [parsedData, setParsedData] = useState<JsonRecord[]>([])
@@ -203,7 +205,9 @@ export function CsvUploadModal({ isOpen, onClose, pics }: CsvUploadModalProps) {
 
     setIsUploading(false)
     if (successCount > 0) {
+      markLeadsListNeedsRefresh()
       await revalidateLeadsListing()
+      onImportSuccess?.()
       router.refresh()
     }
   }
