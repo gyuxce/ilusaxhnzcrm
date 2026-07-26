@@ -8,6 +8,8 @@ const COOKIE_OPTS = {
   path: '/',
   maxAge: 60 * 60 * 24 * 365,
   sameSite: 'lax' as const,
+  /** Client (Stage 1/2, dashboard) perlu baca cookie yang sama dengan server. */
+  httpOnly: false,
 }
 
 export async function setPrdTrialMode(enabled: boolean): Promise<{ ok: true; since: string | null }> {

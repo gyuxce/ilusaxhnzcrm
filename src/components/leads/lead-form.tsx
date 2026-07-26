@@ -16,6 +16,8 @@ import {
 import { parseRpcResult, type RpcResult } from '@/lib/rpc'
 import { isJsonRecord } from '@/types/crm'
 import { leadSchema, type LeadFormValues, normalizeWhatsApp } from '@/lib/validations/lead'
+import { revalidateLeadsListing } from '@/app/actions/revalidate-leads'
+import { readPrdTrialSinceClient } from '@/lib/prd-trial-mode'
 
 interface LeadFormProps {
   pics: { id: string; name: string }[]
@@ -82,7 +84,10 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
   function rpcErrorMessage(result: RpcResult | null | undefined, fallback = 'Terjadi kesalahan saat menyimpan lead.') {
     if (result?.duplicate_lead && isJsonRecord(result.duplicate_lead)) {
       const duplicate = result.duplicate_lead
-      return `Nomor WhatsApp ini sudah terdaftar untuk ${duplicate.full_name} (${duplicate.source_campaign || 'tanpa campaign'}) dengan status ${duplicate.current_status || '-'}. Buka data existing dari menu Leads.`
+      const trialHint = readPrdTrialSinceClient()
+        ? ' Lead lama mungkin tersembunyi (mode uji) tapi nomor tetap terdaftar — pakai nomor WA lain.'
+        : ''
+      return `Nomor WhatsApp ini sudah terdaftar untuk ${duplicate.full_name} (${duplicate.source_campaign || 'tanpa campaign'}) dengan status ${duplicate.current_status || '-'}.${trialHint}`
     }
     return result?.message || fallback
   }
@@ -134,9 +139,9 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
 
     setLoading(false)
     setSuccess(leadId ? 'Perubahan lead berhasil disimpan. Mengalihkan ke Data Leads...' : 'Lead baru berhasil ditambahkan. Mengalihkan ke menu Leads...')
-    setTimeout(() => {
-      router.push('/leads')
-    }, 250)
+    await revalidateLeadsListing()
+    router.push('/leads')
+    router.refresh()
   }
 
   const inputClass = "w-full px-4 py-2.5 rounded-xl text-sm text-foreground placeholder-muted-foreground/60 outline-none transition-all bg-card border border-border focus:ring-1 focus:ring-primary focus:border-primary"
@@ -150,7 +155,7 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
         <div className="rounded-2xl border border-border bg-secondary/60 p-4">
           <h2 className="font-display text-base font-semibold tracking-tight text-foreground">Tambah Lead</h2>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-            Untuk input manual dari ads cukup isi nama, WhatsApp, dan campaign. Setelah simpan, lead langsung masuk ke Hari Ini untuk dihubungi dan dicatat hasil chat-nya.
+            Isi nama, WhatsApp, dan campaign. Setelah simpan, lead masuk ke menu Leads (mode uji: hanya tampil jika mode uji sudah aktif sebelum simpan).
           </p>
         </div>
       )}

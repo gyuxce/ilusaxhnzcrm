@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { parseRpcResult } from '@/lib/rpc'
 import { isJsonRecord, type JsonRecord } from '@/types/crm'
+import { revalidateLeadsListing } from '@/app/actions/revalidate-leads'
 
 interface CsvUploadModalProps {
   isOpen: boolean
@@ -202,6 +203,7 @@ export function CsvUploadModal({ isOpen, onClose, pics }: CsvUploadModalProps) {
 
     setIsUploading(false)
     if (successCount > 0) {
+      await revalidateLeadsListing()
       router.refresh()
     }
   }
