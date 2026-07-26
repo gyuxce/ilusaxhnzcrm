@@ -141,6 +141,18 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
     setLoading(false)
     setSuccess(leadId ? 'Perubahan lead berhasil disimpan. Mengalihkan ke Data Leads...' : 'Lead baru berhasil ditambahkan. Mengalihkan ke menu Leads...')
     markLeadsListNeedsRefresh()
+
+    const targetLeadId = leadId || result?.id || null
+    if (targetLeadId) {
+      const { data: auth } = await supabase.auth.getUser()
+      await supabase.from('lead_activities').insert({
+        lead_id: targetLeadId,
+        activity_type: leadId ? 'Lead Updated' : 'Lead Created',
+        description: leadId ? 'Data lead diperbarui via form edit' : `Lead baru dibuat (${dataValues.full_name})`,
+        created_by: auth.user?.id || null,
+      })
+    }
+
     await revalidateLeadsListing()
     if (leadId) {
       router.push('/leads')

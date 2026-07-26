@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import { cn, getTodayInWIB } from '@/lib/utils'
 import { getStageBadgeClasses } from '@/lib/brand'
 import {
-  STAGE2_UPDATE_STATUS_OPTIONS,
+  STAGE2_KERJAKAN_STATUS_OPTIONS,
   STAGE2_VISIBLE_STATUSES,
 } from '@/lib/prd-stages'
 import { readPrdTrialSinceClient, PRD_TRIAL_MODE_CHANGED } from '@/lib/prd-trial-mode'
@@ -305,8 +305,8 @@ export default function Stage2Page() {
 
       {/* Kerjakan Stage 2 modal */}
       {activeLead && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center" style={{ background: 'rgba(27,42,74,0.45)' }}>
-          <div className="w-full max-w-lg rounded-t-2xl sm:rounded-2xl border border-border bg-card shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(27,42,74,0.45)' }}>
+          <div className="w-full max-w-lg rounded-2xl border border-border bg-card shadow-xl">
             <div className="flex items-center justify-between border-b border-border px-4 py-3">
               <div className="min-w-0">
                 <h3 className="truncate font-display text-base font-semibold text-foreground">Kerjakan Stage 2</h3>
@@ -331,7 +331,7 @@ export default function Stage2Page() {
                     className="field-input"
                   >
                     <option value="">Pilih status...</option>
-                    {STAGE2_UPDATE_STATUS_OPTIONS.map((opt) => (
+                    {STAGE2_KERJAKAN_STATUS_OPTIONS.map((opt) => (
                       <option key={opt} value={opt}>{opt}</option>
                     ))}
                   </select>

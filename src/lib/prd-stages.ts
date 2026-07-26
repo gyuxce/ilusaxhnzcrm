@@ -79,6 +79,18 @@ export const STAGE2_UPDATE_STATUS_OPTIONS = [
   'Lainnya (tulis di note)',
 ] as const
 
+/**
+ * B.2 (ringkas) — opsi yang tampil di dropdown Kerjakan Stage 2.
+ * CRO hanya boleh set: Menunggu hasil pemetaan / Menunggu arahan selanjutnya /
+ * Lainnya. Status lanjutan (jadwal pemetaan, expert, seat-lock) di-set via
+ * Stage 3 (drag) atau modul di detail lead.
+ */
+export const STAGE2_KERJAKAN_STATUS_OPTIONS = [
+  'Menunggu hasil pemetaan',
+  'Menunggu arahan selanjutnya',
+  'Lainnya (tulis di note)',
+] as const
+
 /** C.2 — Status Stage 3 (Detail Stage 3). */
 export const STAGE3_STATUS_OPTIONS = [
   'Menunggu jadwal pemetaan',

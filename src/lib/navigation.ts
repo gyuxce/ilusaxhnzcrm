@@ -19,6 +19,13 @@ export type NavItem = {
  */
 export const PRIMARY_NAV: NavItem[] = [
   {
+    href: '/dashboard',
+    labelId: 'Dashboard',
+    labelEn: 'Dashboard',
+    hintId: 'Ringkasan & laporan pipeline',
+    hintEn: 'Pipeline overview & reports',
+  },
+  {
     href: '/leads',
     labelId: 'Leads',
     labelEn: 'Leads',
@@ -81,6 +88,13 @@ export const TODAY_TOOLS = [
  * Owner primary nav — pantau pipeline + verifikasi pembayaran.
  */
 export const OWNER_PRIMARY_NAV: NavItem[] = [
+  {
+    href: '/dashboard',
+    labelId: 'Dashboard',
+    labelEn: 'Dashboard',
+    hintId: 'Ringkasan & laporan pipeline',
+    hintEn: 'Pipeline overview & reports',
+  },
   {
     href: '/leads',
     labelId: 'Leads',

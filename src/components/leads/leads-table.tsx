@@ -33,7 +33,7 @@ interface LeadsTableProps {
   pics: { id: string; name: string; email?: string }[]
 }
 
-type QuickFilter = 'all' | 'new' | 'bridging' | 'pitching' | 'duplicate'
+type QuickFilter = 'all' | 'new' | 'bridging' | 'pitching' | 'duplicate' | 'pemetaan' | 'seatlock' | 'interested'
 
 const quickFilterLabels: Record<QuickFilter, string> = {
   all: 'Semua',
@@ -41,6 +41,29 @@ const quickFilterLabels: Record<QuickFilter, string> = {
   bridging: 'Bridging',
   pitching: 'Pitching',
   duplicate: 'Duplikat',
+  pemetaan: 'Pemetaan',
+  seatlock: 'Seat Lock',
+  interested: 'Interested',
+}
+
+const PEMETAAN_STATUSES = ['Menunggu jadwal pemetaan', 'Menunggu hasil pemetaan'] as const
+const SEATLOCK_STATUSES = [
+  'Menunggu pembayaran seat-lock',
+  'Jalur Akselerasi',
+  'Closing Seat Lock',
+] as const
+const INTERESTED_STATUSES = [
+  'Interested to Pemetaan',
+  'Interested to Interview',
+  'Interested in Webinar',
+  'In-doubt',
+  'No Response',
+] as const
+
+function hasVerifiedPayment(lead: LeadWithRelations, types: string[]) {
+  return (lead.payments || []).some(
+    (p) => p.verification_status === 'verified' && types.includes(p.payment_type)
+  )
 }
 
 function daysSinceLastTouch(lead: LeadWithRelations) {
@@ -198,6 +221,16 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
       data = data.filter(l => l.current_status === 'Pitching')
     } else if (quickFilter === 'duplicate') {
       data = data.filter(l => duplicateLeadIds.has(l.id))
+    } else if (quickFilter === 'pemetaan') {
+      data = data.filter(
+        l => PEMETAAN_STATUSES.includes(l.current_status as never) || hasVerifiedPayment(l, ['pemetaan', 'roadmap_session'])
+      )
+    } else if (quickFilter === 'seatlock') {
+      data = data.filter(
+        l => SEATLOCK_STATUSES.includes(l.current_status as never) || hasVerifiedPayment(l, ['seat_lock'])
+      )
+    } else if (quickFilter === 'interested') {
+      data = data.filter(l => INTERESTED_STATUSES.includes(l.current_status as never))
     }
 
     if (search) {
@@ -290,6 +323,13 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
       bridging: leads.filter(l => l.current_status === 'Bridging').length,
       pitching: leads.filter(l => l.current_status === 'Pitching').length,
       duplicate: duplicateLeadIds.size,
+      pemetaan: leads.filter(
+        l => PEMETAAN_STATUSES.includes(l.current_status as never) || hasVerifiedPayment(l, ['pemetaan', 'roadmap_session'])
+      ).length,
+      seatlock: leads.filter(
+        l => SEATLOCK_STATUSES.includes(l.current_status as never) || hasVerifiedPayment(l, ['seat_lock'])
+      ).length,
+      interested: leads.filter(l => INTERESTED_STATUSES.includes(l.current_status as never)).length,
     }
   }, [leads, duplicateLeadIds])
 

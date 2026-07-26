@@ -526,14 +526,7 @@ export function LeadDetailClient({
     setLead(updatedLead)
     setEditPhone(cleanPhone)
     setIsEditingCore(false)
-    setActivities(prev => [{
-      id: `local-${updatedAt}`,
-      lead_id: lead.id,
-      activity_type: 'Lead Updated',
-      description: 'Core lead information updated manually',
-      created_by: null,
-      created_at: updatedAt,
-    }, ...prev])
+    await logActivity('Lead Updated', 'Data lead diperbarui manual', (await supabase.auth.getUser()).data.user?.id || null)
   }
 
   // Add Payment
@@ -676,6 +669,22 @@ export function LeadDetailClient({
               <p className="text-xs text-muted-foreground mt-0.5">
                 Campaign: {lead.source_campaign || '—'} · PIC:{' '}
                 {pics.find((p) => p.id === lead.assigned_cro_id)?.name || 'Belum di-assign'}
+              </p>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Last update:{' '}
+                <span className="font-semibold text-foreground">
+                  {lead.updated_by_user?.name || pics.find((p) => p.id === lead.updated_by)?.name || '—'}
+                </span>
+                {' · '}
+                {lead.updated_at
+                  ? new Date(lead.updated_at).toLocaleString('id-ID', {
+                      day: 'numeric',
+                      month: 'short',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })
+                  : '-'}
               </p>
               <div className="flex flex-wrap items-center gap-2 mt-2">
                 <span className={cn('text-[10px] px-2 py-0.5 rounded-md', getStageBadgeClasses(lead.current_status))}>
@@ -996,7 +1005,7 @@ export function LeadDetailClient({
       <section className="rounded-2xl border border-border bg-card p-5">
         <div className="flex items-center gap-2 mb-4">
           <Clock size={15} className="text-accent" />
-          <h2 className="text-sm font-semibold text-foreground">Timeline aktivitas</h2>
+          <h2 className="text-sm font-semibold text-foreground">Timeline aktivitas CRO</h2>
         </div>
         {activities.length === 0 ? (
           <p className="text-xs text-muted-foreground py-4 text-center">Belum ada aktivitas.</p>
@@ -1016,6 +1025,12 @@ export function LeadDetailClient({
                   </p>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{act.description}</p>
+                <p className="text-[10px] text-muted-foreground/80 mt-1">
+                  oleh{' '}
+                  <span className="font-semibold text-foreground/80">
+                    {act.users?.name || pics.find((p) => p.id === act.created_by)?.name || 'Sistem'}
+                  </span>
+                </p>
               </li>
             ))}
           </ul>
