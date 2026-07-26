@@ -15,6 +15,11 @@ import { createClient } from '@/lib/supabase/client'
 import type { Lead, PaymentRow, PemetaanRow, ExpertConsultationRow } from '@/lib/supabase/types'
 import { CsvUploadModal } from './csv-upload-modal'
 import { getStageBadgeClasses } from '@/lib/brand'
+import {
+  consumeLeadsListNeedsRefresh,
+  fetchLeadsListingClient,
+} from '@/lib/leads-list-refresh'
+import { readPrdTrialSinceClient } from '@/lib/prd-trial-mode'
 type LeadWithRelations = Lead & {
   users?: { id: string; name: string } | null
   updated_by_user?: { id: string; name: string } | null
@@ -63,6 +68,8 @@ function normalizePhone(value: string | null | undefined) {
 export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const [leads, setLeads] = useState<LeadWithRelations[]>(initialLeads)
+  const [leadsSyncing, setLeadsSyncing] = useState(false)
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState(searchParams.get('status') || 'all')
 
@@ -101,28 +108,54 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
     setMounted(true)
   }, [])
 
+  useEffect(() => {
+    setLeads(initialLeads)
+  }, [initialLeads])
+
+  const refreshLeadsFromServer = async (force = false) => {
+    if (!force && !consumeLeadsListNeedsRefresh()) return
+    setLeadsSyncing(true)
+    try {
+      const supabase = createClient()
+      const trialSince = readPrdTrialSinceClient()
+      const data = await fetchLeadsListingClient(supabase, trialSince)
+      setLeads(data as LeadWithRelations[])
+    } catch {
+      router.refresh()
+    } finally {
+      setLeadsSyncing(false)
+    }
+  }
+
+  useEffect(() => {
+    if (consumeLeadsListNeedsRefresh()) {
+      void refreshLeadsFromServer(true)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only sync after tambah/import lead
+  }, [])
+
   // Get unique campaigns for filter dropdown
   const campaignsList = useMemo(() => {
     const set = new Set<string>()
-    initialLeads.forEach(l => {
+    leads.forEach(l => {
       if (l.source_campaign) set.add(l.source_campaign)
     })
     return Array.from(set)
-  }, [initialLeads])
+  }, [leads])
 
   // Get unique statuses for filter dropdown
   const statusesList = useMemo(() => {
     const set = new Set<string>()
-    initialLeads.forEach(l => {
+    leads.forEach(l => {
       if (l.current_status) set.add(l.current_status)
     })
     return Array.from(set)
-  }, [initialLeads])
+  }, [leads])
 
   const duplicateGroups = useMemo(() => {
     const groups = new Map<string, LeadWithRelations[]>()
 
-    initialLeads.forEach(lead => {
+    leads.forEach(lead => {
       const phone = lead.whatsapp_normalized || normalizePhone(lead.whatsapp_number)
       if (!phone) return
       const current = groups.get(phone) || []
@@ -144,7 +177,7 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
           duplicates: sorted.slice(1),
         }
       })
-  }, [initialLeads])
+  }, [leads])
 
   const duplicateDeleteIds = useMemo(() => {
     return duplicateGroups.flatMap(group => group.duplicates.map(lead => lead.id))
@@ -155,7 +188,7 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
   }, [duplicateGroups])
 
   const filtered = useMemo(() => {
-    let data = [...initialLeads]
+    let data = [...leads]
 
     if (quickFilter === 'new') {
       data = data.filter(l => l.current_status === 'New Lead')
@@ -227,7 +260,7 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
     })
 
     return data
-  }, [initialLeads, quickFilter, duplicateLeadIds, search, filterStatus, filterPic, filterCampaign, filterPayment, filterSeatLock, startDate, endDate, sortField, sortDir])
+  }, [leads, quickFilter, duplicateLeadIds, search, filterStatus, filterPic, filterCampaign, filterPayment, filterSeatLock, startDate, endDate, sortField, sortDir])
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
   const safeCurrentPage = Math.min(currentPage, totalPages)
@@ -252,13 +285,13 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
 
   const quickCounts = useMemo(() => {
     return {
-      all: initialLeads.length,
-      new: initialLeads.filter(l => l.current_status === 'New Lead').length,
-      bridging: initialLeads.filter(l => l.current_status === 'Bridging').length,
-      pitching: initialLeads.filter(l => l.current_status === 'Pitching').length,
+      all: leads.length,
+      new: leads.filter(l => l.current_status === 'New Lead').length,
+      bridging: leads.filter(l => l.current_status === 'Bridging').length,
+      pitching: leads.filter(l => l.current_status === 'Pitching').length,
       duplicate: duplicateLeadIds.size,
     }
-  }, [initialLeads, duplicateLeadIds])
+  }, [leads, duplicateLeadIds])
 
   const showToast = (type: 'success' | 'error', text: string) => {
     setToast({ type, text })
@@ -353,7 +386,7 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
       {/* Top bar info */}
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
-          Ditemukan <span className="text-foreground font-bold">{filtered.length}</span> dari {initialLeads.length} leads
+          Ditemukan <span className="text-foreground font-bold">{filtered.length}</span> dari {leads.length} leads
           {filtered.length > 0 && (
             <span className="ml-2 text-xs">
               Menampilkan {pageStartIndex}-{pageEndIndex}
@@ -686,6 +719,7 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
           isOpen={csvModalOpen}
           onClose={() => setCsvModalOpen(false)}
           pics={pics}
+          onImportSuccess={() => void refreshLeadsFromServer(true)}
         />,
         document.body
       )}

@@ -17,6 +17,7 @@ import { parseRpcResult, type RpcResult } from '@/lib/rpc'
 import { isJsonRecord } from '@/types/crm'
 import { leadSchema, type LeadFormValues, normalizeWhatsApp } from '@/lib/validations/lead'
 import { revalidateLeadsListing } from '@/app/actions/revalidate-leads'
+import { markLeadsListNeedsRefresh } from '@/lib/leads-list-refresh'
 import { readPrdTrialSinceClient } from '@/lib/prd-trial-mode'
 
 interface LeadFormProps {
@@ -139,9 +140,14 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
 
     setLoading(false)
     setSuccess(leadId ? 'Perubahan lead berhasil disimpan. Mengalihkan ke Data Leads...' : 'Lead baru berhasil ditambahkan. Mengalihkan ke menu Leads...')
+    markLeadsListNeedsRefresh()
     await revalidateLeadsListing()
-    router.push('/leads')
-    router.refresh()
+    if (leadId) {
+      router.push('/leads')
+      router.refresh()
+      return
+    }
+    window.location.assign('/leads')
   }
 
   const inputClass = "w-full px-4 py-2.5 rounded-xl text-sm text-foreground placeholder-muted-foreground/60 outline-none transition-all bg-card border border-border focus:ring-1 focus:ring-primary focus:border-primary"
