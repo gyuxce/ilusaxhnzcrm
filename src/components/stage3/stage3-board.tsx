@@ -338,8 +338,8 @@ function Stage3DetailModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center" style={{ background: 'rgba(27,42,74,0.45)' }}>
-      <div className="w-full max-w-lg rounded-t-2xl sm:rounded-2xl border border-border bg-card shadow-xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(27,42,74,0.45)' }}>
+      <div className="w-full max-w-lg rounded-2xl border border-border bg-card shadow-xl">
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <div className="min-w-0">
             <h3 className="truncate font-display text-base font-semibold text-foreground">Detail Stage 3</h3>
