@@ -21,12 +21,6 @@ function clearTrialCookies(store: Awaited<ReturnType<typeof cookies>>) {
   store.delete(PRD_TRIAL_SINCE_COOKIE)
 }
 
-/** Hapus cookie mode uji saat live — dipanggil dari dashboard layout. */
-export async function ensurePrdLiveMode() {
-  if (PRD_TRIAL_MODE_ENABLED) return
-  clearTrialCookies(await cookies())
-}
-
 export async function setPrdTrialMode(enabled: boolean): Promise<{ ok: true; since: string | null }> {
   const store = await cookies()
   if (!PRD_TRIAL_MODE_ENABLED) {
