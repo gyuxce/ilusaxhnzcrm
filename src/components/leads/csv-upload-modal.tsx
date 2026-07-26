@@ -151,7 +151,7 @@ export function CsvUploadModal({ isOpen, onClose, pics, onImportSuccess }: CsvUp
         const sourceCampaign = getField(row, ['Source Campaign', 'Campaign', 'Campaign Name', 'Nama Campaign', 'Source']) || 'Ads Import'
         const assignedId = findCroId(getField(row, ['PIC CRO', 'PIC', 'CRO', 'Assigned CRO']))
         const entryDate = parseDateString(getField(row, ['Tanggal Lead Masuk', 'Tanggal Masuk', 'Lead Entry Date', 'Last Update', 'Date']))
-        const status = getField(row, ['Current Status', 'Status Pipeline', 'Status']) || 'New Lead'
+        const status = getField(row, ['Current Status', 'Status Pipeline', 'Status']) || 'Bridging'
         const note = getField(row, ['Note', 'Notes', 'Catatan', 'Keterangan'])
 
         const { data, error } = await supabase.rpc('create_lead_fast', {
@@ -400,7 +400,7 @@ export function CsvUploadModal({ isOpen, onClose, pics, onImportSuccess }: CsvUp
                                   <td className="px-4 py-2 text-foreground">
                                     {getField(row, ['Nomor HP', 'No. HP', 'No HP', 'No Hp', 'HP', 'Handphone', 'No Telepon', 'Telepon', 'No Handphone', 'Nomor WhatsApp', 'WhatsApp', 'Whatsapp', 'WA', 'Phone', 'Nomor']) || '-'}
                                   </td>
-                                  <td className="px-4 py-2 text-foreground">{getField(row, ['Current Status', 'Status Pipeline', 'Status']) || 'New Lead'}</td>
+                                  <td className="px-4 py-2 text-foreground">{getField(row, ['Current Status', 'Status Pipeline', 'Status']) || 'Bridging'}</td>
                                   <td className="px-4 py-2 text-foreground">{getField(row, ['Source Campaign', 'Campaign', 'Campaign Name', 'Nama Campaign', 'Source']) || 'Ads Import'}</td>
                                   <td className="px-4 py-2 text-foreground">{getField(row, ['PIC CRO', 'PIC', 'CRO', 'Assigned CRO']) || '-'}</td>
                                   <td className="px-4 py-2 text-foreground">{getField(row, ['Tanggal Lead Masuk', 'Tanggal Masuk', 'Lead Entry Date', 'Last Update', 'Date']) || 'Hari ini'}</td>

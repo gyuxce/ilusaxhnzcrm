@@ -14,11 +14,7 @@ export default async function LeadsPage() {
       .from('leads')
       .select(`
         *,
-        users:assigned_cro_id(id, name),
-        updated_by_user:updated_by(id, name),
-        payments(*),
-        pemetaan(*),
-        expert_consultations(*)
+        updated_by_user:updated_by(id, name)
       `)
       .order('lead_entry_date', { ascending: false })
       .limit(5000)
@@ -41,9 +37,9 @@ export default async function LeadsPage() {
     <>
       <Header
         title="Leads"
-        subtitle="Data master lead — cek, import CSV, edit. Klik Kerjakan untuk mulai Stage 1."
+        subtitle="Data master — import CSV / tambah manual. Kerjakan untuk Stage 1."
       />
-      <div className="p-5 sm:p-6 animate-fade-in w-full font-sans">
+      <div className="p-5 sm:p-6 w-full font-sans">
         {loadError && (
           <div className="mb-4 rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-2 text-xs font-medium text-destructive">
             Gagal memuat leads: {loadError}

@@ -29,7 +29,10 @@ export const leadSchema = z.object({
     .email('Format email tidak valid')
     .or(z.literal(''))
     .optional(),
-  source_campaign: z.string().optional(),
+  source_campaign: z
+    .string()
+    .min(1, 'Source campaign wajib diisi')
+    .max(120, 'Source campaign maksimal 120 karakter'),
   lead_type: z.enum(['inbound', 'outbound']),
   current_status: z.string().min(1, 'Status pipeline wajib dipilih'),
   assigned_cro_id: z.string().optional(),

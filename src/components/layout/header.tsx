@@ -1,6 +1,6 @@
 'use client'
 
-import { Bell, Search, Plus, Menu, X, AlertCircle, Calendar, Sun, Moon, RefreshCw, ArrowLeft } from 'lucide-react'
+import { Bell, Search, Menu, X, AlertCircle, Calendar, Sun, Moon, RefreshCw, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { useLayoutStore } from '@/lib/store'
 import { useState, useEffect, useRef, useMemo } from 'react'
@@ -393,15 +393,6 @@ export function Header({ title, subtitle, backUrl }: HeaderProps) {
         >
           {lang.toUpperCase()}
         </button>
-
-        {/* Add lead */}
-        <Link
-          href="/leads/new"
-          className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium text-accent-foreground bg-accent hover:opacity-90 transition-opacity flex-shrink-0"
-        >
-          <Plus size={14} />
-          <span className="hidden sm:inline">{copy.addLead}</span>
-        </Link>
 
         {/* Theme Toggle */}
         <button

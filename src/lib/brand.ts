@@ -40,8 +40,8 @@ export const FUNNEL_STAGES = [
     meaningId: 'Lead masuk, belum atau baru dihubungi',
     color: 'var(--stage-1)',
     soft: 'var(--stage-1-soft)',
-    defaultStatus: 'New Lead',
-    statuses: ['New Lead', 'Contacted'],
+    defaultStatus: 'Input Manual',
+    statuses: ['Input Manual', 'New Lead', 'Contacted'],
   },
   {
     id: 2 as const,
@@ -52,7 +52,7 @@ export const FUNNEL_STAGES = [
     color: 'var(--stage-2)',
     soft: 'var(--stage-2-soft)',
     defaultStatus: 'Pitching',
-    statuses: ['Pitching', 'Interested'],
+    statuses: ['Pitching', 'Bridging', 'Interested'],
   },
   {
     id: 3 as const,
@@ -160,8 +160,8 @@ export const PIPELINE_BOARD_COLUMNS = [
     label: '1 · Baru',
     color: 'var(--stage-1)',
     soft: 'var(--stage-1-soft)',
-    defaultStatus: 'New Lead',
-    statuses: ['New Lead', 'Contacted'] as string[],
+    defaultStatus: 'Input Manual',
+    statuses: ['Input Manual', 'New Lead', 'Contacted'] as string[],
   },
   {
     key: 'diskusi',
@@ -170,7 +170,7 @@ export const PIPELINE_BOARD_COLUMNS = [
     color: 'var(--stage-2)',
     soft: 'var(--stage-2-soft)',
     defaultStatus: 'Pitching',
-    statuses: ['Pitching', 'Interested'] as string[],
+    statuses: ['Pitching', 'Bridging', 'Interested'] as string[],
   },
   {
     key: 'pemetaan',

@@ -13,8 +13,8 @@ export default async function NewLeadPage() {
 
   return (
     <>
-      <Header title="Tambah Lead Baru" subtitle="Input data lead inbound untuk tim CRO" backUrl="/leads" />
-      <div className="w-full p-6 animate-fade-in">
+      <Header title="Tambah Lead Manual" subtitle="Input dari WhatsApp — status otomatis Input Manual" backUrl="/leads" />
+      <div className="w-full p-6">
         <LeadForm pics={pics || []} />
       </div>
     </>

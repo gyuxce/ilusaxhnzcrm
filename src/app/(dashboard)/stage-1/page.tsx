@@ -70,7 +70,7 @@ export default function Stage1Page() {
     let q = supabase
       .from('leads')
       .select('id, full_name, whatsapp_number, source_campaign, current_status, lead_entry_date, users:assigned_cro_id(id, name)')
-      .in('current_status', ['New Lead', 'Bridging', 'Pitching'])
+      .in('current_status', ['Input Manual', 'New Lead', 'Bridging', 'Pitching'])
       .order('lead_entry_date', { ascending: false })
       .limit(400)
     if (trialSince) {
@@ -327,7 +327,7 @@ export default function Stage1Page() {
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                     <Field label="Update Current Status" className="sm:col-span-2">
                       <div className="inline-flex rounded-lg border border-border bg-secondary/40 p-0.5">
-                        {STAGE1_CURRENT_STATUS_OPTIONS.filter((s) => s !== 'New Lead').map((opt) => (
+                        {STAGE1_CURRENT_STATUS_OPTIONS.filter((s) => s !== 'Input Manual').map((opt) => (
                           <button
                             key={opt}
                             type="button"
