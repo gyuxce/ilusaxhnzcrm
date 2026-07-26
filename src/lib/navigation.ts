@@ -82,13 +82,6 @@ export const TODAY_TOOLS = [
  */
 export const OWNER_PRIMARY_NAV: NavItem[] = [
   {
-    href: '/stage-3',
-    labelId: 'Stage 3',
-    labelEn: 'Stage 3',
-    hintId: 'Pipeline Kanban: Pemetaan → Closing',
-    hintEn: 'Kanban pipeline: Mapping → Closing',
-  },
-  {
     href: '/leads',
     labelId: 'Leads',
     labelEn: 'Leads',
@@ -101,6 +94,13 @@ export const OWNER_PRIMARY_NAV: NavItem[] = [
     labelEn: 'Stage 2',
     hintId: 'Lead interested — jadwal pemetaan / expert',
     hintEn: 'Interested leads — schedule mapping / expert',
+  },
+  {
+    href: '/stage-3',
+    labelId: 'Stage 3',
+    labelEn: 'Stage 3',
+    hintId: 'Pipeline Kanban: Pemetaan → Closing',
+    hintEn: 'Kanban pipeline: Mapping → Closing',
   },
   {
     href: '/conversions',

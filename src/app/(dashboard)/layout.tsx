@@ -1,4 +1,5 @@
 import { Sidebar } from '@/components/layout/sidebar'
+import { PrdTrialModeBar } from '@/components/layout/prd-trial-mode-bar'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 
@@ -17,6 +18,7 @@ export default async function DashboardLayout({
     <div className="min-h-screen">
       <Sidebar />
       <main className="min-h-screen lg:pl-[268px] pt-[64px]">
+        <PrdTrialModeBar />
         {children}
       </main>
     </div>

@@ -21,6 +21,7 @@ import {
   STAGE1_AKSI_CRO_OPTIONS,
   STAGE1_ALASAN_PENOLAKAN_OPTIONS,
 } from '@/lib/prd-stages'
+import { readPrdTrialSinceClient, PRD_TRIAL_MODE_CHANGED } from '@/lib/prd-trial-mode'
 
 type LeadRow = {
   id: string
@@ -65,12 +66,17 @@ export default function Stage1Page() {
 
   async function fetchLeads() {
     setLoading(true)
-    const { data, error } = await supabase
+    const trialSince = readPrdTrialSinceClient()
+    let q = supabase
       .from('leads')
       .select('id, full_name, whatsapp_number, source_campaign, current_status, lead_entry_date, users:assigned_cro_id(id, name)')
       .in('current_status', ['New Lead', 'Bridging', 'Pitching'])
       .order('lead_entry_date', { ascending: false })
       .limit(400)
+    if (trialSince) {
+      q = q.gte('created_at', trialSince)
+    }
+    const { data, error } = await q
     if (error) {
       setMessage({ type: 'error', text: error.message })
       setLeads([])
@@ -82,6 +88,9 @@ export default function Stage1Page() {
 
   useEffect(() => {
     void fetchLeads()
+    const onTrialChange = () => void fetchLeads()
+    window.addEventListener(PRD_TRIAL_MODE_CHANGED, onTrialChange)
+    return () => window.removeEventListener(PRD_TRIAL_MODE_CHANGED, onTrialChange)
   }, [])
 
   const selectedLead = useMemo(
