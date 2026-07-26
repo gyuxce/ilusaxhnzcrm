@@ -1,5 +1,19 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import {
+  PRD_TRIAL_MODE_COOKIE,
+  PRD_TRIAL_MODE_ENABLED,
+  PRD_TRIAL_SINCE_COOKIE,
+} from '@/lib/prd-trial-mode'
+
+function clearLegacyTrialCookies(response: NextResponse, request: NextRequest) {
+  if (PRD_TRIAL_MODE_ENABLED) return
+  const hadTrial =
+    request.cookies.get(PRD_TRIAL_MODE_COOKIE) || request.cookies.get(PRD_TRIAL_SINCE_COOKIE)
+  if (!hadTrial) return
+  response.cookies.delete(PRD_TRIAL_MODE_COOKIE)
+  response.cookies.delete(PRD_TRIAL_SINCE_COOKIE)
+}
 
 export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
@@ -54,6 +68,7 @@ export async function proxy(request: NextRequest) {
     }
   }
 
+  clearLegacyTrialCookies(supabaseResponse, request)
   return supabaseResponse
 }
 
