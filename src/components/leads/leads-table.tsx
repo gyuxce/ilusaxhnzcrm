@@ -190,9 +190,22 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
     setDeletingId(leadToDelete.id)
     setDeleteError('')
     const supabase = createClient()
-    const { error } = await supabase.from('leads').delete().eq('id', leadToDelete.id)
+    // .select() wajib — tanpa ini Supabase bisa "sukses" meski 0 baris terhapus
+    // (RLS / FK), UI hilang sementara, refresh data muncul lagi.
+    const { data, error } = await supabase
+      .from('leads')
+      .delete()
+      .eq('id', leadToDelete.id)
+      .select('id')
     if (error) {
       setDeleteError(error.message)
+      setDeletingId(null)
+      return
+    }
+    if (!data?.length) {
+      setDeleteError(
+        'Gagal menghapus di database (0 baris). Biasanya karena izin RLS atau masih ada data terkait. Pakai SQL cleanup di Supabase.'
+      )
       setDeletingId(null)
       return
     }
@@ -200,7 +213,8 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
     setDeleteModalOpen(false)
     setLeadToDelete(null)
     setDeletingId(null)
-    showToast('success', 'Lead berhasil dihapus.')
+    showToast('success', 'Lead berhasil dihapus dari database.')
+    router.refresh()
   }
 
   return (
