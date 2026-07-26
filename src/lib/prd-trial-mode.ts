@@ -1,9 +1,13 @@
 export const PRD_TRIAL_MODE_CHANGED = 'prd-trial-mode-changed'
 
+/** `false` = production live — tidak filter lead & tidak tampil banner mode uji. */
+export const PRD_TRIAL_MODE_ENABLED = false
+
 export const PRD_TRIAL_MODE_COOKIE = 'prd_trial_mode'
 export const PRD_TRIAL_SINCE_COOKIE = 'prd_trial_since'
 
 export function readPrdTrialSinceClient(): string | null {
+  if (!PRD_TRIAL_MODE_ENABLED) return null
   if (typeof document === 'undefined') return null
   const cookies = document.cookie.split(';').map((s) => s.trim())
   const mode = cookies.find((c) => c.startsWith(`${PRD_TRIAL_MODE_COOKIE}=`))

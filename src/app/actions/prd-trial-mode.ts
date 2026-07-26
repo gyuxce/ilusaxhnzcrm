@@ -2,7 +2,11 @@
 
 import { cookies } from 'next/headers'
 import { revalidatePath } from 'next/cache'
-import { PRD_TRIAL_MODE_COOKIE, PRD_TRIAL_SINCE_COOKIE } from '@/lib/prd-trial-mode'
+import {
+  PRD_TRIAL_MODE_COOKIE,
+  PRD_TRIAL_MODE_ENABLED,
+  PRD_TRIAL_SINCE_COOKIE,
+} from '@/lib/prd-trial-mode'
 
 const COOKIE_OPTS = {
   path: '/',
@@ -12,8 +16,23 @@ const COOKIE_OPTS = {
   httpOnly: false,
 }
 
+function clearTrialCookies(store: Awaited<ReturnType<typeof cookies>>) {
+  store.delete(PRD_TRIAL_MODE_COOKIE)
+  store.delete(PRD_TRIAL_SINCE_COOKIE)
+}
+
+/** Hapus cookie mode uji saat live — dipanggil dari dashboard layout. */
+export async function ensurePrdLiveMode() {
+  if (PRD_TRIAL_MODE_ENABLED) return
+  clearTrialCookies(await cookies())
+}
+
 export async function setPrdTrialMode(enabled: boolean): Promise<{ ok: true; since: string | null }> {
   const store = await cookies()
+  if (!PRD_TRIAL_MODE_ENABLED) {
+    clearTrialCookies(store)
+    return { ok: true, since: null }
+  }
   if (enabled) {
     const since = new Date().toISOString()
     store.set(PRD_TRIAL_MODE_COOKIE, '1', COOKIE_OPTS)
@@ -26,8 +45,7 @@ export async function setPrdTrialMode(enabled: boolean): Promise<{ ok: true; sin
     revalidatePath('/conversions')
     return { ok: true, since }
   }
-  store.delete(PRD_TRIAL_MODE_COOKIE)
-  store.delete(PRD_TRIAL_SINCE_COOKIE)
+  clearTrialCookies(store)
   revalidatePath('/leads')
   revalidatePath('/stage-1')
   revalidatePath('/stage-2')
@@ -38,6 +56,7 @@ export async function setPrdTrialMode(enabled: boolean): Promise<{ ok: true; sin
 }
 
 export async function getPrdTrialSince(): Promise<string | null> {
+  if (!PRD_TRIAL_MODE_ENABLED) return null
   const store = await cookies()
   if (store.get(PRD_TRIAL_MODE_COOKIE)?.value !== '1') return null
   return store.get(PRD_TRIAL_SINCE_COOKIE)?.value ?? null
