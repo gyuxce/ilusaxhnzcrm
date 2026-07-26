@@ -305,8 +305,8 @@ export default function Stage2Page() {
 
       {/* Kerjakan Stage 2 modal */}
       {activeLead && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(27,42,74,0.45)' }}>
-          <div className="w-full max-w-lg rounded-2xl border border-border bg-card shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto" style={{ background: 'rgba(27,42,74,0.45)' }}>
+          <div className="flex max-h-[calc(100vh-2rem)] w-full max-w-lg flex-col rounded-2xl border border-border bg-card shadow-xl">
             <div className="flex items-center justify-between border-b border-border px-4 py-3">
               <div className="min-w-0">
                 <h3 className="truncate font-display text-base font-semibold text-foreground">Kerjakan Stage 2</h3>
@@ -317,7 +317,7 @@ export default function Stage2Page() {
               </button>
             </div>
 
-            <div className="max-h-[70vh] overflow-y-auto p-4">
+            <div className="flex-1 overflow-y-auto p-4">
               {message.text && (
                 <div className={cn('mb-3 rounded-lg border px-3 py-2 text-[11px] font-medium', message.type === 'success' ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-destructive/20 bg-destructive/5 text-destructive')}>
                   {message.text}

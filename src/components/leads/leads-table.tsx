@@ -8,7 +8,7 @@ import {
   Search, Filter,
   ChevronUp, ChevronDown,
   ChevronLeft, ChevronRight,
-  FileUp, Loader2, Trash2, Pencil, ClipboardCheck,
+  FileUp, Loader2, Trash2, Pencil, ClipboardCheck, Clock,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
@@ -33,7 +33,7 @@ interface LeadsTableProps {
   pics: { id: string; name: string; email?: string }[]
 }
 
-type QuickFilter = 'all' | 'new' | 'bridging' | 'pitching' | 'duplicate' | 'pemetaan' | 'seatlock' | 'interested'
+type QuickFilter = 'all' | 'new' | 'bridging' | 'pitching' | 'duplicate' | 'pemetaan' | 'seatlock' | 'interested' | 'lainnya'
 
 const quickFilterLabels: Record<QuickFilter, string> = {
   all: 'Semua',
@@ -44,6 +44,7 @@ const quickFilterLabels: Record<QuickFilter, string> = {
   pemetaan: 'Pemetaan',
   seatlock: 'Seat Lock',
   interested: 'Interested',
+  lainnya: 'Lainnya',
 }
 
 const PEMETAAN_STATUSES = ['Menunggu jadwal pemetaan', 'Menunggu hasil pemetaan'] as const
@@ -59,6 +60,14 @@ const INTERESTED_STATUSES = [
   'In-doubt',
   'No Response',
 ] as const
+const QUICK_FILTER_STATUSES = new Set<string>([
+  'New Lead',
+  'Bridging',
+  'Pitching',
+  ...PEMETAAN_STATUSES,
+  ...SEATLOCK_STATUSES,
+  ...INTERESTED_STATUSES,
+])
 
 function hasVerifiedPayment(lead: LeadWithRelations, types: string[]) {
   return (lead.payments || []).some(
@@ -231,6 +240,8 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
       )
     } else if (quickFilter === 'interested') {
       data = data.filter(l => INTERESTED_STATUSES.includes(l.current_status as never))
+    } else if (quickFilter === 'lainnya') {
+      data = data.filter(l => !QUICK_FILTER_STATUSES.has(l.current_status))
     }
 
     if (search) {
@@ -330,6 +341,7 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
         l => SEATLOCK_STATUSES.includes(l.current_status as never) || hasVerifiedPayment(l, ['seat_lock'])
       ).length,
       interested: leads.filter(l => INTERESTED_STATUSES.includes(l.current_status as never)).length,
+      lainnya: leads.filter(l => !QUICK_FILTER_STATUSES.has(l.current_status)).length,
     }
   }, [leads, duplicateLeadIds])
 
@@ -631,7 +643,7 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
                   { label: 'Nomor WhatsApp', field: null },
                   { label: 'Current Status', field: 'current_status' as const },
                   { label: 'Tanggal Last Update', field: null },
-                  { label: 'Edit', field: null },
+                  { label: 'Aksi', field: null },
                   { label: 'Kerjakan', field: null },
                 ].map((col) => (
                   <th
@@ -699,13 +711,22 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
                     </td>
 
                     <td className="px-3 py-2.5 whitespace-nowrap">
-                      <Link
-                        href={`/leads/${lead.id}/edit`}
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground hover:text-foreground hover:bg-secondary"
-                        title="Edit"
-                      >
-                        <Pencil size={15} />
-                      </Link>
+                      <div className="flex items-center gap-1.5">
+                        <Link
+                          href={`/leads/${lead.id}`}
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground hover:text-foreground hover:bg-secondary"
+                          title="Riwayat / detail lead"
+                        >
+                          <Clock size={15} />
+                        </Link>
+                        <Link
+                          href={`/leads/${lead.id}/edit`}
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground hover:text-foreground hover:bg-secondary"
+                          title="Edit"
+                        >
+                          <Pencil size={15} />
+                        </Link>
+                      </div>
                     </td>
 
                     <td className="px-3 py-2.5 whitespace-nowrap">

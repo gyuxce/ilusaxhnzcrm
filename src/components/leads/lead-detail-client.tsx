@@ -1005,7 +1005,7 @@ export function LeadDetailClient({
       <section className="rounded-2xl border border-border bg-card p-5">
         <div className="flex items-center gap-2 mb-4">
           <Clock size={15} className="text-accent" />
-          <h2 className="text-sm font-semibold text-foreground">Timeline aktivitas CRO</h2>
+          <h2 className="text-sm font-semibold text-foreground">Riwayat kontak & aktivitas CRO</h2>
         </div>
         {activities.length === 0 ? (
           <p className="text-xs text-muted-foreground py-4 text-center">Belum ada aktivitas.</p>
