@@ -93,7 +93,7 @@ export const STAGE2_UPDATE_STATUS_OPTIONS = [
  * Stage 3 (drag) atau modul di detail lead.
  */
 export const STAGE2_KERJAKAN_STATUS_OPTIONS = [
-  'Menunggu hasil pemetaan',
+  'Menunggu jadwal pemetaan',
   'Menunggu arahan selanjutnya',
   'Lainnya (tulis di note)',
 ] as const
