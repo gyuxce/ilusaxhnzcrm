@@ -35,6 +35,7 @@ export default async function LeadsPage() {
 
   const leads = leadsRes.data || []
   const pics = picsRes.data || []
+  const loadError = leadsRes.error?.message
 
   return (
     <>
@@ -43,6 +44,11 @@ export default async function LeadsPage() {
         subtitle="Data master lead — cek, import CSV, edit. Klik Kerjakan untuk mulai Stage 1."
       />
       <div className="p-5 sm:p-6 animate-fade-in w-full font-sans">
+        {loadError && (
+          <div className="mb-4 rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-2 text-xs font-medium text-destructive">
+            Gagal memuat leads: {loadError}
+          </div>
+        )}
         <Suspense fallback={<div className="p-8 text-center text-xs text-muted-foreground animate-pulse">Memuat data leads...</div>}>
           <LeadsTable
             initialLeads={leads || []}
