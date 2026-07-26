@@ -14,7 +14,7 @@ export default async function Home() {
     .maybeSingle()
 
   if (isOwnerLikeRole(profile?.role)) {
-    redirect('/stage-3')
+    redirect('/leads')
   }
 
   redirect('/leads')

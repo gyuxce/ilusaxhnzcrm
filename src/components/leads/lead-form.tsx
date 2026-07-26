@@ -133,9 +133,9 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
     }
 
     setLoading(false)
-    setSuccess(leadId ? 'Perubahan lead berhasil disimpan. Mengalihkan ke Data Leads...' : 'Lead baru berhasil ditambahkan. Mengalihkan ke Kerjaan Hari Ini untuk mulai dikerjakan...')
+    setSuccess(leadId ? 'Perubahan lead berhasil disimpan. Mengalihkan ke Data Leads...' : 'Lead baru berhasil ditambahkan. Mengalihkan ke menu Leads...')
     setTimeout(() => {
-      router.push(leadId ? '/leads' : '/work-queue?filter=new')
+      router.push('/leads')
     }, 250)
   }
 
