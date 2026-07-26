@@ -1,5 +1,5 @@
 import { Sidebar } from '@/components/layout/sidebar'
-import { PrdTrialModeBar } from '@/components/layout/prd-trial-mode-bar'
+import { ensurePrdLiveMode } from '@/app/actions/prd-trial-mode'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 
@@ -14,11 +14,12 @@ export default async function DashboardLayout({
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
+  await ensurePrdLiveMode()
+
   return (
     <div className="min-h-screen">
       <Sidebar />
       <main className="min-h-screen lg:pl-[268px] pt-[64px]">
-        <PrdTrialModeBar />
         {children}
       </main>
     </div>

@@ -18,7 +18,6 @@ import { isJsonRecord } from '@/types/crm'
 import { leadSchema, type LeadFormValues, normalizeWhatsApp } from '@/lib/validations/lead'
 import { revalidateLeadsListing } from '@/app/actions/revalidate-leads'
 import { markLeadsListNeedsRefresh } from '@/lib/leads-list-refresh'
-import { readPrdTrialSinceClient } from '@/lib/prd-trial-mode'
 
 interface LeadFormProps {
   pics: { id: string; name: string }[]
@@ -85,10 +84,7 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
   function rpcErrorMessage(result: RpcResult | null | undefined, fallback = 'Terjadi kesalahan saat menyimpan lead.') {
     if (result?.duplicate_lead && isJsonRecord(result.duplicate_lead)) {
       const duplicate = result.duplicate_lead
-      const trialHint = readPrdTrialSinceClient()
-        ? ' Lead lama mungkin tersembunyi (mode uji) tapi nomor tetap terdaftar — pakai nomor WA lain.'
-        : ''
-      return `Nomor WhatsApp ini sudah terdaftar untuk ${duplicate.full_name} (${duplicate.source_campaign || 'tanpa campaign'}) dengan status ${duplicate.current_status || '-'}.${trialHint}`
+      return `Nomor WhatsApp ini sudah terdaftar untuk ${duplicate.full_name} (${duplicate.source_campaign || 'tanpa campaign'}) dengan status ${duplicate.current_status || '-'}.`
     }
     return result?.message || fallback
   }
@@ -173,7 +169,7 @@ export function LeadForm({ pics, defaultValues, leadId }: LeadFormProps) {
         <div className="rounded-2xl border border-border bg-secondary/60 p-4">
           <h2 className="font-display text-base font-semibold tracking-tight text-foreground">Tambah Lead</h2>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-            Isi nama, WhatsApp, dan campaign. Setelah simpan, lead masuk ke menu Leads (mode uji: hanya tampil jika mode uji sudah aktif sebelum simpan).
+            Isi nama, WhatsApp, dan campaign. Setelah simpan, lead langsung masuk ke menu Leads.
           </p>
         </div>
       )}
