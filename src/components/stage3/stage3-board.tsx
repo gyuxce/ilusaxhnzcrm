@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { cn, getTodayInWIB } from '@/lib/utils'
@@ -264,6 +265,16 @@ function Stage3DetailModal({
   })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = prev
+    }
+  }, [])
 
   const showHasilExpert = form.status === 'Menunggu jadwal expert consultation'
   const showClosing = form.status === 'Closing Seat Lock'
@@ -337,72 +348,83 @@ function Stage3DetailModal({
     onSaved({ id: lead.id, current_status: form.status, lost_reason: showFailed ? form.failedReason : null, funnel_notes: funnelNotes })
   }
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto" style={{ background: 'rgba(27,42,74,0.45)' }}>
-      <div className="flex max-h-[calc(100vh-2rem)] w-full max-w-lg flex-col rounded-2xl border border-border bg-card shadow-xl">
-        <div className="flex items-center justify-between border-b border-border px-4 py-3">
-          <div className="min-w-0">
-            <h3 className="truncate font-display text-base font-semibold text-foreground">Detail Stage 3</h3>
-            <p className="truncate text-[11px] text-muted-foreground">{lead.full_name} · {lead.whatsapp_number}</p>
+  if (!mounted) return null
+
+  return createPortal(
+    <div className="fixed inset-0 z-[200]" style={{ background: 'rgba(27,42,74,0.45)' }}>
+      <div className="h-full w-full overflow-y-auto">
+        <div className="flex min-h-full items-center justify-center p-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="flex w-full max-w-lg max-h-[min(36rem,calc(100vh-2rem))] flex-col rounded-2xl border border-border bg-card shadow-xl"
+          >
+            <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
+              <div className="min-w-0">
+                <h3 className="truncate font-display text-base font-semibold text-foreground">Detail Stage 3</h3>
+                <p className="truncate text-[11px] text-muted-foreground">{lead.full_name} · {lead.whatsapp_number}</p>
+              </div>
+              <button type="button" onClick={onClose} className="rounded-lg p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary">
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-y-auto p-4">
+              {error && <div className="mb-3 rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-[11px] font-medium text-destructive">{error}</div>}
+              <div className="grid grid-cols-1 gap-3">
+                <Field label="Status Stage 3">
+                  <select value={form.status} onChange={(e) => setForm((p) => ({ ...p, status: e.target.value }))} className="field-input">
+                    {STAGE3_STATUS_OPTIONS.map((opt) => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
+                  </select>
+                </Field>
+
+                {showHasilExpert && (
+                  <Field label="Hasil Expert (manual)">
+                    <textarea value={form.hasilExpert} onChange={(e) => setForm((p) => ({ ...p, hasilExpert: e.target.value }))} className="field-input min-h-[56px] resize-y" placeholder="Tulis hasil expert..." />
+                  </Field>
+                )}
+                {showClosing && (
+                  <Field label="Closing Seat Lock — nominal (angka saja, tanpa titik / Rp)">
+                    <input inputMode="numeric" value={form.closingNominal} onChange={(e) => setForm((p) => ({ ...p, closingNominal: e.target.value.replace(/[^\d]/g, '') }))} placeholder="3000000" className="field-input" />
+                  </Field>
+                )}
+                {showCold && (
+                  <Field label="Cold Leads — kondisi (manual)">
+                    <textarea value={form.coldLeadsNote} onChange={(e) => setForm((p) => ({ ...p, coldLeadsNote: e.target.value }))} className="field-input min-h-[56px] resize-y" placeholder="Kondisi lead..." />
+                  </Field>
+                )}
+                {showAkselerasi && (
+                  <Field label="Jalur Akselerasi — kondisi (manual)">
+                    <textarea value={form.akselerasiNote} onChange={(e) => setForm((p) => ({ ...p, akselerasiNote: e.target.value }))} className="field-input min-h-[56px] resize-y" placeholder="Kondisi jalur akselerasi..." />
+                  </Field>
+                )}
+                {showFailed && (
+                  <Field label="Failed — alasan">
+                    <select value={form.failedReason} onChange={(e) => setForm((p) => ({ ...p, failedReason: e.target.value }))} className="field-input">
+                      <option value="">Pilih alasan...</option>
+                      {STAGE3_FAILED_REASON_OPTIONS.map((opt) => (
+                        <option key={opt} value={opt}>{opt}</option>
+                      ))}
+                    </select>
+                  </Field>
+                )}
+              </div>
+            </div>
+
+            <div className="flex shrink-0 items-center justify-between gap-3 border-t border-border bg-secondary/30 px-4 py-3">
+              <button type="button" onClick={onClose} className="text-xs font-semibold text-muted-foreground hover:text-foreground">Batal</button>
+              <button type="button" disabled={saving || !canSave()} onClick={handleSave} className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground disabled:cursor-not-allowed disabled:opacity-50">
+                {saving ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle2 size={15} />}
+                Simpan
+              </button>
+            </div>
           </div>
-          <button type="button" onClick={onClose} className="rounded-lg p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary">
-            <X size={16} />
-          </button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-4">
-          {error && <div className="mb-3 rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-[11px] font-medium text-destructive">{error}</div>}
-          <div className="grid grid-cols-1 gap-3">
-            <Field label="Status Stage 3">
-              <select value={form.status} onChange={(e) => setForm((p) => ({ ...p, status: e.target.value }))} className="field-input">
-                {STAGE3_STATUS_OPTIONS.map((opt) => (
-                  <option key={opt} value={opt}>{opt}</option>
-                ))}
-              </select>
-            </Field>
-
-            {showHasilExpert && (
-              <Field label="Hasil Expert (manual)">
-                <textarea value={form.hasilExpert} onChange={(e) => setForm((p) => ({ ...p, hasilExpert: e.target.value }))} className="field-input min-h-[56px] resize-y" placeholder="Tulis hasil expert..." />
-              </Field>
-            )}
-            {showClosing && (
-              <Field label="Closing Seat Lock — nominal (angka saja, tanpa titik / Rp)">
-                <input inputMode="numeric" value={form.closingNominal} onChange={(e) => setForm((p) => ({ ...p, closingNominal: e.target.value.replace(/[^\d]/g, '') }))} placeholder="3000000" className="field-input" />
-              </Field>
-            )}
-            {showCold && (
-              <Field label="Cold Leads — kondisi (manual)">
-                <textarea value={form.coldLeadsNote} onChange={(e) => setForm((p) => ({ ...p, coldLeadsNote: e.target.value }))} className="field-input min-h-[56px] resize-y" placeholder="Kondisi lead..." />
-              </Field>
-            )}
-            {showAkselerasi && (
-              <Field label="Jalur Akselerasi — kondisi (manual)">
-                <textarea value={form.akselerasiNote} onChange={(e) => setForm((p) => ({ ...p, akselerasiNote: e.target.value }))} className="field-input min-h-[56px] resize-y" placeholder="Kondisi jalur akselerasi..." />
-              </Field>
-            )}
-            {showFailed && (
-              <Field label="Failed — alasan">
-                <select value={form.failedReason} onChange={(e) => setForm((p) => ({ ...p, failedReason: e.target.value }))} className="field-input">
-                  <option value="">Pilih alasan...</option>
-                  {STAGE3_FAILED_REASON_OPTIONS.map((opt) => (
-                    <option key={opt} value={opt}>{opt}</option>
-                  ))}
-                </select>
-              </Field>
-            )}
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between gap-3 border-t border-border bg-secondary/30 px-4 py-3">
-          <button type="button" onClick={onClose} className="text-xs font-semibold text-muted-foreground hover:text-foreground">Batal</button>
-          <button type="button" disabled={saving || !canSave()} onClick={handleSave} className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground disabled:cursor-not-allowed disabled:opacity-50">
-            {saving ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle2 size={15} />}
-            Simpan
-          </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 

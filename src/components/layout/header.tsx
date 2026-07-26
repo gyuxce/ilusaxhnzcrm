@@ -514,18 +514,18 @@ export function Header({ title, subtitle, backUrl }: HeaderProps) {
               {/* Footer */}
               <div className="px-4 py-3 border-t border-border grid grid-cols-2 gap-2">
                 <Link
-                  href="/needs-action"
+                  href="/stage-2"
                   onClick={() => setNotifOpen(false)}
                   className="flex items-center justify-center gap-1.5 py-2 rounded-xl text-[10px] font-bold text-primary transition-colors bg-secondary border border-border"
                 >
-                  <AlertCircle size={11} /> Needs Action
+                  <AlertCircle size={11} /> Stage 2
                 </Link>
                 <Link
-                  href="/follow-ups"
+                  href="/stage-3"
                   onClick={() => setNotifOpen(false)}
                   className="flex items-center justify-center gap-1.5 py-2 rounded-xl text-[10px] font-bold text-orange-600 dark:text-orange-400 transition-all bg-orange-50/70 dark:bg-orange-950/20 border border-orange-100 dark:border-orange-900/30"
                 >
-                  <Calendar size={11} /> Follow-Up
+                  <Calendar size={11} /> Stage 3
                 </Link>
               </div>
             </div>

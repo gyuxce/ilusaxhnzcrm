@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { Header } from '@/components/layout/header'
 import { createClient } from '@/lib/supabase/client'
@@ -303,101 +304,111 @@ export default function Stage2Page() {
         </div>
       </div>
 
-      {/* Kerjakan Stage 2 modal */}
-      {activeLead && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto" style={{ background: 'rgba(27,42,74,0.45)' }}>
-          <div className="flex max-h-[calc(100vh-2rem)] w-full max-w-lg flex-col rounded-2xl border border-border bg-card shadow-xl">
-            <div className="flex items-center justify-between border-b border-border px-4 py-3">
-              <div className="min-w-0">
-                <h3 className="truncate font-display text-base font-semibold text-foreground">Kerjakan Stage 2</h3>
-                <p className="truncate text-[11px] text-muted-foreground">{activeLead.full_name} · {activeLead.whatsapp_number}</p>
-              </div>
-              <button type="button" onClick={() => setActiveLead(null)} className="rounded-lg p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary">
-                <X size={16} />
-              </button>
-            </div>
+      {/* Kerjakan Stage 2 modal — portal ke body agar center (hindari transform parent) */}
+      {activeLead &&
+        createPortal(
+          <div className="fixed inset-0 z-[200]" style={{ background: 'rgba(27,42,74,0.45)' }}>
+            <div className="h-full w-full overflow-y-auto">
+              <div className="flex min-h-full items-center justify-center p-4">
+                <div
+                  role="dialog"
+                  aria-modal="true"
+                  className="flex w-full max-w-lg max-h-[min(36rem,calc(100vh-2rem))] flex-col rounded-2xl border border-border bg-card shadow-xl"
+                >
+                  <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
+                    <div className="min-w-0">
+                      <h3 className="truncate font-display text-base font-semibold text-foreground">Kerjakan Stage 2</h3>
+                      <p className="truncate text-[11px] text-muted-foreground">{activeLead.full_name} · {activeLead.whatsapp_number}</p>
+                    </div>
+                    <button type="button" onClick={() => setActiveLead(null)} className="rounded-lg p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary">
+                      <X size={16} />
+                    </button>
+                  </div>
 
-            <div className="flex-1 overflow-y-auto p-4">
-              {message.text && (
-                <div className={cn('mb-3 rounded-lg border px-3 py-2 text-[11px] font-medium', message.type === 'success' ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-destructive/20 bg-destructive/5 text-destructive')}>
-                  {message.text}
+                  <div className="min-h-0 flex-1 overflow-y-auto p-4">
+                    {message.text && (
+                      <div className={cn('mb-3 rounded-lg border px-3 py-2 text-[11px] font-medium', message.type === 'success' ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-destructive/20 bg-destructive/5 text-destructive')}>
+                        {message.text}
+                      </div>
+                    )}
+                    <div className="grid grid-cols-1 gap-3">
+                      <Field label="Status Current Staging">
+                        <select
+                          value={form.statusStaging}
+                          onChange={(e) => setForm((prev) => ({ ...prev, statusStaging: e.target.value }))}
+                          className="field-input"
+                        >
+                          <option value="">Pilih status...</option>
+                          {STAGE2_KERJAKAN_STATUS_OPTIONS.map((opt) => (
+                            <option key={opt} value={opt}>{opt}</option>
+                          ))}
+                        </select>
+                      </Field>
+
+                      <label className="flex items-center gap-2 text-xs font-semibold text-foreground/80">
+                        <input
+                          type="checkbox"
+                          checked={form.bayarPemetaan}
+                          onChange={(e) => setForm((prev) => ({ ...prev, bayarPemetaan: e.target.checked }))}
+                        />
+                        Sudah bayar pemetaan? (opsional)
+                      </label>
+                      {form.bayarPemetaan && (
+                        <Field label="Berapa nominal pemetaan? (angka saja, tanpa titik / Rp)">
+                          <input
+                            inputMode="numeric"
+                            value={form.nominalPemetaan}
+                            onChange={(e) => setForm((prev) => ({ ...prev, nominalPemetaan: e.target.value.replace(/[^\d]/g, '') }))}
+                            placeholder="500000"
+                            className="field-input"
+                          />
+                        </Field>
+                      )}
+
+                      <Field label="Komunikasi Terakhir">
+                        <input
+                          type="date"
+                          value={form.komunikasiTerakhir}
+                          onChange={(e) => setForm((prev) => ({ ...prev, komunikasiTerakhir: e.target.value }))}
+                          className="field-input"
+                        />
+                      </Field>
+
+                      <Field label="Note (opsional)">
+                        <textarea
+                          value={form.note}
+                          onChange={(e) => setForm((prev) => ({ ...prev, note: e.target.value }))}
+                          className="field-input min-h-[56px] resize-y"
+                          placeholder={isLainnya ? 'Tulis status lainnya di sini...' : 'Opsional'}
+                        />
+                      </Field>
+                    </div>
+                  </div>
+
+                  <div className="flex shrink-0 items-center justify-between gap-3 border-t border-border bg-secondary/30 px-4 py-3">
+                    <button
+                      type="button"
+                      onClick={() => setActiveLead(null)}
+                      className="text-xs font-semibold text-muted-foreground hover:text-foreground"
+                    >
+                      Batal
+                    </button>
+                    <button
+                      type="button"
+                      disabled={saving || !canSave()}
+                      onClick={handleSave}
+                      className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {saving ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle2 size={15} />}
+                      Simpan
+                    </button>
+                  </div>
                 </div>
-              )}
-              <div className="grid grid-cols-1 gap-3">
-                <Field label="Status Current Staging">
-                  <select
-                    value={form.statusStaging}
-                    onChange={(e) => setForm((prev) => ({ ...prev, statusStaging: e.target.value }))}
-                    className="field-input"
-                  >
-                    <option value="">Pilih status...</option>
-                    {STAGE2_KERJAKAN_STATUS_OPTIONS.map((opt) => (
-                      <option key={opt} value={opt}>{opt}</option>
-                    ))}
-                  </select>
-                </Field>
-
-                <label className="flex items-center gap-2 text-xs font-semibold text-foreground/80">
-                  <input
-                    type="checkbox"
-                    checked={form.bayarPemetaan}
-                    onChange={(e) => setForm((prev) => ({ ...prev, bayarPemetaan: e.target.checked }))}
-                  />
-                  Sudah bayar pemetaan? (opsional)
-                </label>
-                {form.bayarPemetaan && (
-                  <Field label="Berapa nominal pemetaan? (angka saja, tanpa titik / Rp)">
-                    <input
-                      inputMode="numeric"
-                      value={form.nominalPemetaan}
-                      onChange={(e) => setForm((prev) => ({ ...prev, nominalPemetaan: e.target.value.replace(/[^\d]/g, '') }))}
-                      placeholder="500000"
-                      className="field-input"
-                    />
-                  </Field>
-                )}
-
-                <Field label="Komunikasi Terakhir">
-                  <input
-                    type="date"
-                    value={form.komunikasiTerakhir}
-                    onChange={(e) => setForm((prev) => ({ ...prev, komunikasiTerakhir: e.target.value }))}
-                    className="field-input"
-                  />
-                </Field>
-
-                <Field label="Note (opsional)">
-                  <textarea
-                    value={form.note}
-                    onChange={(e) => setForm((prev) => ({ ...prev, note: e.target.value }))}
-                    className="field-input min-h-[56px] resize-y"
-                    placeholder={isLainnya ? 'Tulis status lainnya di sini...' : 'Opsional'}
-                  />
-                </Field>
               </div>
             </div>
-
-            <div className="flex items-center justify-between gap-3 border-t border-border bg-secondary/30 px-4 py-3">
-              <button
-                type="button"
-                onClick={() => setActiveLead(null)}
-                className="text-xs font-semibold text-muted-foreground hover:text-foreground"
-              >
-                Batal
-              </button>
-              <button
-                type="button"
-                disabled={saving || !canSave()}
-                onClick={handleSave}
-                className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {saving ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle2 size={15} />}
-                Simpan
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body
+        )}
     </>
   )
 }
