@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { Header } from '@/components/layout/header'
@@ -61,7 +61,7 @@ export default function Stage2Page() {
     note: '',
   })
 
-  async function fetchLeads() {
+  const fetchLeads = useCallback(async () => {
     setLoading(true)
     const trialSince = readPrdTrialSinceClient()
     let q = supabase
@@ -81,14 +81,14 @@ export default function Stage2Page() {
       setLeads(data as LeadRow[])
     }
     setLoading(false)
-  }
+  }, [supabase])
 
   useEffect(() => {
     void fetchLeads()
     const onTrialChange = () => void fetchLeads()
     window.addEventListener(PRD_TRIAL_MODE_CHANGED, onTrialChange)
     return () => window.removeEventListener(PRD_TRIAL_MODE_CHANGED, onTrialChange)
-  }, [])
+  }, [fetchLeads])
 
   const counts = useMemo(() => {
     const map: Record<string, number> = { all: leads.length }

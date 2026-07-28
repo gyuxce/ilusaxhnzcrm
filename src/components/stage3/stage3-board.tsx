@@ -10,7 +10,6 @@ import {
   STAGE3_STATUS_OPTIONS,
   STAGE3_FAILED_REASON_OPTIONS,
   resolveStage3DropStatus,
-  getStage3Column,
   type Stage3ColumnKey,
 } from '@/lib/prd-stages'
 import { MessageCircle, Users, X, Loader2, CheckCircle2 } from 'lucide-react'

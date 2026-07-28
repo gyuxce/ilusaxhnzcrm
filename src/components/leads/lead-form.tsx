@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
@@ -56,7 +56,7 @@ export function LeadForm({ defaultValues, leadId }: LeadFormProps) {
   const {
     register,
     handleSubmit: handleFormSubmit,
-    watch,
+    control,
     formState: { errors },
   } = useForm<LeadFormValues>({
     resolver: zodResolver(leadSchema),
@@ -75,7 +75,7 @@ export function LeadForm({ defaultValues, leadId }: LeadFormProps) {
     },
   })
 
-  const currentStatus = watch('current_status')
+  const currentStatus = useWatch({ control, name: 'current_status' })
 
   function rpcErrorMessage(result: RpcResult | null | undefined, fallback = 'Terjadi kesalahan saat menyimpan lead.') {
     if (result?.duplicate_lead && isJsonRecord(result.duplicate_lead)) {

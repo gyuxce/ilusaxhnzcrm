@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { useSearchParams, useRouter } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { Header } from '@/components/layout/header'
 import { WhatsAppButton } from '@/components/leads/WhatsAppButton'
 import { createClient } from '@/lib/supabase/client'
@@ -44,7 +44,6 @@ type Form = {
 
 export default function Stage1Page() {
   const supabase = createClient()
-  const router = useRouter()
   const searchParams = useSearchParams()
   const leadIdParam = searchParams.get('lead')
 
@@ -64,7 +63,7 @@ export default function Stage1Page() {
     note: '',
   })
 
-  async function fetchLeads() {
+  const fetchLeads = useCallback(async () => {
     setLoading(true)
     const trialSince = readPrdTrialSinceClient()
     let q = supabase
@@ -84,14 +83,14 @@ export default function Stage1Page() {
       setLeads(data as LeadRow[])
     }
     setLoading(false)
-  }
+  }, [supabase])
 
   useEffect(() => {
     void fetchLeads()
     const onTrialChange = () => void fetchLeads()
     window.addEventListener(PRD_TRIAL_MODE_CHANGED, onTrialChange)
     return () => window.removeEventListener(PRD_TRIAL_MODE_CHANGED, onTrialChange)
-  }, [])
+  }, [fetchLeads])
 
   const selectedLead = useMemo(
     () => leads.find((l) => l.id === selectedId) || null,

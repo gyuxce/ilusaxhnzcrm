@@ -171,7 +171,7 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
     }
   }
 
-  function SortIcon({ field }: { field: typeof sortField }) {
+  function renderSortIcon(field: typeof sortField) {
     if (sortField !== field) return <ChevronUp size={12} className="text-muted-foreground/30" />
     return sortDir === 'asc' ? (
       <ChevronUp size={12} className="text-accent" />
@@ -284,7 +284,7 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
                   onClick={() => toggleSort('full_name')}
                 >
                   <span className="flex items-center gap-1">
-                    Nama <SortIcon field="full_name" />
+                    Nama {renderSortIcon('full_name')}
                   </span>
                 </th>
                 <th className="px-3 py-2.5 text-[11px] font-semibold text-muted-foreground whitespace-nowrap">
@@ -297,7 +297,7 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
                       className="flex items-center gap-1 cursor-pointer select-none text-left"
                       onClick={() => toggleSort('current_status')}
                     >
-                      Current Status <SortIcon field="current_status" />
+                      Current Status {renderSortIcon('current_status')}
                     </button>
                     <select
                       value={filterStatus}

@@ -46,7 +46,6 @@ export default function DashboardPage() {
 
   const fetchStats = useCallback(async () => {
     setLoading(true)
-    const today = getTodayInWIB()
 
     let leadsQuery = supabase
       .from('leads')
