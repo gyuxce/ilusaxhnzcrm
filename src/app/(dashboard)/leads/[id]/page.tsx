@@ -13,7 +13,7 @@ export default async function LeadDetailPage({ params }: PageProps) {
   const resolvedParams = await params
   const supabase = await createClient()
 
-  const [leadRes, activitiesRes, picsRes] = await Promise.all([
+  const [leadRes, activitiesRes, paymentsRes, picsRes] = await Promise.all([
     supabase
       .from('leads')
       .select(`
@@ -28,6 +28,12 @@ export default async function LeadDetailPage({ params }: PageProps) {
       .select('*, users:created_by(id, name)')
       .eq('lead_id', resolvedParams.id)
       .order('created_at', { ascending: false }),
+    supabase
+      .from('payments')
+      .select('*')
+      .eq('lead_id', resolvedParams.id)
+      .order('payment_date', { ascending: false })
+      .order('created_at', { ascending: false }),
     supabase.from('users').select('id, name'),
   ])
 
@@ -39,7 +45,7 @@ export default async function LeadDetailPage({ params }: PageProps) {
       <Header title="Detail Lead" subtitle={lead.full_name} backUrl="/leads" />
       <LeadDetailClient
         initialLead={lead}
-        initialPayments={[]}
+        initialPayments={paymentsRes.data || []}
         initialPemetaan={[]}
         initialExpertConsultations={[]}
         initialActivities={activitiesRes.data || []}

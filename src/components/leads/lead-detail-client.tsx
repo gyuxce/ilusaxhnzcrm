@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { Clock, Edit, ClipboardCheck, ListChecks, KanbanSquare, X, Loader2 } from 'lucide-react'
+import { Clock, Edit, ClipboardCheck, ListChecks, KanbanSquare, X, Loader2, DollarSign, Plus, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { getStageBadgeClasses } from '@/lib/brand'
 import {
@@ -18,6 +18,7 @@ import {
 import type { LeadDetailProps, LeadWithUsers, ActivityWithUser, UserSummary } from '@/types/crm'
 import { LOST_REASON_OPTIONS, LOST_STATUSES } from '@/lib/lost-reasons'
 import { isJsonRecord } from '@/types/crm'
+import type { PaymentRow } from '@/lib/supabase/types'
 
 function displayStatus(status: string) {
   return status === STAGE1_LEGACY_NEW_LEAD ? 'Input Manual' : status
@@ -44,12 +45,24 @@ const LANE_LABEL: Record<string, string> = {
 
 export function LeadDetailClient({
   initialLead,
+  initialPayments,
   initialActivities,
   pics,
 }: LeadDetailProps) {
   const [lead, setLead] = useState<LeadWithUsers>(initialLead)
+  const [payments, setPayments] = useState<PaymentRow[]>(initialPayments)
   const [activities, setActivities] = useState<ActivityWithUser[]>(initialActivities)
   const [isEditingCore, setIsEditingCore] = useState(false)
+  const [isEditingPayment, setIsEditingPayment] = useState(false)
+  const [editingPayment, setEditingPayment] = useState<PaymentRow | null>(null)
+  const [paymentType, setPaymentType] = useState('pemetaan')
+  const [paymentAmount, setPaymentAmount] = useState('')
+  const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0])
+  const [paymentMethod, setPaymentMethod] = useState('Transfer')
+  const [paymentStatus, setPaymentStatus] = useState('verified')
+  const [paymentNotes, setPaymentNotes] = useState('')
+  const [paymentError, setPaymentError] = useState('')
+  const [savingPayment, setSavingPayment] = useState(false)
   const [editName, setEditName] = useState(lead.full_name)
   const [editPhone, setEditPhone] = useState(lead.whatsapp_number)
   const [editSource, setEditSource] = useState(lead.source_campaign)
@@ -61,6 +74,19 @@ export function LeadDetailClient({
 
   const supabase = createClient()
   const lane = resolvePrdLane(lead.current_status)
+  const totalPemetaan = payments
+    .filter((payment) => payment.payment_type === 'pemetaan' || payment.payment_type === 'roadmap_session')
+    .reduce((sum, payment) => sum + Number(payment.amount || 0), 0)
+  const totalSeatLock = payments
+    .filter((payment) => payment.payment_type === 'seat_lock')
+    .reduce((sum, payment) => sum + Number(payment.amount || 0), 0)
+
+  const formatRupiah = (value: number) =>
+    new Intl.NumberFormat('id-ID', {
+      style: 'currency',
+      currency: 'IDR',
+      maximumFractionDigits: 0,
+    }).format(value)
 
   const normalizePhone = (value: string) => {
     let cleanPhone = value.replace(/\D/g, '')
@@ -148,6 +174,82 @@ export function LeadDetailClient({
     setEditPhone(cleanPhone)
     setIsEditingCore(false)
     await logActivity('Lead Updated', `Data lead diperbarui → ${editStatus}`, actorId)
+  }
+
+  const openPaymentForm = (payment?: PaymentRow) => {
+    setPaymentError('')
+    setEditingPayment(payment || null)
+    setPaymentType(payment?.payment_type || 'pemetaan')
+    setPaymentAmount(payment ? String(Number(payment.amount || 0)) : '')
+    setPaymentDate(payment?.payment_date?.split('T')[0] || new Date().toISOString().split('T')[0])
+    setPaymentMethod(payment?.payment_method || 'Transfer')
+    setPaymentStatus(payment?.verification_status || 'verified')
+    setPaymentNotes(payment?.notes || '')
+    setIsEditingPayment(true)
+  }
+
+  const handleSavePayment = async () => {
+    setPaymentError('')
+    const nominal = Number(paymentAmount.replace(/[^\d]/g, ''))
+    if (!paymentType) {
+      setPaymentError('Tipe pembayaran wajib dipilih.')
+      return
+    }
+    if (!nominal || nominal <= 0) {
+      setPaymentError('Nominal pembayaran wajib diisi.')
+      return
+    }
+
+    setSavingPayment(true)
+    const actorId = (await supabase.auth.getUser()).data.user?.id || null
+    const payload = {
+      lead_id: lead.id,
+      payment_type: paymentType,
+      amount: nominal,
+      payment_method: paymentMethod || 'Transfer',
+      payment_date: paymentDate,
+      verification_status: paymentStatus,
+      verified_by: paymentStatus === 'verified' ? actorId : null,
+      verified_at: paymentStatus === 'verified' ? new Date().toISOString() : null,
+      notes: paymentNotes || null,
+      updated_at: new Date().toISOString(),
+    }
+
+    const result = editingPayment
+      ? await supabase.from('payments').update(payload).eq('id', editingPayment.id).select('*').single()
+      : await supabase.from('payments').insert(payload).select('*').single()
+
+    setSavingPayment(false)
+    if (result.error) {
+      setPaymentError(result.error.message || 'Gagal menyimpan pembayaran.')
+      return
+    }
+
+    const savedPayment = result.data as PaymentRow
+    setPayments((prev) =>
+      editingPayment
+        ? prev.map((payment) => (payment.id === savedPayment.id ? savedPayment : payment))
+        : [savedPayment, ...prev]
+    )
+    setIsEditingPayment(false)
+    await logActivity(
+      editingPayment ? 'Payment Updated' : 'Payment Added',
+      `${editingPayment ? 'Pembayaran diperbarui' : 'Pembayaran dicatat'}: ${paymentType} ${formatRupiah(nominal)}`,
+      actorId
+    )
+  }
+
+  const handleDeletePayment = async (payment: PaymentRow) => {
+    const ok = window.confirm(`Hapus pembayaran ${formatRupiah(Number(payment.amount || 0))}? Data lead tidak ikut terhapus.`)
+    if (!ok) return
+    const actorId = (await supabase.auth.getUser()).data.user?.id || null
+    const { error } = await supabase.from('payments').delete().eq('id', payment.id)
+    if (error) {
+      setPaymentError(error.message || 'Gagal menghapus pembayaran.')
+      return
+    }
+    setPayments((prev) => prev.filter((item) => item.id !== payment.id))
+    await logActivity('Payment Deleted', `Pembayaran dihapus: ${payment.payment_type} ${formatRupiah(Number(payment.amount || 0))}`, actorId)
   }
 
   const userLabel = (user?: UserSummary | null, fallback?: string | null) => {
@@ -253,6 +355,91 @@ export function LeadDetailClient({
           <div className="mt-4 rounded-xl border border-border bg-secondary/40 px-4 py-3">
             <p className="text-[11px] font-semibold text-muted-foreground">Catatan terakhir</p>
             <p className="text-xs text-foreground mt-1 leading-relaxed">{lead.funnel_notes}</p>
+          </div>
+        )}
+      </section>
+
+      <section className="rounded-2xl border border-border bg-card p-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <DollarSign size={15} className="text-emerald-600" />
+            <div>
+              <h2 className="text-sm font-semibold text-foreground">Riwayat pembayaran</h2>
+              <p className="text-xs text-muted-foreground">Ledger transaksi. Bisa ditambah atau dikoreksi tanpa mengubah stage.</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => openPaymentForm()}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2 text-xs font-semibold text-accent-foreground hover:opacity-90"
+          >
+            <Plus size={14} />
+            Tambah pembayaran
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+          <InfoCard label="Total Pemetaan" value={formatRupiah(totalPemetaan)} />
+          <InfoCard label="Total Seat Lock" value={formatRupiah(totalSeatLock)} />
+        </div>
+
+        {paymentError && (
+          <div className="mb-3 rounded-xl border border-destructive/20 bg-destructive/5 px-3 py-2 text-xs font-semibold text-destructive">
+            {paymentError}
+          </div>
+        )}
+
+        {payments.length === 0 ? (
+          <p className="rounded-xl border border-dashed border-border py-6 text-center text-xs text-muted-foreground">
+            Belum ada pembayaran tercatat.
+          </p>
+        ) : (
+          <div className="overflow-x-auto rounded-xl border border-border">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-secondary/50 text-muted-foreground">
+                <tr>
+                  <th className="px-3 py-2 font-semibold">Tipe</th>
+                  <th className="px-3 py-2 font-semibold">Tanggal</th>
+                  <th className="px-3 py-2 font-semibold">Nominal</th>
+                  <th className="px-3 py-2 font-semibold">Status</th>
+                  <th className="px-3 py-2 font-semibold text-right">Aksi</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {payments.map((payment) => (
+                  <tr key={payment.id}>
+                    <td className="px-3 py-2 font-semibold text-foreground">{payment.payment_type}</td>
+                    <td className="px-3 py-2 text-muted-foreground">{payment.payment_date}</td>
+                    <td className="px-3 py-2 font-semibold text-foreground">{formatRupiah(Number(payment.amount || 0))}</td>
+                    <td className="px-3 py-2">
+                      <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+                        {payment.verification_status}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2">
+                      <div className="flex justify-end gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => openPaymentForm(payment)}
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground hover:text-foreground"
+                          title="Edit pembayaran"
+                        >
+                          <Edit size={13} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void handleDeletePayment(payment)}
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-red-600 hover:bg-red-100"
+                          title="Hapus pembayaran"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </section>
@@ -367,6 +554,93 @@ export function LeadDetailClient({
                     className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl bg-accent text-accent-foreground disabled:opacity-60"
                   >
                     {saving && <Loader2 size={14} className="animate-spin" />}
+                    Simpan
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isEditingPayment && (
+        <div className="fixed inset-0 z-[210] bg-black/30">
+          <div className="h-full w-full overflow-y-auto">
+            <div className="flex min-h-full items-center justify-center p-4">
+              <div className="relative w-full max-w-md bg-card border border-border rounded-2xl p-6 shadow-xl space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-display text-lg font-semibold text-foreground">
+                    {editingPayment ? 'Edit pembayaran' : 'Tambah pembayaran'}
+                  </h3>
+                  <button type="button" onClick={() => setIsEditingPayment(false)} className="rounded-lg p-1.5 text-muted-foreground hover:text-foreground">
+                    <X size={16} />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 gap-3">
+                  <label className="block space-y-1">
+                    <span className="text-[11px] font-semibold text-muted-foreground">Tipe pembayaran</span>
+                    <select value={paymentType} onChange={(e) => setPaymentType(e.target.value)} className="detail-input">
+                      <option value="pemetaan">Pemetaan</option>
+                      <option value="seat_lock">Seat Lock</option>
+                      <option value="roadmap_session">Roadmap Session</option>
+                    </select>
+                  </label>
+                  <label className="block space-y-1">
+                    <span className="text-[11px] font-semibold text-muted-foreground">Nominal</span>
+                    <input
+                      inputMode="numeric"
+                      value={paymentAmount}
+                      onChange={(e) => setPaymentAmount(e.target.value.replace(/[^\d]/g, ''))}
+                      placeholder="500000"
+                      className="detail-input"
+                    />
+                  </label>
+                  <label className="block space-y-1">
+                    <span className="text-[11px] font-semibold text-muted-foreground">Tanggal bayar</span>
+                    <input type="date" value={paymentDate} onChange={(e) => setPaymentDate(e.target.value)} className="detail-input" />
+                  </label>
+                  <label className="block space-y-1">
+                    <span className="text-[11px] font-semibold text-muted-foreground">Metode</span>
+                    <input value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} className="detail-input" />
+                  </label>
+                  <label className="block space-y-1">
+                    <span className="text-[11px] font-semibold text-muted-foreground">Status verifikasi</span>
+                    <select value={paymentStatus} onChange={(e) => setPaymentStatus(e.target.value)} className="detail-input">
+                      <option value="verified">Verified</option>
+                      <option value="pending">Pending</option>
+                      <option value="rejected">Rejected</option>
+                    </select>
+                  </label>
+                  <textarea
+                    value={paymentNotes}
+                    onChange={(e) => setPaymentNotes(e.target.value)}
+                    placeholder="Catatan pembayaran..."
+                    className="detail-input min-h-[72px]"
+                  />
+                </div>
+
+                {paymentError && (
+                  <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-3 py-2 text-xs font-semibold text-destructive">
+                    {paymentError}
+                  </div>
+                )}
+
+                <div className="flex items-center justify-end gap-2 border-t border-border pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingPayment(false)}
+                    className="px-4 py-2 text-xs font-semibold rounded-xl text-muted-foreground hover:text-foreground"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="button"
+                    disabled={savingPayment}
+                    onClick={() => void handleSavePayment()}
+                    className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl bg-accent text-accent-foreground disabled:opacity-60"
+                  >
+                    {savingPayment && <Loader2 size={14} className="animate-spin" />}
                     Simpan
                   </button>
                 </div>
