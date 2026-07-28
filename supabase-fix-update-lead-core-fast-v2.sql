@@ -99,7 +99,9 @@ $$;
 grant execute on function public.update_lead_core_fast_v2(uuid, text, text, text, text, text, uuid, text, text, timestamptz) to authenticated;
 
 -- Keep the old RPC name working for any cached deployment/browser bundle.
--- The ambiguity came from a second overload using `date`; this removes only that function definition, not data.
+-- The ambiguity came from old overloads with the same argument names.
+-- These drops remove only function definitions, not data.
+drop function if exists public.update_lead_core_fast(uuid, text, text, text, text, text, uuid, text, text);
 drop function if exists public.update_lead_core_fast(uuid, text, text, text, text, text, uuid, text, text, date);
 
 create or replace function public.update_lead_core_fast(
@@ -136,3 +138,11 @@ end;
 $$;
 
 grant execute on function public.update_lead_core_fast(uuid, text, text, text, text, text, uuid, text, text, timestamptz) to authenticated;
+
+notify pgrst, 'reload schema';
+
+select oid::regprocedure as remaining_update_lead_core_fast_function
+from pg_proc
+where pronamespace = 'public'::regnamespace
+  and proname = 'update_lead_core_fast'
+order by oid::regprocedure::text;
