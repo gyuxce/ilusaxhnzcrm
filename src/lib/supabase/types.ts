@@ -425,6 +425,21 @@ export type Database = {
         }
         Returns: Json
       }
+      update_lead_core_fast_v2: {
+        Args: {
+          p_lead_id: string
+          p_full_name: string
+          p_whatsapp_number: string
+          p_email?: string | null
+          p_source_campaign?: string | null
+          p_current_status?: string | null
+          p_assigned_cro_id?: string | null
+          p_notes?: string | null
+          p_lost_reason?: string | null
+          p_lead_entry_date?: string | null
+        }
+        Returns: Json
+      }
       apply_needs_action_fast: {
         Args: {
           p_lead_id: string

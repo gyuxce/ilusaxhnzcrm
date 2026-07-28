@@ -109,7 +109,7 @@ export function LeadDetailClient({
     }
 
     setSaving(true)
-    const { data, error } = await supabase.rpc('update_lead_core_fast', {
+    const { data, error } = await supabase.rpc('update_lead_core_fast_v2', {
       p_lead_id: lead.id,
       p_full_name: editName,
       p_whatsapp_number: cleanPhone,

@@ -104,7 +104,7 @@ export function LeadForm({ defaultValues, leadId }: LeadFormProps) {
     }
 
     const { data, error: rpcErr } = leadId
-      ? await supabase.rpc('update_lead_core_fast', {
+      ? await supabase.rpc('update_lead_core_fast_v2', {
           p_lead_id: leadId,
           ...params,
           p_lost_reason: LOST_STATUSES.includes(status) ? dataValues.lost_reason : null,
