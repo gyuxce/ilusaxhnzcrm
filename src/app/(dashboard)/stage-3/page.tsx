@@ -17,7 +17,8 @@ export default async function Stage3Page() {
     .from('leads')
     .select(`
       id, full_name, whatsapp_number, source_campaign, current_status,
-      lead_entry_date, funnel_notes, lost_reason,
+      lead_entry_date, last_contacted_date, updated_at, notes, funnel_notes, lost_reason,
+      expert_consultations(id, expert_name, consultation_result, recommendation, next_step, scheduled_at, completed_at, updated_at),
       users:assigned_cro_id(id, name)
     `)
     .in('current_status', STAGE3_STATUSES)

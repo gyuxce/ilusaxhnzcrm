@@ -129,15 +129,22 @@ export const STAGE3_WON_STATUSES = ['Closing Seat Lock'] as const
 /** C.1 — Kolom Kanban Stage 3. */
 export const STAGE3_BOARD_COLUMNS = [
   {
-    key: 'pemetaan',
-    label: 'Pemetaan',
+    key: 'jadwal_pemetaan',
+    label: 'Menunggu jadwal pemetaan',
     color: '#8b5cf6',
     soft: 'rgba(139,92,246,0.10)',
-    statuses: ['Menunggu jadwal pemetaan', 'Menunggu hasil pemetaan'] as string[],
+    statuses: ['Menunggu jadwal pemetaan'] as string[],
+  },
+  {
+    key: 'hasil_pemetaan',
+    label: 'Menunggu hasil pemetaan',
+    color: '#6366f1',
+    soft: 'rgba(99,102,241,0.10)',
+    statuses: ['Menunggu hasil pemetaan'] as string[],
   },
   {
     key: 'expert',
-    label: 'Expert',
+    label: 'Menunggu jadwal expert consultation',
     color: '#10b981',
     soft: 'rgba(16,185,129,0.10)',
     statuses: ['Menunggu jadwal expert consultation'] as string[],
@@ -147,7 +154,14 @@ export const STAGE3_BOARD_COLUMNS = [
     label: 'Menunggu pembayaran seat-lock',
     color: '#f59e0b',
     soft: 'rgba(245,158,11,0.10)',
-    statuses: ['Menunggu pembayaran seat-lock', 'Jalur Akselerasi'] as string[],
+    statuses: ['Menunggu pembayaran seat-lock'] as string[],
+  },
+  {
+    key: 'akselerasi',
+    label: 'Jalur Akselerasi',
+    color: '#f97316',
+    soft: 'rgba(249,115,22,0.10)',
+    statuses: ['Jalur Akselerasi'] as string[],
   },
   {
     key: 'closing',
@@ -157,11 +171,18 @@ export const STAGE3_BOARD_COLUMNS = [
     statuses: ['Closing Seat Lock'] as string[],
   },
   {
-    key: 'exit',
-    label: 'Keluar · Cold / Failed',
-    color: '#9a3412',
-    soft: 'rgba(154,52,18,0.10)',
-    statuses: ['Cold Leads', 'Failed'] as string[],
+    key: 'cold',
+    label: 'Cold Leads',
+    color: '#64748b',
+    soft: 'rgba(100,116,139,0.10)',
+    statuses: ['Cold Leads'] as string[],
+  },
+  {
+    key: 'failed',
+    label: 'Failed',
+    color: '#ef4444',
+    soft: 'rgba(239,68,68,0.10)',
+    statuses: ['Failed'] as string[],
   },
 ] as const
 

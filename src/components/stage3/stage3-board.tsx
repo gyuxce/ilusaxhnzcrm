@@ -10,9 +10,8 @@ import {
   STAGE3_STATUS_OPTIONS,
   STAGE3_FAILED_REASON_OPTIONS,
   resolveStage3DropStatus,
-  type Stage3ColumnKey,
 } from '@/lib/prd-stages'
-import { MessageCircle, Users, X, Loader2, CheckCircle2 } from 'lucide-react'
+import { CalendarClock, Clock3, FileText, MessageCircle, Users, X, Loader2, CheckCircle2 } from 'lucide-react'
 
 const INITIAL_VISIBLE = 10
 const LOAD_STEP = 10
@@ -24,19 +23,50 @@ export interface Stage3Lead {
   source_campaign: string
   current_status: string
   lead_entry_date: string | null
+  last_contacted_date: string | null
+  updated_at?: string | null
+  notes?: string | null
   funnel_notes: string | null
   lost_reason: string | null
   users?: { id: string; name: string } | null
+  expert_consultations?: {
+    id: string
+    expert_name: string | null
+    consultation_result: string | null
+    recommendation: string | null
+    next_step: string | null
+    scheduled_at: string | null
+    completed_at: string | null
+    updated_at: string | null
+  }[]
 }
 
 interface Props {
   initialLeads: Stage3Lead[]
 }
 
-const BOARD_ROWS: Stage3ColumnKey[][] = [
-  ['pemetaan', 'expert', 'seatlock', 'closing'],
-  ['exit'],
-]
+function formatShortDate(value?: string | null) {
+  if (!value) return '-'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: '2-digit' })
+}
+
+function daysSince(value?: string | null) {
+  if (!value) return null
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return null
+  const today = new Date()
+  date.setHours(0, 0, 0, 0)
+  today.setHours(0, 0, 0, 0)
+  return Math.max(0, Math.floor((today.getTime() - date.getTime()) / 86400000))
+}
+
+function latestExpertNote(lead: Stage3Lead) {
+  const latest = lead.expert_consultations?.[0]
+  if (!latest) return ''
+  return latest.recommendation || latest.consultation_result || latest.next_step || ''
+}
 
 export function Stage3Board({ initialLeads }: Props) {
   const supabase = createClient()
@@ -134,7 +164,12 @@ export function Stage3Board({ initialLeads }: Props) {
             </div>
           ) : (
             <>
-              {visibleLeads.map((lead) => (
+              {visibleLeads.map((lead) => {
+                const lastTouched = lead.last_contacted_date || lead.updated_at || lead.lead_entry_date
+                const age = daysSince(lastTouched)
+                const notePreview = latestExpertNote(lead) || lead.funnel_notes || lead.notes || ''
+
+                return (
                 <div
                   key={lead.id}
                   draggable
@@ -160,13 +195,32 @@ export function Stage3Board({ initialLeads }: Props) {
                   </div>
                   <div className="mt-2 flex flex-wrap items-center gap-1.5">
                     <span className="inline-block rounded-md border border-border px-1.5 py-0.5 text-[10px] text-foreground">{lead.current_status}</span>
-                    {lead.users?.name && <span className="truncate text-[10px] text-muted-foreground">{lead.users.name.split(' ')[0]}</span>}
+                    {lead.users?.name && <span className="truncate text-[10px] text-muted-foreground">PIC: {lead.users.name.split(' ')[0]}</span>}
+                  </div>
+                  <div className="mt-2 grid gap-1 rounded-lg bg-secondary/35 px-2 py-1.5 text-[10px] text-muted-foreground">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="inline-flex items-center gap-1"><Clock3 size={11} /> Terakhir disentuh</span>
+                      <span className="font-semibold text-foreground">{formatShortDate(lastTouched)}</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="inline-flex items-center gap-1"><CalendarClock size={11} /> Lama proses</span>
+                      <span className={cn('font-semibold', age !== null && age > 3 ? 'text-amber-600' : 'text-foreground')}>
+                        {age === null ? '-' : `${age} hari`}
+                      </span>
+                    </div>
+                    {notePreview && (
+                      <p className="line-clamp-2 border-t border-border/70 pt-1 leading-relaxed">
+                        <FileText size={11} className="mr-1 inline" />
+                        {notePreview}
+                      </p>
+                    )}
                   </div>
                   <button type="button" onClick={() => setDetailLead(lead)} className="mt-2 w-full rounded-lg border border-border bg-secondary/40 px-2 py-1 text-[11px] font-semibold text-muted-foreground hover:text-foreground">
                     Detail Stage 3
                   </button>
                 </div>
-              ))}
+                )
+              })}
               {hidden > 0 && (
                 <button type="button" onClick={() => setVisibleCounts((p) => ({ ...p, [col.key]: (p[col.key] || INITIAL_VISIBLE) + LOAD_STEP }))} className="w-full rounded-xl border border-border bg-secondary/40 px-3 py-2 text-[11px] font-semibold text-muted-foreground hover:text-foreground">
                   +{Math.min(LOAD_STEP, hidden)} lagi ({hidden})
@@ -212,12 +266,10 @@ export function Stage3Board({ initialLeads }: Props) {
       {focusColumn ? (
         <div className="grid grid-cols-1">{renderColumn(focusColumn)}</div>
       ) : (
-        <div className="space-y-3">
-          {BOARD_ROWS.map((row, i) => (
-            <div key={i} className={cn('grid gap-3', i === 0 ? 'grid-cols-1 sm:grid-cols-2 xl:grid-cols-4' : 'grid-cols-1 sm:grid-cols-2 xl:grid-cols-1')}>
-              {row.map((k) => renderColumn(k))}
-            </div>
-          ))}
+        <div className="overflow-x-auto pb-2">
+          <div className="grid min-w-[1760px] grid-cols-8 gap-3">
+            {STAGE3_BOARD_COLUMNS.map((col) => renderColumn(col.key))}
+          </div>
         </div>
       )}
 
@@ -237,7 +289,14 @@ export function Stage3Board({ initialLeads }: Props) {
 
 type DetailForm = {
   status: string
+  manualNote: string
+  lastTouchedDate: string
   hasilExpert: string
+  expertName: string
+  expertDiscussion: string
+  expertRecommendation: string
+  croFollowUp: string
+  leadResponse: string
   closingNominal: string
   coldLeadsNote: string
   failedReason: string
@@ -256,7 +315,14 @@ function Stage3DetailModal({
   const supabase = createClient()
   const [form, setForm] = useState<DetailForm>({
     status: lead.current_status,
+    manualNote: lead.funnel_notes || lead.notes || '',
+    lastTouchedDate: lead.last_contacted_date || getTodayInWIB(),
     hasilExpert: '',
+    expertName: lead.expert_consultations?.[0]?.expert_name || '',
+    expertDiscussion: lead.expert_consultations?.[0]?.consultation_result || '',
+    expertRecommendation: lead.expert_consultations?.[0]?.recommendation || '',
+    croFollowUp: '',
+    leadResponse: '',
     closingNominal: '',
     coldLeadsNote: '',
     failedReason: lead.lost_reason || '',
@@ -296,7 +362,12 @@ function Stage3DetailModal({
     const actor = auth.user?.id || null
 
     const funnelParts: string[] = []
+    if (form.manualNote.trim()) funnelParts.push(`Catatan Stage 3: ${form.manualNote.trim()}`)
     if (showHasilExpert && form.hasilExpert.trim()) funnelParts.push(`Hasil Expert: ${form.hasilExpert.trim()}`)
+    if (form.expertDiscussion.trim()) funnelParts.push(`Diskusi CRO-Expert: ${form.expertDiscussion.trim()}`)
+    if (form.expertRecommendation.trim()) funnelParts.push(`Rekomendasi Expert: ${form.expertRecommendation.trim()}`)
+    if (form.croFollowUp.trim()) funnelParts.push(`Tindak lanjut CRO: ${form.croFollowUp.trim()}`)
+    if (form.leadResponse.trim()) funnelParts.push(`Respon Lead: ${form.leadResponse.trim()}`)
     if (showCold && form.coldLeadsNote.trim()) funnelParts.push(`Cold Leads: ${form.coldLeadsNote.trim()}`)
     if (showAkselerasi && form.akselerasiNote.trim()) funnelParts.push(`Jalur Akselerasi: ${form.akselerasiNote.trim()}`)
     const funnelNotes = funnelParts.join(' · ') || lead.funnel_notes || null
@@ -307,7 +378,7 @@ function Stage3DetailModal({
         current_status: form.status,
         lost_reason: showFailed ? form.failedReason : null,
         funnel_notes: funnelNotes,
-        last_contacted_date: getTodayInWIB(),
+        last_contacted_date: form.lastTouchedDate || getTodayInWIB(),
         updated_by: actor,
         updated_at: new Date().toISOString(),
       })
@@ -336,15 +407,48 @@ function Stage3DetailModal({
       }
     }
 
+    if (
+      form.expertName.trim() ||
+      form.expertDiscussion.trim() ||
+      form.expertRecommendation.trim() ||
+      form.croFollowUp.trim() ||
+      form.leadResponse.trim()
+    ) {
+      await supabase.from('expert_consultations').insert({
+        lead_id: lead.id,
+        expert_name: form.expertName.trim() || null,
+        scheduled_at: null,
+        completed_at: form.lastTouchedDate ? `${form.lastTouchedDate}T00:00:00.000Z` : new Date().toISOString(),
+        consultation_result: [
+          form.expertDiscussion.trim() && `Diskusi: ${form.expertDiscussion.trim()}`,
+          form.leadResponse.trim() && `Respon lead: ${form.leadResponse.trim()}`,
+        ].filter(Boolean).join('\n') || null,
+        recommendation: form.expertRecommendation.trim() || null,
+        next_step: form.croFollowUp.trim() || null,
+      })
+    }
+
     await supabase.from('lead_activities').insert({
       lead_id: lead.id,
       activity_type: 'Stage 3',
-      description: `Stage 3 → ${form.status}${showFailed ? ` (${form.failedReason})` : ''}`,
+      description: [
+        `Stage 3 → ${form.status}${showFailed ? ` (${form.failedReason})` : ''}`,
+        form.manualNote.trim() && `Catatan: ${form.manualNote.trim()}`,
+        form.expertRecommendation.trim() && `Rekomendasi expert: ${form.expertRecommendation.trim()}`,
+        form.croFollowUp.trim() && `Tindak lanjut CRO: ${form.croFollowUp.trim()}`,
+        form.leadResponse.trim() && `Respon lead: ${form.leadResponse.trim()}`,
+      ].filter(Boolean).join(' | '),
       created_by: actor,
     })
 
     setSaving(false)
-    onSaved({ id: lead.id, current_status: form.status, lost_reason: showFailed ? form.failedReason : null, funnel_notes: funnelNotes })
+    onSaved({
+      id: lead.id,
+      current_status: form.status,
+      lost_reason: showFailed ? form.failedReason : null,
+      funnel_notes: funnelNotes,
+      last_contacted_date: form.lastTouchedDate || getTodayInWIB(),
+    })
   }
 
   if (!mounted) return null
@@ -379,10 +483,60 @@ function Stage3DetailModal({
                   </select>
                 </Field>
 
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <Field label="Tanggal terakhir disentuh">
+                    <input
+                      type="date"
+                      value={form.lastTouchedDate}
+                      onChange={(e) => setForm((p) => ({ ...p, lastTouchedDate: e.target.value }))}
+                      className="field-input"
+                    />
+                  </Field>
+                  <Field label="PIC / expert terkait">
+                    <input
+                      value={form.expertName}
+                      onChange={(e) => setForm((p) => ({ ...p, expertName: e.target.value }))}
+                      className="field-input"
+                      placeholder="Nama expert / sensei jika ada"
+                    />
+                  </Field>
+                </div>
+
+                <Field label="Manual note Stage 3">
+                  <textarea
+                    value={form.manualNote}
+                    onChange={(e) => setForm((p) => ({ ...p, manualNote: e.target.value }))}
+                    className="field-input min-h-[64px] resize-y"
+                    placeholder="Catatan singkat: kendala, progress, atau update terakhir..."
+                  />
+                </Field>
+
                 {showHasilExpert && (
                   <Field label="Hasil Expert (manual)">
                     <textarea value={form.hasilExpert} onChange={(e) => setForm((p) => ({ ...p, hasilExpert: e.target.value }))} className="field-input min-h-[56px] resize-y" placeholder="Tulis hasil expert..." />
                   </Field>
+                )}
+
+                {(form.status === 'Menunggu jadwal expert consultation' || form.expertName || form.expertDiscussion || form.expertRecommendation) && (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-3 dark:border-amber-500/20 dark:bg-amber-500/10">
+                    <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-amber-700 dark:text-amber-300">Log interaksi CRO & expert</p>
+                    <div className="grid gap-3">
+                      <Field label="Apa yang disampaikan CRO ke expert?">
+                        <textarea value={form.expertDiscussion} onChange={(e) => setForm((p) => ({ ...p, expertDiscussion: e.target.value }))} className="field-input min-h-[56px] resize-y" placeholder="Konteks lead, kendala, pertanyaan CRO..." />
+                      </Field>
+                      <Field label="Rekomendasi / masukan expert">
+                        <textarea value={form.expertRecommendation} onChange={(e) => setForm((p) => ({ ...p, expertRecommendation: e.target.value }))} className="field-input min-h-[56px] resize-y" placeholder="Saran expert untuk konversi / persuasi..." />
+                      </Field>
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <Field label="Tindak lanjut CRO">
+                          <textarea value={form.croFollowUp} onChange={(e) => setForm((p) => ({ ...p, croFollowUp: e.target.value }))} className="field-input min-h-[56px] resize-y" placeholder="Apa yang sudah / akan dilakukan CRO..." />
+                        </Field>
+                        <Field label="Respon lead setelah expert">
+                          <textarea value={form.leadResponse} onChange={(e) => setForm((p) => ({ ...p, leadResponse: e.target.value }))} className="field-input min-h-[56px] resize-y" placeholder="Respon anak / orang tua setelah arahan expert..." />
+                        </Field>
+                      </div>
+                    </div>
+                  </div>
                 )}
                 {showClosing && (
                   <Field label="Closing Seat Lock — nominal (angka saja, tanpa titik / Rp)">
