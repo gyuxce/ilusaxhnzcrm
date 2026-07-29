@@ -265,13 +265,13 @@ export function Stage3Board({ initialLeads }: Props) {
         <p className="hidden text-[11px] text-muted-foreground lg:block">Geser kartu untuk pindah tahap, klik detail untuk update</p>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {STAGE3_BOARD_COLUMNS.map((col) => {
           const count = getLeadsByColumn(col.key).length
           const active = focusColumn === col.key
           return (
             <button key={col.key} type="button" onClick={() => setFocusColumn((p) => (p === col.key ? null : col.key))} className={cn('rounded-xl border px-2.5 py-2 text-left transition-colors', active ? 'border-primary bg-primary/5' : 'border-border bg-card hover:bg-secondary/50')}>
-              <p className="truncate text-[10px] font-semibold text-muted-foreground">{col.label}</p>
+              <p className="min-h-7 text-[10px] font-semibold leading-snug text-muted-foreground">{col.label}</p>
               <p className="mt-0.5 font-display text-xl font-semibold tracking-tight tabular-nums text-foreground">{count}</p>
             </button>
           )

@@ -19,11 +19,21 @@ interface HeaderProps {
 
 interface NotifItem {
   id: string
-  type: 'needs_action' | 'follow_up'
   label: string
   name: string
   href: string
 }
+
+type AttentionLead = Pick<
+  LeadRow,
+  'id' | 'full_name' | 'current_status' | 'last_contacted_date' | 'updated_at' | 'lead_entry_date'
+>
+
+const ATTENTION_STAGE3_STATUSES = [
+  'Menunggu hasil pemetaan',
+  'Menunggu jadwal expert consultation',
+  'Menunggu pembayaran seat-lock',
+]
 
 const HEADER_COPY = {
   en: {
@@ -52,6 +62,7 @@ const HEADER_COPY = {
     } as Record<string, string>,
     subtitles: {
       'Track lead progress, revenue, and CRO performance': 'Track lead progress, revenue, and CRO performance',
+      'Pantau perkembangan lead, pembayaran, dan hal yang perlu segera ditindaklanjuti.': 'Monitor lead progress, payments, and items that need attention.',
       'Tempat utama CRO bekerja: hubungi lead, catat hasil chat, pilih langkah berikutnya, lalu simpan.': 'Main CRO workspace: contact leads, record chat results, choose the next step, then save.',
       'Tempat cek, import, edit, dan hapus data lead. Kerja harian tetap dari Kerjaan Hari Ini.': 'Database area for checking, importing, editing, and deleting leads. Daily work stays in Today Work.',
       'Tampilan visual posisi lead. Ini untuk memantau alur, bukan tempat input kerja utama.': 'Visual overview of lead positions. Use this for monitoring, not daily input.',
@@ -72,7 +83,7 @@ const HEADER_COPY = {
     openMenu: 'Open Menu',
     back: 'Back',
     notifications: 'Notifications',
-    notificationDesc: 'items need attention',
+    notificationDesc: 'leads need attention',
     clearAll: 'Clear All',
     noNotifications: 'No notifications right now',
     searching: 'Searching...',
@@ -90,7 +101,7 @@ const HEADER_COPY = {
     openMenu: 'Buka Menu',
     back: 'Kembali',
     notifications: 'Notifikasi',
-    notificationDesc: 'item perlu perhatian',
+    notificationDesc: 'lead perlu perhatian',
     clearAll: 'Bersihkan Semua',
     noNotifications: 'Tidak ada notifikasi saat ini',
     searching: 'Mencari data...',
@@ -114,69 +125,45 @@ export function Header({ title, subtitle, backUrl }: HeaderProps) {
 
   useEffect(() => {
     async function fetchNotifs() {
-      const today = new Date().toISOString().split('T')[0]
-
-      // Leads yang butuh aksi (in important stages)
-      const { data: naLeads } = await supabase
+      const { data: stage3Leads } = await supabase
         .from('leads')
-        .select('id, full_name, current_status')
-        .in('current_status', [
-          'Pemetaan Scheduled',
-          'Waiting Result',
-          'Sent Result Pemetaan',
-          'Expert Consultation Scheduled',
-          'Seat Lock Offered',
-        ])
-        .order('updated_at', { ascending: false })
-        .limit(5)
-
-      // FU overdue / hari ini
-      const { data: fuLeads } = await supabase
-        .from('follow_ups')
-        .select('id, leads(id, full_name), scheduled_date')
-        .eq('is_done', false)
-        .lte('scheduled_date', today)
-        .order('scheduled_date', { ascending: true })
-        .limit(3)
+        .select('id, full_name, current_status, last_contacted_date, updated_at, lead_entry_date')
+        .in('current_status', ATTENTION_STAGE3_STATUSES)
+        .limit(5000)
 
       let dismissed: string[] = []
       if (typeof window !== 'undefined') {
         try {
           dismissed = JSON.parse(localStorage.getItem('dismissed_notifications') || '[]')
         } catch {
-    // Ignore malformed localStorage payloads.
-  }
+          // Ignore malformed localStorage payloads.
+        }
       }
 
       const items: NotifItem[] = []
 
-      ;(naLeads || []).forEach((l: Pick<LeadRow, 'id' | 'current_status' | 'full_name'>) => {
-        const key = `needs_action-${l.id}`
-        if (!dismissed.includes(key)) {
-          items.push({
-            id: l.id,
-            type: 'needs_action',
-            label: l.current_status,
-            name: l.full_name,
-            href: `/leads/${l.id}`,
-          })
-        }
-      })
-
-      ;(fuLeads || []).forEach((f: { id: string; scheduled_date: string; leads: Pick<LeadRow, 'id' | 'full_name'> | null }) => {
-        if (f.leads) {
-          const key = `follow_up-${f.id}`
+      const now = Date.now()
+      const attentionLeads = (stage3Leads || []) as AttentionLead[]
+      attentionLeads
+        .map((lead) => {
+          const lastTouched = lead.last_contacted_date || lead.updated_at || lead.lead_entry_date
+          const days = lastTouched ? Math.floor((now - new Date(lastTouched).getTime()) / 86400000) : 0
+          return { ...lead, days }
+        })
+        .filter((lead) => lead.days > 3)
+        .sort((a, b) => b.days - a.days)
+        .slice(0, 10)
+        .forEach((lead) => {
+          const key = `attention-${lead.id}`
           if (!dismissed.includes(key)) {
             items.push({
-              id: f.id,
-              type: 'follow_up',
-              label: `FU ${new Date(f.scheduled_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}`,
-              name: f.leads.full_name,
-              href: `/leads/${f.leads.id}`,
+              id: lead.id,
+              label: `${lead.current_status} - ${lead.days} hari tanpa update`,
+              name: lead.full_name,
+              href: `/leads/${lead.id}`,
             })
           }
-        }
-      })
+        })
 
       setNotifs(items)
       setNotifCount(items.length)
@@ -184,10 +171,10 @@ export function Header({ title, subtitle, backUrl }: HeaderProps) {
     fetchNotifs()
   }, [supabase])
 
-  const dismissNotif = (type: string, id: string, e: React.MouseEvent) => {
+  const dismissNotif = (id: string, e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    const key = `${type}-${id}`
+    const key = `attention-${id}`
     
     let dismissed: string[] = []
     try {
@@ -199,7 +186,7 @@ export function Header({ title, subtitle, backUrl }: HeaderProps) {
     const newDismissed = [...dismissed, key]
     localStorage.setItem('dismissed_notifications', JSON.stringify(newDismissed))
     
-    setNotifs(prev => prev.filter(n => !(n.type === type && n.id === id)))
+    setNotifs(prev => prev.filter(n => n.id !== id))
     setNotifCount(prev => Math.max(0, prev - 1))
   }
 
@@ -214,7 +201,7 @@ export function Header({ title, subtitle, backUrl }: HeaderProps) {
       // Ignore malformed localStorage payloads.
     }
     
-    const keysToDismiss = notifs.map(n => `${n.type}-${n.id}`)
+    const keysToDismiss = notifs.map(n => `attention-${n.id}`)
     const newDismissed = Array.from(new Set([...dismissed, ...keysToDismiss]))
     localStorage.setItem('dismissed_notifications', JSON.stringify(newDismissed))
     
@@ -468,16 +455,9 @@ export function Header({ title, subtitle, backUrl }: HeaderProps) {
                         {/* Icon */}
                         <div
                           className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
-                          style={{
-                            background: notif.type === 'follow_up'
-                              ? 'var(--stage-5-soft)'
-                              : 'var(--stage-2-soft)',
-                          }}
+                          style={{ background: 'hsl(38 92% 50% / 0.13)' }}
                         >
-                          {notif.type === 'follow_up'
-                            ? <Calendar size={14} style={{ color: 'var(--stage-5)' }} />
-                            : <AlertCircle size={14} style={{ color: 'var(--stage-2)' }} />
-                          }
+                          <AlertCircle size={14} className="text-amber-600" />
                         </div>
 
                         {/* Content */}
@@ -491,7 +471,7 @@ export function Header({ title, subtitle, backUrl }: HeaderProps) {
 
                       {/* Dismiss Action Button */}
                       <button
-                        onClick={(e) => dismissNotif(notif.type, notif.id, e)}
+                        onClick={(e) => dismissNotif(notif.id, e)}
                         className="p-1 rounded-lg text-muted-foreground/45 hover:text-red-500 hover:bg-red-500/10 dark:hover:bg-red-500/20 transition-all flex-shrink-0 cursor-pointer"
                         title="Tandai Dibaca / Sembunyikan"
                       >

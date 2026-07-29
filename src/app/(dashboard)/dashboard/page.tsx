@@ -137,9 +137,9 @@ export default function DashboardPage() {
 
   return (
     <>
-      <Header title="Dashboard" subtitle="Ringkasan pipeline PRD V3 — Leads → Stage 2 → Stage 3." />
+      <Header title="Dashboard" subtitle="Pantau perkembangan lead, pembayaran, dan hal yang perlu segera ditindaklanjuti." />
       <div className="w-full p-6 space-y-6 font-sans">
-        {/* KPI PRD V3 */}
+        {/* Ringkasan utama */}
         <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-3">
           {kpis.map((kpi) => {
             const Icon = kpi.icon
@@ -163,21 +163,22 @@ export default function DashboardPage() {
           })}
         </div>
 
-        {/* Funnel PRD V3 */}
+        {/* Alur perkembangan lead */}
         <section className="rounded-2xl border border-border bg-card p-5">
           <div className="mb-4">
-            <h3 className="font-display text-base font-semibold tracking-tight text-foreground">Funnel PRD V3</h3>
-            <p className="text-xs text-muted-foreground mt-1">Stage 1 → Stage 2 → Stage 3 (Pemetaan → Expert → Seat Lock → Closing).</p>
+            <h3 className="font-display text-base font-semibold tracking-tight text-foreground">
+              {isId ? 'Ringkasan perkembangan lead' : 'Lead progress overview'}
+            </h3>
+            <p className="text-xs text-muted-foreground mt-1">
+              {isId
+                ? 'Posisi lead pada proses pemetaan, konsultasi, dan seat lock.'
+                : 'Lead positions across mapping, consultation, and seat lock.'}
+            </p>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
-            <FunnelCard label="Stage 1" desc="Input Manual · Bridging · Pitching" count={counts.stage1} href="/leads" />
-            <FunnelCard label="Stage 2" desc="Interested — jadwal pemetaan / expert" count={counts.stage2} href="/stage-2" />
-            <FunnelCard label="Stage 3" desc="Pipeline Kanban menuju Closing" count={counts.stage3} href="/stage-3" />
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {counts.byColumn.map((col) => (
               <div key={col.key} className="rounded-xl border border-border px-3 py-2.5" style={{ background: col.soft, borderColor: col.color }}>
-                <p className="truncate text-[10px] font-semibold" style={{ color: col.color }}>{col.label}</p>
+                <p className="min-h-7 text-[10px] font-semibold leading-snug" style={{ color: col.color }}>{col.label}</p>
                 <p className="mt-1 font-display text-2xl font-semibold tabular-nums text-foreground">{loading ? '–' : col.count}</p>
               </div>
             ))}
@@ -194,8 +195,10 @@ export default function DashboardPage() {
             <div className="mb-4 flex items-center gap-2">
               <AlertTriangle size={14} className="text-amber-500" />
               <div>
-                <h3 className="text-sm font-semibold text-foreground">Butuh perhatian</h3>
-                <p className="text-xs text-muted-foreground mt-0.5">Stage 3 yang belum disentuh lebih dari 3 hari.</p>
+                <h3 className="text-sm font-semibold text-foreground">{isId ? 'Butuh perhatian' : 'Needs attention'}</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {isId ? 'Stage 3 yang belum disentuh lebih dari 3 hari.' : 'Stage 3 leads untouched for more than 3 days.'}
+                </p>
               </div>
             </div>
             {loading ? (
@@ -204,7 +207,9 @@ export default function DashboardPage() {
                 <div className="h-8 w-full animate-pulse rounded-lg bg-muted" />
               </div>
             ) : stalePreview.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Tidak ada lead yang perlu ditindaklanjuti saat ini.</p>
+              <p className="text-sm text-muted-foreground">
+                {isId ? 'Tidak ada lead yang perlu ditindaklanjuti saat ini.' : 'No lead needs follow-up right now.'}
+              </p>
             ) : (
               <>
                 <ul className="space-y-2">
@@ -215,13 +220,15 @@ export default function DashboardPage() {
                           <p className="text-sm font-medium text-foreground truncate">{row.name}</p>
                           <p className="text-[10px] text-muted-foreground truncate">{row.status}</p>
                         </div>
-                        <span className="text-xs font-semibold text-amber-600 tabular-nums flex-shrink-0">{row.days} hari</span>
+                        <span className="text-xs font-semibold text-amber-600 tabular-nums flex-shrink-0">
+                          {row.days} {isId ? 'hari' : 'days'}
+                        </span>
                       </Link>
                     </li>
                   ))}
                 </ul>
                 <Link href="/stage-3" className="mt-3 inline-flex items-center gap-1 text-[11px] font-semibold text-accent hover:opacity-80">
-                  Buka Stage 3 <ArrowRight size={11} />
+                  {isId ? 'Buka Stage 3' : 'Open Stage 3'} <ArrowRight size={11} />
                 </Link>
               </>
             )}
@@ -232,8 +239,10 @@ export default function DashboardPage() {
             <div className="mb-4 flex items-center gap-2">
               <Wallet size={14} className="text-accent" />
               <div>
-                <h3 className="text-sm font-semibold text-foreground">Revenue</h3>
-                <p className="text-xs text-muted-foreground mt-0.5">Pembayaran verified — detail di menu Pembayaran.</p>
+                <h3 className="text-sm font-semibold text-foreground">{isId ? 'Pendapatan' : 'Revenue'}</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {isId ? 'Pembayaran yang sudah diverifikasi. Klik untuk melihat detail.' : 'Verified payments. Click to see details.'}
+                </p>
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -253,26 +262,16 @@ export default function DashboardPage() {
               ))}
             </div>
             <Link href="/conversions" className="mt-3 inline-flex items-center gap-1 text-[11px] font-semibold text-accent hover:opacity-80">
-              Buka pembayaran <ArrowRight size={11} />
+              {isId ? 'Buka pembayaran' : 'View payments'} <ArrowRight size={11} />
             </Link>
           </section>
         </div>
 
         <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
           <Clock size={12} />
-          Data sesuai status terbaru lead. Klik kartu untuk masuk ke menu terkait.
+          {isId ? 'Data mengikuti status lead terbaru. Klik kartu untuk melihat detail terkait.' : 'Data follows the latest lead status. Click a card to view details.'}
         </div>
       </div>
     </>
-  )
-}
-
-function FunnelCard({ label, desc, count, href }: { label: string; desc: string; count: number; href: string }) {
-  return (
-    <Link href={href} className="rounded-2xl border border-border bg-card p-4 hover:bg-secondary/40 transition-colors">
-      <p className="text-[11px] font-semibold text-muted-foreground">{label}</p>
-      <p className="font-display text-3xl font-semibold tracking-tight text-foreground tabular-nums mt-1">{count}</p>
-      <p className="text-[10px] text-muted-foreground mt-1 leading-snug">{desc}</p>
-    </Link>
   )
 }
