@@ -57,7 +57,7 @@ export function ConversionDetailClient({
   const revenuePemetaan = useMemo(
     () =>
       payments
-        .filter((payment) => isPemetaan(payment.payment_type))
+        .filter((payment) => isPemetaan(payment.payment_type) && payment.verification_status === 'verified')
         .reduce((sum, payment) => sum + Number(payment.amount || 0), 0),
     [payments]
   )
@@ -65,7 +65,7 @@ export function ConversionDetailClient({
   const revenueSeatLock = useMemo(
     () =>
       payments
-        .filter((payment) => payment.payment_type === 'seat_lock')
+        .filter((payment) => payment.payment_type === 'seat_lock' && payment.verification_status === 'verified')
         .reduce((sum, payment) => sum + Number(payment.amount || 0), 0),
     [payments]
   )
@@ -136,7 +136,7 @@ export function ConversionDetailClient({
       </div>
 
       <div className="rounded-2xl border border-border bg-secondary/50 px-5 py-4 text-sm text-foreground/80">
-        Halaman ini menampilkan detail dari angka revenue di Laporan. Yang dihitung hanya pembayaran dengan status{' '}
+        Semua pembayaran yang dicatat tampil di sini. Angka revenue hanya menghitung pembayaran dengan status{' '}
         <span className="font-semibold text-foreground">verified</span>.
       </div>
 
@@ -177,7 +177,7 @@ export function ConversionDetailClient({
               Rincian Pembayaran
             </h2>
             <p className="mt-1 text-xs text-muted-foreground">
-              {visiblePayments.length} transaksi verified ditampilkan.
+              {visiblePayments.length} transaksi ditampilkan.
             </p>
           </div>
           <CheckCircle2 size={18} className="text-emerald-600 dark:text-emerald-400" />
@@ -191,6 +191,7 @@ export function ConversionDetailClient({
                 <th className="px-5 py-3 font-semibold">Tipe</th>
                 <th className="px-5 py-3 font-semibold">Tanggal Bayar</th>
                 <th className="px-5 py-3 text-right font-semibold">Nominal</th>
+                <th className="px-5 py-3 font-semibold">Status</th>
                 <th className="px-5 py-3 font-semibold">Metode</th>
                 <th className="px-5 py-3 font-semibold">Campaign</th>
                 <th className="px-5 py-3 font-semibold">Aksi</th>
@@ -199,8 +200,8 @@ export function ConversionDetailClient({
             <tbody>
               {visiblePayments.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-5 py-12 text-center text-sm text-muted-foreground">
-                    Belum ada pembayaran verified untuk filter ini.
+                  <td colSpan={8} className="px-5 py-12 text-center text-sm text-muted-foreground">
+                    Belum ada pembayaran untuk filter ini.
                   </td>
                 </tr>
               ) : (
@@ -229,6 +230,16 @@ export function ConversionDetailClient({
                     <td className="px-5 py-4 text-muted-foreground">{payment.payment_date}</td>
                     <td className="px-5 py-4 text-right font-semibold tabular-nums text-foreground">
                       {rupiah(payment.amount)}
+                    </td>
+                    <td className="px-5 py-4">
+                      <span className={cn(
+                        'rounded-md border px-2.5 py-1 text-xs font-semibold',
+                        payment.verification_status === 'verified'
+                          ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+                          : 'border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-300'
+                      )}>
+                        {payment.verification_status === 'verified' ? 'Terverifikasi' : payment.verification_status}
+                      </span>
                     </td>
                     <td className="px-5 py-4 text-muted-foreground">{payment.payment_method || '-'}</td>
                     <td className="px-5 py-4 text-muted-foreground">{payment.leads?.source_campaign || '-'}</td>

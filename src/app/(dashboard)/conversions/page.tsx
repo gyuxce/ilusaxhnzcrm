@@ -41,7 +41,6 @@ export default async function ConversionsPage({ searchParams }: PageProps) {
       const res = (await supabase
         .from('payments')
         .select(PAYMENT_SELECT)
-        .eq('verification_status', 'verified')
         .in('lead_id', leadIds)
         .order('payment_date', { ascending: false })
         .order('created_at', { ascending: false })
@@ -52,7 +51,6 @@ export default async function ConversionsPage({ searchParams }: PageProps) {
     const res = (await supabase
       .from('payments')
       .select(PAYMENT_SELECT)
-      .eq('verification_status', 'verified')
       .order('payment_date', { ascending: false })
       .order('created_at', { ascending: false })
       .limit(5000)) as { data: PaymentWithLead[] | null }
@@ -65,8 +63,8 @@ export default async function ConversionsPage({ searchParams }: PageProps) {
         title="Pembayaran"
         subtitle={
           trialSince
-            ? 'Mode uji: hanya pembayaran verified untuk lead baru (setelah mode uji aktif).'
-            : 'Daftar pembayaran verified. Angka revenue di Laporan diambil dari sini.'
+            ? 'Mode uji: riwayat pembayaran lead baru setelah mode uji aktif.'
+            : 'Riwayat semua pembayaran. Revenue hanya dihitung dari pembayaran yang sudah diverifikasi.'
         }
       />
       <ConversionDetailClient payments={data || []} initialType={params?.type || 'all'} />

@@ -30,6 +30,15 @@ type LeadRow = {
   current_status: string
   lead_entry_date: string
   last_contacted_date: string | null
+  payments?: {
+    id: string
+    payment_type: string
+    amount: number
+    payment_method: string
+    payment_date: string
+    verification_status: string
+    notes: string | null
+  }[]
   users?: { id?: string; name?: string } | null
 }
 
@@ -58,6 +67,14 @@ function toTimestamp(value?: string | null) {
   return Number.isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString()
 }
 
+function mappingPayment(lead: LeadRow) {
+  return (lead.payments || []).find((payment) => payment.payment_type === 'pemetaan' || payment.payment_type === 'roadmap_session') || null
+}
+
+function formatRupiah(value: number) {
+  return `Rp ${Number(value || 0).toLocaleString('id-ID')}`
+}
+
 export default function Stage2Page() {
   const router = useRouter()
   const supabase = createClient()
@@ -80,7 +97,7 @@ export default function Stage2Page() {
     const trialSince = readPrdTrialSinceClient()
     let q = supabase
       .from('leads')
-      .select('id, full_name, whatsapp_number, source_campaign, current_status, lead_entry_date, last_contacted_date, users:assigned_cro_id(id, name)')
+      .select('id, full_name, whatsapp_number, source_campaign, current_status, lead_entry_date, last_contacted_date, payments(id, payment_type, amount, payment_method, payment_date, verification_status, notes), users:assigned_cro_id(id, name)')
       .in('current_status', STAGE2_VISIBLE_STATUSES as unknown as string[])
       .order('updated_at', { ascending: false })
       .limit(1000)
@@ -127,11 +144,12 @@ export default function Stage2Page() {
   }, [leads, query, filter])
 
   function openFlow(lead: LeadRow) {
+    const existingPayment = mappingPayment(lead)
     setActiveLead(lead)
     setMessage({ type: '', text: '' })
     setForm({
       statusStaging: '',
-      nominalPemetaan: '',
+      nominalPemetaan: existingPayment ? String(Number(existingPayment.amount || 0)) : '',
       komunikasiTerakhir: toDateTimeInputValue(lead.last_contacted_date),
       note: '',
     })
@@ -160,6 +178,33 @@ export default function Stage2Page() {
       data: { user },
     } = await supabase.auth.getUser()
 
+    const existingPayment = mappingPayment(activeLead)
+    if (form.nominalPemetaan.trim()) {
+      const nominal = Number(form.nominalPemetaan.replace(/[^\d]/g, ''))
+      if (!Number.isNaN(nominal) && nominal > 0) {
+        const paymentPayload = {
+          lead_id: activeLead.id,
+          payment_type: 'pemetaan',
+          amount: nominal,
+          payment_method: existingPayment?.payment_method || 'Transfer',
+          payment_date: existingPayment?.payment_date || getTodayInWIB(),
+          verification_status: existingPayment?.verification_status || 'verified',
+          verified_by: user?.id ?? null,
+          verified_at: new Date().toISOString(),
+          notes: existingPayment?.notes || 'Input dari Stage 2',
+          updated_at: new Date().toISOString(),
+        }
+        const paymentResult = existingPayment
+          ? await supabase.from('payments').update(paymentPayload).eq('id', existingPayment.id)
+          : await supabase.from('payments').insert(paymentPayload)
+        if (paymentResult.error) {
+          setSaving(false)
+          setMessage({ type: 'error', text: `Gagal menyimpan pembayaran: ${paymentResult.error.message}` })
+          return
+        }
+      }
+    }
+
     const { error } = await supabase
       .from('leads')
       .update({
@@ -175,24 +220,6 @@ export default function Stage2Page() {
       setSaving(false)
       setMessage({ type: 'error', text: `Gagal menyimpan: ${error.message}` })
       return
-    }
-
-    // Jika nominal diisi, catat pembayaran pemetaan saat lead dipindah.
-    if (form.nominalPemetaan.trim()) {
-      const nominal = Number(form.nominalPemetaan.replace(/[^\d]/g, ''))
-      if (!Number.isNaN(nominal) && nominal > 0) {
-        await supabase.from('payments').insert({
-          lead_id: activeLead.id,
-          payment_type: 'pemetaan',
-          amount: nominal,
-          payment_method: 'Transfer',
-          payment_date: getTodayInWIB(),
-          verification_status: 'verified',
-          verified_by: user?.id ?? null,
-          verified_at: new Date().toISOString(),
-          notes: 'Input dari Stage 2',
-        })
-      }
     }
 
     await supabase.from('lead_activities').insert({
@@ -360,12 +387,12 @@ export default function Stage2Page() {
                         </select>
                       </Field>
 
-                      <Field label="Nominal pembayaran pemetaan">
+                      <Field label={mappingPayment(activeLead) ? `Pembayaran pemetaan tercatat: ${formatRupiah(mappingPayment(activeLead)?.amount || 0)} (${mappingPayment(activeLead)?.verification_status})` : 'Pemetaan belum tercatat'}>
                         <input
                           inputMode="numeric"
                           value={form.nominalPemetaan}
                           onChange={(e) => setForm((prev) => ({ ...prev, nominalPemetaan: e.target.value.replace(/[^\d]/g, '') }))}
-                          placeholder="Isi angka jika sudah bayar, contoh: 500000"
+                          placeholder="Isi nominal jika sudah bayar"
                           className="field-input"
                         />
                       </Field>

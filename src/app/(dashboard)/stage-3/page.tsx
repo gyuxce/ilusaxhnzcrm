@@ -18,6 +18,7 @@ export default async function Stage3Page() {
     .select(`
       id, full_name, whatsapp_number, source_campaign, current_status,
       lead_entry_date, last_contacted_date, updated_at, notes, funnel_notes, lost_reason,
+      payments(id, payment_type, amount, payment_method, payment_date, verification_status, notes, updated_at),
       expert_consultations(id, expert_name, consultation_result, recommendation, next_step, scheduled_at, completed_at, updated_at),
       users:assigned_cro_id(id, name)
     `)

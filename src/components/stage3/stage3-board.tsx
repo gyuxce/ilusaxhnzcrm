@@ -30,6 +30,16 @@ export interface Stage3Lead {
   notes?: string | null
   funnel_notes: string | null
   lost_reason: string | null
+  payments?: {
+    id: string
+    payment_type: string
+    amount: number
+    payment_method: string
+    payment_date: string
+    verification_status: string
+    notes: string | null
+    updated_at: string | null
+  }[]
   users?: { id: string; name: string } | null
   expert_consultations?: {
     id: string
@@ -42,6 +52,8 @@ export interface Stage3Lead {
     updated_at: string | null
   }[]
 }
+
+type Stage3Payment = NonNullable<Stage3Lead['payments']>[number]
 
 interface Props {
   initialLeads: Stage3Lead[]
@@ -87,6 +99,21 @@ function latestExpertNote(lead: Stage3Lead) {
   const latest = lead.expert_consultations?.[0]
   if (!latest) return ''
   return latest.recommendation || latest.consultation_result || latest.next_step || ''
+}
+
+function isPemetaanPayment(type: string) {
+  return type === 'pemetaan' || type === 'roadmap_session'
+}
+
+function latestPayment(lead: Stage3Lead, type: 'pemetaan' | 'seat_lock') {
+  const matches = (lead.payments || []).filter((payment) =>
+    type === 'pemetaan' ? isPemetaanPayment(payment.payment_type) : payment.payment_type === 'seat_lock'
+  )
+  return matches.sort((a, b) => new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime())[0] || null
+}
+
+function formatRupiah(value: number) {
+  return `Rp ${Number(value || 0).toLocaleString('id-ID')}`
 }
 
 export function Stage3Board({ initialLeads }: Props) {
@@ -332,18 +359,20 @@ function Stage3DetailModal({
 }) {
   const router = useRouter()
   const supabase = createClient()
+  const pemetaanPayment = latestPayment(lead, 'pemetaan')
+  const seatLockPayment = latestPayment(lead, 'seat_lock')
   const [form, setForm] = useState<DetailForm>({
     status: lead.current_status,
     manualNote: cleanNotePreview(lead.funnel_notes) || cleanNotePreview(lead.notes),
     lastTouchedDate: toDateTimeInputValue(lead.last_contacted_date || lead.updated_at || lead.lead_entry_date),
-    pemetaanNominal: '',
+    pemetaanNominal: pemetaanPayment ? String(Number(pemetaanPayment.amount || 0)) : '',
     hasilExpert: '',
     expertName: lead.expert_consultations?.[0]?.expert_name || '',
     expertDiscussion: lead.expert_consultations?.[0]?.consultation_result || '',
     expertRecommendation: lead.expert_consultations?.[0]?.recommendation || '',
     croFollowUp: '',
     leadResponse: '',
-    closingNominal: '',
+    closingNominal: seatLockPayment ? String(Number(seatLockPayment.amount || 0)) : '',
     coldLeadsNote: '',
     failedReason: lead.lost_reason || '',
     akselerasiNote: '',
@@ -370,8 +399,39 @@ function Stage3DetailModal({
   function canSave() {
     if (!form.status) return false
     if (showFailed && !form.failedReason) return false
-    if (showClosing && !form.closingNominal.trim()) return false
+    if (showClosing && !seatLockPayment && !form.closingNominal.trim()) return false
     return true
+  }
+
+  async function savePayment(
+    type: 'pemetaan' | 'seat_lock',
+    nominalValue: string,
+    existing: Stage3Payment | null,
+    actor: string | null,
+    notes: string
+  ): Promise<Stage3Payment | null> {
+    if (!nominalValue.trim()) return existing
+    const nominal = Number(nominalValue.replace(/[^\d]/g, ''))
+    if (Number.isNaN(nominal) || nominal <= 0) return existing
+
+    const payload = {
+      lead_id: lead.id,
+      payment_type: type,
+      amount: nominal,
+      payment_method: existing?.payment_method || 'Transfer',
+      payment_date: existing?.payment_date || getTodayInWIB(),
+      verification_status: existing?.verification_status || 'verified',
+      verified_by: actor,
+      verified_at: new Date().toISOString(),
+      notes: existing?.notes || notes,
+      updated_at: new Date().toISOString(),
+    }
+    const result = existing
+      ? await supabase.from('payments').update(payload).eq('id', existing.id).select('*').single()
+      : await supabase.from('payments').insert(payload).select('*').single()
+
+    if (result.error) throw result.error
+    return result.data as Stage3Payment
   }
 
   async function handleSave() {
@@ -410,38 +470,15 @@ function Stage3DetailModal({
       return
     }
 
-    if (showClosing && form.closingNominal.trim()) {
-        const nominal = Number(form.closingNominal.replace(/[^\d]/g, ''))
-        if (!Number.isNaN(nominal) && nominal > 0) {
-        await supabase.from('payments').insert({
-          lead_id: lead.id,
-          payment_type: 'seat_lock',
-          amount: nominal,
-          payment_method: 'Transfer',
-          payment_date: getTodayInWIB(),
-          verification_status: 'verified',
-          verified_by: actor,
-          verified_at: new Date().toISOString(),
-          notes: 'Closing Seat Lock dari Stage 3',
-        })
-      }
-    }
-
-    if (form.pemetaanNominal.trim()) {
-      const nominal = Number(form.pemetaanNominal.replace(/[^\d]/g, ''))
-      if (!Number.isNaN(nominal) && nominal > 0) {
-        await supabase.from('payments').insert({
-          lead_id: lead.id,
-          payment_type: 'pemetaan',
-          amount: nominal,
-          payment_method: 'Transfer',
-          payment_date: getTodayInWIB(),
-          verification_status: 'verified',
-          verified_by: actor,
-          verified_at: new Date().toISOString(),
-          notes: 'Input pemetaan dari Stage 3',
-        })
-      }
+    let savedPemetaan: Stage3Payment | null = pemetaanPayment
+    let savedSeatLock: Stage3Payment | null = seatLockPayment
+    try {
+      savedPemetaan = await savePayment('pemetaan', form.pemetaanNominal, pemetaanPayment, actor, 'Input pemetaan dari Stage 3')
+      savedSeatLock = await savePayment('seat_lock', form.closingNominal, seatLockPayment, actor, 'Input seat lock dari Stage 3')
+    } catch (paymentError) {
+      setSaving(false)
+      setError(paymentError instanceof Error ? paymentError.message : 'Gagal menyimpan pembayaran.')
+      return
     }
 
     if (
@@ -481,12 +518,18 @@ function Stage3DetailModal({
     await revalidateLeadsListing()
     router.refresh()
     setSaving(false)
+    const updatedPayments = (lead.payments || []).filter(
+      (payment) => payment.id !== pemetaanPayment?.id && payment.id !== seatLockPayment?.id
+    )
+    if (savedPemetaan) updatedPayments.push(savedPemetaan)
+    if (savedSeatLock) updatedPayments.push(savedSeatLock)
     onSaved({
       id: lead.id,
       current_status: form.status,
       lost_reason: showFailed ? form.failedReason : null,
       funnel_notes: funnelNotes,
       last_contacted_date: toTimestamp(form.lastTouchedDate),
+      payments: updatedPayments,
     })
   }
 
@@ -550,15 +593,32 @@ function Stage3DetailModal({
                   />
                 </Field>
 
-                <Field label="Catat pembayaran pemetaan jika belum tercatat">
-                  <input
-                    inputMode="numeric"
-                    value={form.pemetaanNominal}
-                    onChange={(e) => setForm((p) => ({ ...p, pemetaanNominal: e.target.value.replace(/[^\d]/g, '') }))}
-                    placeholder="Contoh: 500000"
-                    className="field-input"
-                  />
-                </Field>
+                <div className="rounded-xl border border-border bg-secondary/30 p-3 space-y-3">
+                  <div>
+                    <p className="text-xs font-semibold text-foreground">Pembayaran lead</p>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">Nominal yang sudah tercatat dapat diubah di sini. Jika belum ada, isi nominal untuk mencatat pembayaran baru.</p>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <Field label={pemetaanPayment ? `Pemetaan tercatat: ${formatRupiah(pemetaanPayment.amount)} (${pemetaanPayment.verification_status})` : 'Pemetaan belum tercatat'}>
+                      <input
+                        inputMode="numeric"
+                        value={form.pemetaanNominal}
+                        onChange={(e) => setForm((p) => ({ ...p, pemetaanNominal: e.target.value.replace(/[^\d]/g, '') }))}
+                        placeholder="Isi nominal pemetaan"
+                        className="field-input"
+                      />
+                    </Field>
+                    <Field label={seatLockPayment ? `Seat lock tercatat: ${formatRupiah(seatLockPayment.amount)} (${seatLockPayment.verification_status})` : 'Seat lock belum tercatat'}>
+                      <input
+                        inputMode="numeric"
+                        value={form.closingNominal}
+                        onChange={(e) => setForm((p) => ({ ...p, closingNominal: e.target.value.replace(/[^\d]/g, '') }))}
+                        placeholder="Isi nominal seat lock"
+                        className="field-input"
+                      />
+                    </Field>
+                  </div>
+                </div>
 
                 {showHasilExpert && (
                   <Field label="Hasil Expert (manual)">
@@ -586,11 +646,6 @@ function Stage3DetailModal({
                       </div>
                     </div>
                   </div>
-                )}
-                {showClosing && (
-                  <Field label="Nominal closing seat lock">
-                    <input inputMode="numeric" value={form.closingNominal} onChange={(e) => setForm((p) => ({ ...p, closingNominal: e.target.value.replace(/[^\d]/g, '') }))} placeholder="3000000" className="field-input" />
-                  </Field>
                 )}
                 {showCold && (
                   <Field label="Kondisi cold leads">
