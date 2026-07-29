@@ -26,11 +26,16 @@ import {
 import { readPrdTrialSinceClient, PRD_TRIAL_MODE_CHANGED } from '@/lib/prd-trial-mode'
 import type { LeadRow, PaymentRow } from '@/lib/supabase/types'
 
-type LeadSummary = Pick<LeadRow, 'id' | 'full_name' | 'current_status' | 'updated_at' | 'lead_entry_date'>
+type LeadSummary = Pick<LeadRow, 'id' | 'full_name' | 'current_status' | 'updated_at' | 'lead_entry_date' | 'last_contacted_date'>
 
 type StalePreview = { id: string; name: string; status: string; days: number }
 
 const EXIT_STATUSES = ['Not Interested', 'Not Eligible', 'Cold Leads', 'Failed']
+const ATTENTION_STAGE3_STATUSES = [
+  'Menunggu hasil pemetaan',
+  'Menunggu jadwal expert consultation',
+  'Menunggu pembayaran seat-lock',
+]
 
 function includes(list: readonly string[], value: string) {
   return list.includes(value as never)
@@ -49,7 +54,7 @@ export default function DashboardPage() {
 
     let leadsQuery = supabase
       .from('leads')
-      .select('id, full_name, current_status, updated_at, lead_entry_date')
+      .select('id, full_name, current_status, updated_at, lead_entry_date, last_contacted_date')
       .limit(5000)
     const trialSince = readPrdTrialSinceClient()
     if (trialSince) leadsQuery = leadsQuery.gte('created_at', trialSince)
@@ -77,13 +82,13 @@ export default function DashboardPage() {
 
     const now = Date.now()
     const nextStale = leadRows
-      .filter((l) => !isStage3WonStatus(l.current_status) && !EXIT_STATUSES.includes(l.current_status))
+      .filter((l) => ATTENTION_STAGE3_STATUSES.includes(l.current_status))
       .map((l) => {
-        const last = l.updated_at || l.lead_entry_date
+        const last = l.last_contacted_date || l.updated_at || l.lead_entry_date
         const days = last ? Math.floor((now - new Date(last).getTime()) / 86400000) : 0
         return { id: l.id, name: l.full_name, status: l.current_status, days }
       })
-      .filter((row) => row.days >= 3)
+      .filter((row) => row.days > 3)
       .sort((a, b) => b.days - a.days)
       .slice(0, 6)
     setStalePreview(nextStale)
@@ -190,7 +195,7 @@ export default function DashboardPage() {
               <AlertTriangle size={14} className="text-amber-500" />
               <div>
                 <h3 className="text-sm font-semibold text-foreground">Butuh perhatian</h3>
-                <p className="text-xs text-muted-foreground mt-0.5">Lead aktif tanpa update ≥ 3 hari.</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Stage 3 yang belum disentuh lebih dari 3 hari.</p>
               </div>
             </div>
             {loading ? (
@@ -199,21 +204,26 @@ export default function DashboardPage() {
                 <div className="h-8 w-full animate-pulse rounded-lg bg-muted" />
               </div>
             ) : stalePreview.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Tidak ada lead stale saat ini.</p>
+              <p className="text-sm text-muted-foreground">Tidak ada lead yang perlu ditindaklanjuti saat ini.</p>
             ) : (
-              <ul className="space-y-2">
-                {stalePreview.map((row) => (
-                  <li key={row.id}>
-                    <Link href={`/leads/${row.id}`} className="flex items-center justify-between gap-3 rounded-xl border border-border px-3 py-2.5 hover:bg-secondary/50 transition-colors">
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-foreground truncate">{row.name}</p>
-                        <p className="text-[10px] text-muted-foreground truncate">{row.status}</p>
-                      </div>
-                      <span className="text-xs font-semibold text-accent tabular-nums flex-shrink-0">{row.days} hr</span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
+              <>
+                <ul className="space-y-2">
+                  {stalePreview.map((row) => (
+                    <li key={row.id}>
+                      <Link href={`/leads/${row.id}`} className="flex items-center justify-between gap-3 rounded-xl border border-border px-3 py-2.5 hover:bg-secondary/50 transition-colors">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-foreground truncate">{row.name}</p>
+                          <p className="text-[10px] text-muted-foreground truncate">{row.status}</p>
+                        </div>
+                        <span className="text-xs font-semibold text-amber-600 tabular-nums flex-shrink-0">{row.days} hari</span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+                <Link href="/stage-3" className="mt-3 inline-flex items-center gap-1 text-[11px] font-semibold text-accent hover:opacity-80">
+                  Buka Stage 3 <ArrowRight size={11} />
+                </Link>
+              </>
             )}
           </section>
 
