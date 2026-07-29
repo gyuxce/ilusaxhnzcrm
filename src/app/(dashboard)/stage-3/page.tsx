@@ -24,21 +24,22 @@ export default async function Stage3Page() {
     .in('current_status', STAGE3_STATUSES)
     .order('updated_at', { ascending: false })
     .limit(5000)
+
   if (trialSince) {
     query = query.gte('created_at', trialSince)
   }
-  const { data } = await query
 
+  const { data } = await query
   const leads = data || []
 
   return (
     <>
       <Header
-        title="Stage 3 · Pipeline"
-        subtitle="Kanban: Pemetaan → Expert → Seat Lock → Closing. Drag untuk pindah, klik Detail untuk update."
+        title="Stage 3"
+        subtitle="Pemetaan -> expert -> seat lock -> closing. Geser kartu untuk pindah tahap, klik Detail untuk update."
       />
       <div className="p-4 sm:p-5 animate-fade-in w-full font-sans">
-        <Suspense fallback={<div className="p-8 text-center text-xs text-muted-foreground animate-pulse">Memuat pipeline...</div>}>
+        <Suspense fallback={<div className="p-8 text-center text-xs text-muted-foreground animate-pulse">Memuat Stage 3...</div>}>
           <Stage3Board initialLeads={leads as never} />
         </Suspense>
       </div>

@@ -3,6 +3,8 @@
 import { useState, useCallback, useMemo, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { revalidateLeadsListing } from '@/app/actions/revalidate-leads'
 import { createClient } from '@/lib/supabase/client'
 import { cn, getTodayInWIB } from '@/lib/utils'
 import {
@@ -11,7 +13,7 @@ import {
   STAGE3_FAILED_REASON_OPTIONS,
   resolveStage3DropStatus,
 } from '@/lib/prd-stages'
-import { CalendarClock, Clock3, FileText, MessageCircle, Users, X, Loader2, CheckCircle2 } from 'lucide-react'
+import { Clock3, FileText, MessageCircle, Users, X, Loader2, CheckCircle2 } from 'lucide-react'
 
 const INITIAL_VISIBLE = 10
 const LOAD_STEP = 10
@@ -49,17 +51,36 @@ function formatShortDate(value?: string | null) {
   if (!value) return '-'
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: '2-digit' })
+  return date.toLocaleString('id-ID', {
+    day: 'numeric',
+    month: 'short',
+    year: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
 }
 
-function daysSince(value?: string | null) {
-  if (!value) return null
+function toDateTimeInputValue(value?: string | null) {
+  const date = value ? new Date(value) : new Date()
+  if (Number.isNaN(date.getTime())) return ''
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
+function toTimestamp(value?: string | null) {
+  if (!value) return new Date().toISOString()
   const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return null
-  const today = new Date()
-  date.setHours(0, 0, 0, 0)
-  today.setHours(0, 0, 0, 0)
-  return Math.max(0, Math.floor((today.getTime() - date.getTime()) / 86400000))
+  return Number.isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString()
+}
+
+function isSystemImportNote(value?: string | null) {
+  const normalized = (value || '').trim().toLowerCase()
+  return normalized === 'imported from csv' || normalized === 'input dari stage 2'
+}
+
+function cleanNotePreview(value?: string | null) {
+  if (!value || isSystemImportNote(value)) return ''
+  return value
 }
 
 function latestExpertNote(lead: Stage3Lead) {
@@ -69,6 +90,7 @@ function latestExpertNote(lead: Stage3Lead) {
 }
 
 export function Stage3Board({ initialLeads }: Props) {
+  const router = useRouter()
   const supabase = createClient()
   const [leads, setLeads] = useState<Stage3Lead[]>(initialLeads)
   const [dragging, setDragging] = useState<string | null>(null)
@@ -114,9 +136,11 @@ export function Stage3Board({ initialLeads }: Props) {
       const actor = auth.user?.id || null
       const [u, a] = await Promise.all([
         supabase.from('leads').update({ current_status: newStatus, updated_at: new Date().toISOString(), updated_by: actor }).eq('id', leadId),
-        supabase.from('lead_activities').insert({ lead_id: leadId, activity_type: 'Stage 3', description: `Stage 3 → ${newStatus} (drag)`, created_by: actor }),
+        supabase.from('lead_activities').insert({ lead_id: leadId, activity_type: 'Stage 3', description: `Stage 3 -> ${newStatus} (geser kartu)`, created_by: actor }),
       ])
       if (u.error || a.error) throw u.error || a.error
+      await revalidateLeadsListing()
+      router.refresh()
     } catch (err) {
       setLeads(prev)
       setMoveError(err instanceof Error ? err.message : 'Gagal memindahkan lead')
@@ -166,8 +190,7 @@ export function Stage3Board({ initialLeads }: Props) {
             <>
               {visibleLeads.map((lead) => {
                 const lastTouched = lead.last_contacted_date || lead.updated_at || lead.lead_entry_date
-                const age = daysSince(lastTouched)
-                const notePreview = latestExpertNote(lead) || lead.funnel_notes || lead.notes || ''
+                const notePreview = cleanNotePreview(latestExpertNote(lead)) || cleanNotePreview(lead.funnel_notes) || cleanNotePreview(lead.notes)
 
                 return (
                 <div
@@ -202,12 +225,6 @@ export function Stage3Board({ initialLeads }: Props) {
                       <span className="inline-flex items-center gap-1"><Clock3 size={11} /> Terakhir disentuh</span>
                       <span className="font-semibold text-foreground">{formatShortDate(lastTouched)}</span>
                     </div>
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="inline-flex items-center gap-1"><CalendarClock size={11} /> Lama proses</span>
-                      <span className={cn('font-semibold', age !== null && age > 3 ? 'text-amber-600' : 'text-foreground')}>
-                        {age === null ? '-' : `${age} hari`}
-                      </span>
-                    </div>
                     {notePreview && (
                       <p className="line-clamp-2 border-t border-border/70 pt-1 leading-relaxed">
                         <FileText size={11} className="mr-1 inline" />
@@ -216,7 +233,7 @@ export function Stage3Board({ initialLeads }: Props) {
                     )}
                   </div>
                   <button type="button" onClick={() => setDetailLead(lead)} className="mt-2 w-full rounded-lg border border-border bg-secondary/40 px-2 py-1 text-[11px] font-semibold text-muted-foreground hover:text-foreground">
-                    Detail Stage 3
+                    Detail Proses
                   </button>
                 </div>
                 )
@@ -245,7 +262,7 @@ export function Stage3Board({ initialLeads }: Props) {
           <input type="text" placeholder="Cari nama atau campaign..." value={query} onChange={(e) => setQuery(e.target.value)} className="w-56 rounded-xl border border-border bg-card px-3 py-2 text-xs text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary" />
           {focusColumn && <button type="button" onClick={() => setFocusColumn(null)} className="text-[11px] font-semibold text-accent hover:opacity-80">Tampilkan semua kolom</button>}
         </div>
-        <p className="hidden text-[11px] text-muted-foreground lg:block">Drag kartu untuk pindah tahap · klik Detail untuk update</p>
+        <p className="hidden text-[11px] text-muted-foreground lg:block">Geser kartu untuk pindah tahap, klik detail untuk update</p>
       </div>
 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5">
@@ -291,6 +308,7 @@ type DetailForm = {
   status: string
   manualNote: string
   lastTouchedDate: string
+  pemetaanNominal: string
   hasilExpert: string
   expertName: string
   expertDiscussion: string
@@ -312,11 +330,13 @@ function Stage3DetailModal({
   onClose: () => void
   onSaved: (updated: Partial<Stage3Lead> & { id: string }) => void
 }) {
+  const router = useRouter()
   const supabase = createClient()
   const [form, setForm] = useState<DetailForm>({
     status: lead.current_status,
-    manualNote: lead.funnel_notes || lead.notes || '',
-    lastTouchedDate: lead.last_contacted_date || getTodayInWIB(),
+    manualNote: cleanNotePreview(lead.funnel_notes) || cleanNotePreview(lead.notes),
+    lastTouchedDate: toDateTimeInputValue(lead.last_contacted_date || lead.updated_at || lead.lead_entry_date),
+    pemetaanNominal: '',
     hasilExpert: '',
     expertName: lead.expert_consultations?.[0]?.expert_name || '',
     expertDiscussion: lead.expert_consultations?.[0]?.consultation_result || '',
@@ -370,7 +390,7 @@ function Stage3DetailModal({
     if (form.leadResponse.trim()) funnelParts.push(`Respon Lead: ${form.leadResponse.trim()}`)
     if (showCold && form.coldLeadsNote.trim()) funnelParts.push(`Cold Leads: ${form.coldLeadsNote.trim()}`)
     if (showAkselerasi && form.akselerasiNote.trim()) funnelParts.push(`Jalur Akselerasi: ${form.akselerasiNote.trim()}`)
-    const funnelNotes = funnelParts.join(' · ') || lead.funnel_notes || null
+    const funnelNotes = funnelParts.join(' | ') || cleanNotePreview(lead.funnel_notes) || null
 
     const { error: uErr } = await supabase
       .from('leads')
@@ -378,7 +398,7 @@ function Stage3DetailModal({
         current_status: form.status,
         lost_reason: showFailed ? form.failedReason : null,
         funnel_notes: funnelNotes,
-        last_contacted_date: form.lastTouchedDate || getTodayInWIB(),
+        last_contacted_date: toTimestamp(form.lastTouchedDate),
         updated_by: actor,
         updated_at: new Date().toISOString(),
       })
@@ -407,6 +427,23 @@ function Stage3DetailModal({
       }
     }
 
+    if (form.pemetaanNominal.trim()) {
+      const nominal = Number(form.pemetaanNominal.replace(/[^\d]/g, ''))
+      if (!Number.isNaN(nominal) && nominal > 0) {
+        await supabase.from('payments').insert({
+          lead_id: lead.id,
+          payment_type: 'pemetaan',
+          amount: nominal,
+          payment_method: 'Transfer',
+          payment_date: getTodayInWIB(),
+          verification_status: 'verified',
+          verified_by: actor,
+          verified_at: new Date().toISOString(),
+          notes: 'Input pemetaan dari Stage 3',
+        })
+      }
+    }
+
     if (
       form.expertName.trim() ||
       form.expertDiscussion.trim() ||
@@ -418,7 +455,7 @@ function Stage3DetailModal({
         lead_id: lead.id,
         expert_name: form.expertName.trim() || null,
         scheduled_at: null,
-        completed_at: form.lastTouchedDate ? `${form.lastTouchedDate}T00:00:00.000Z` : new Date().toISOString(),
+        completed_at: toTimestamp(form.lastTouchedDate),
         consultation_result: [
           form.expertDiscussion.trim() && `Diskusi: ${form.expertDiscussion.trim()}`,
           form.leadResponse.trim() && `Respon lead: ${form.leadResponse.trim()}`,
@@ -432,7 +469,7 @@ function Stage3DetailModal({
       lead_id: lead.id,
       activity_type: 'Stage 3',
       description: [
-        `Stage 3 → ${form.status}${showFailed ? ` (${form.failedReason})` : ''}`,
+        `Stage 3 -> ${form.status}${showFailed ? ` (${form.failedReason})` : ''}`,
         form.manualNote.trim() && `Catatan: ${form.manualNote.trim()}`,
         form.expertRecommendation.trim() && `Rekomendasi expert: ${form.expertRecommendation.trim()}`,
         form.croFollowUp.trim() && `Tindak lanjut CRO: ${form.croFollowUp.trim()}`,
@@ -441,13 +478,15 @@ function Stage3DetailModal({
       created_by: actor,
     })
 
+    await revalidateLeadsListing()
+    router.refresh()
     setSaving(false)
     onSaved({
       id: lead.id,
       current_status: form.status,
       lost_reason: showFailed ? form.failedReason : null,
       funnel_notes: funnelNotes,
-      last_contacted_date: form.lastTouchedDate || getTodayInWIB(),
+      last_contacted_date: toTimestamp(form.lastTouchedDate),
     })
   }
 
@@ -464,8 +503,8 @@ function Stage3DetailModal({
           >
             <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
               <div className="min-w-0">
-                <h3 className="truncate font-display text-base font-semibold text-foreground">Detail Stage 3</h3>
-                <p className="truncate text-[11px] text-muted-foreground">{lead.full_name} · {lead.whatsapp_number}</p>
+                <h3 className="truncate font-display text-base font-semibold text-foreground">Detail Proses</h3>
+                <p className="truncate text-[11px] text-muted-foreground">{lead.full_name} - {lead.whatsapp_number}</p>
               </div>
               <button type="button" onClick={onClose} className="rounded-lg p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary">
                 <X size={16} />
@@ -475,7 +514,7 @@ function Stage3DetailModal({
             <div className="min-h-0 flex-1 overflow-y-auto p-4">
               {error && <div className="mb-3 rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-[11px] font-medium text-destructive">{error}</div>}
               <div className="grid grid-cols-1 gap-3">
-                <Field label="Status Stage 3">
+                <Field label="Status proses">
                   <select value={form.status} onChange={(e) => setForm((p) => ({ ...p, status: e.target.value }))} className="field-input">
                     {STAGE3_STATUS_OPTIONS.map((opt) => (
                       <option key={opt} value={opt}>{opt}</option>
@@ -486,7 +525,7 @@ function Stage3DetailModal({
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <Field label="Tanggal terakhir disentuh">
                     <input
-                      type="date"
+                      type="datetime-local"
                       value={form.lastTouchedDate}
                       onChange={(e) => setForm((p) => ({ ...p, lastTouchedDate: e.target.value }))}
                       className="field-input"
@@ -502,12 +541,22 @@ function Stage3DetailModal({
                   </Field>
                 </div>
 
-                <Field label="Manual note Stage 3">
+                <Field label="Catatan manual">
                   <textarea
                     value={form.manualNote}
                     onChange={(e) => setForm((p) => ({ ...p, manualNote: e.target.value }))}
                     className="field-input min-h-[64px] resize-y"
                     placeholder="Catatan singkat: kendala, progress, atau update terakhir..."
+                  />
+                </Field>
+
+                <Field label="Catat pembayaran pemetaan jika belum tercatat">
+                  <input
+                    inputMode="numeric"
+                    value={form.pemetaanNominal}
+                    onChange={(e) => setForm((p) => ({ ...p, pemetaanNominal: e.target.value.replace(/[^\d]/g, '') }))}
+                    placeholder="Contoh: 500000"
+                    className="field-input"
                   />
                 </Field>
 
@@ -539,22 +588,22 @@ function Stage3DetailModal({
                   </div>
                 )}
                 {showClosing && (
-                  <Field label="Closing Seat Lock — nominal (angka saja, tanpa titik / Rp)">
+                  <Field label="Nominal closing seat lock">
                     <input inputMode="numeric" value={form.closingNominal} onChange={(e) => setForm((p) => ({ ...p, closingNominal: e.target.value.replace(/[^\d]/g, '') }))} placeholder="3000000" className="field-input" />
                   </Field>
                 )}
                 {showCold && (
-                  <Field label="Cold Leads — kondisi (manual)">
+                  <Field label="Kondisi cold leads">
                     <textarea value={form.coldLeadsNote} onChange={(e) => setForm((p) => ({ ...p, coldLeadsNote: e.target.value }))} className="field-input min-h-[56px] resize-y" placeholder="Kondisi lead..." />
                   </Field>
                 )}
                 {showAkselerasi && (
-                  <Field label="Jalur Akselerasi — kondisi (manual)">
+                  <Field label="Kondisi jalur akselerasi">
                     <textarea value={form.akselerasiNote} onChange={(e) => setForm((p) => ({ ...p, akselerasiNote: e.target.value }))} className="field-input min-h-[56px] resize-y" placeholder="Kondisi jalur akselerasi..." />
                   </Field>
                 )}
                 {showFailed && (
-                  <Field label="Failed — alasan">
+                  <Field label="Alasan failed">
                     <select value={form.failedReason} onChange={(e) => setForm((p) => ({ ...p, failedReason: e.target.value }))} className="field-input">
                       <option value="">Pilih alasan...</option>
                       {STAGE3_FAILED_REASON_OPTIONS.map((opt) => (

@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Header } from '@/components/layout/header'
+import { revalidateLeadsListing } from '@/app/actions/revalidate-leads'
 import { createClient } from '@/lib/supabase/client'
 import { cn, getTodayInWIB } from '@/lib/utils'
 import { getStageBadgeClasses } from '@/lib/brand'
@@ -38,13 +40,26 @@ const FILTERS = [
 
 type Form = {
   statusStaging: string
-  bayarPemetaan: boolean
   nominalPemetaan: string
   komunikasiTerakhir: string
   note: string
 }
 
+function toDateTimeInputValue(value?: string | null) {
+  const date = value ? new Date(value) : new Date()
+  if (Number.isNaN(date.getTime())) return ''
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
+function toTimestamp(value?: string | null) {
+  if (!value) return new Date().toISOString()
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString()
+}
+
 export default function Stage2Page() {
+  const router = useRouter()
   const supabase = createClient()
   const [leads, setLeads] = useState<LeadRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -55,7 +70,6 @@ export default function Stage2Page() {
   const [message, setMessage] = useState<{ type: 'success' | 'error' | ''; text: string }>({ type: '', text: '' })
   const [form, setForm] = useState<Form>({
     statusStaging: '',
-    bayarPemetaan: false,
     nominalPemetaan: '',
     komunikasiTerakhir: '',
     note: '',
@@ -117,9 +131,8 @@ export default function Stage2Page() {
     setMessage({ type: '', text: '' })
     setForm({
       statusStaging: '',
-      bayarPemetaan: false,
       nominalPemetaan: '',
-      komunikasiTerakhir: lead.last_contacted_date || getTodayInWIB(),
+      komunikasiTerakhir: toDateTimeInputValue(lead.last_contacted_date),
       note: '',
     })
   }
@@ -130,7 +143,6 @@ export default function Stage2Page() {
     if (!activeLead) return false
     if (!form.statusStaging) return false
     if (isLainnya && !form.note.trim()) return false
-    if (form.bayarPemetaan && !form.nominalPemetaan.trim()) return false
     return true
   }
 
@@ -152,8 +164,8 @@ export default function Stage2Page() {
       .from('leads')
       .update({
         current_status: nextStatus,
-        funnel_notes: funnelParts.join(' · ') || null,
-        last_contacted_date: form.komunikasiTerakhir || getTodayInWIB(),
+        funnel_notes: funnelParts.join(' | ') || null,
+        last_contacted_date: toTimestamp(form.komunikasiTerakhir),
         updated_by: user?.id ?? null,
         updated_at: new Date().toISOString(),
       })
@@ -165,8 +177,8 @@ export default function Stage2Page() {
       return
     }
 
-    // Optional pemetaan payment
-    if (form.bayarPemetaan && form.nominalPemetaan.trim()) {
+    // Jika nominal diisi, catat pembayaran pemetaan saat lead dipindah.
+    if (form.nominalPemetaan.trim()) {
       const nominal = Number(form.nominalPemetaan.replace(/[^\d]/g, ''))
       if (!Number.isNaN(nominal) && nominal > 0) {
         await supabase.from('payments').insert({
@@ -186,13 +198,16 @@ export default function Stage2Page() {
     await supabase.from('lead_activities').insert({
       lead_id: activeLead.id,
       activity_type: 'Stage 2',
-      description: `Stage 2 → ${nextStatus}`,
+      description: `Stage 2 -> ${nextStatus}`,
       created_by: user?.id ?? null,
     })
 
+    await revalidateLeadsListing()
     setSaving(false)
     setMessage({ type: 'success', text: `Tersimpan. Status sekarang: ${nextStatus}.` })
+    setLeads((prev) => prev.filter((lead) => lead.id !== activeLead.id))
     setActiveLead(null)
+    router.refresh()
     void fetchLeads()
   }
 
@@ -200,7 +215,7 @@ export default function Stage2Page() {
     <>
       <Header
         title="Stage 2"
-        subtitle="Lead interested — jadwalkan pemetaan, expert, atau seat-lock."
+        subtitle="Lead interested: jadwalkan pemetaan, expert, atau seat-lock."
       />
       <div className="p-5 sm:p-6 animate-fade-in w-full font-sans">
         <div className="glass-card rounded-2xl border border-border overflow-hidden">
@@ -304,7 +319,7 @@ export default function Stage2Page() {
         </div>
       </div>
 
-      {/* Kerjakan Stage 2 modal — portal ke body agar center (hindari transform parent) */}
+      {/* Kerjakan Stage 2 modal, portal ke body agar center. */}
       {activeLead &&
         createPortal(
           <div className="fixed inset-0 z-[200]" style={{ background: 'rgba(27,42,74,0.45)' }}>
@@ -318,7 +333,7 @@ export default function Stage2Page() {
                   <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
                     <div className="min-w-0">
                       <h3 className="truncate font-display text-base font-semibold text-foreground">Kerjakan Stage 2</h3>
-                      <p className="truncate text-[11px] text-muted-foreground">{activeLead.full_name} · {activeLead.whatsapp_number}</p>
+                      <p className="truncate text-[11px] text-muted-foreground">{activeLead.full_name} - {activeLead.whatsapp_number}</p>
                     </div>
                     <button type="button" onClick={() => setActiveLead(null)} className="rounded-lg p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary">
                       <X size={16} />
@@ -345,29 +360,19 @@ export default function Stage2Page() {
                         </select>
                       </Field>
 
-                      <label className="flex items-center gap-2 text-xs font-semibold text-foreground/80">
+                      <Field label="Nominal pembayaran pemetaan">
                         <input
-                          type="checkbox"
-                          checked={form.bayarPemetaan}
-                          onChange={(e) => setForm((prev) => ({ ...prev, bayarPemetaan: e.target.checked }))}
+                          inputMode="numeric"
+                          value={form.nominalPemetaan}
+                          onChange={(e) => setForm((prev) => ({ ...prev, nominalPemetaan: e.target.value.replace(/[^\d]/g, '') }))}
+                          placeholder="Isi angka jika sudah bayar, contoh: 500000"
+                          className="field-input"
                         />
-                        Sudah bayar pemetaan? (opsional)
-                      </label>
-                      {form.bayarPemetaan && (
-                        <Field label="Berapa nominal pemetaan? (angka saja, tanpa titik / Rp)">
-                          <input
-                            inputMode="numeric"
-                            value={form.nominalPemetaan}
-                            onChange={(e) => setForm((prev) => ({ ...prev, nominalPemetaan: e.target.value.replace(/[^\d]/g, '') }))}
-                            placeholder="500000"
-                            className="field-input"
-                          />
-                        </Field>
-                      )}
+                      </Field>
 
                       <Field label="Komunikasi Terakhir">
                         <input
-                          type="date"
+                          type="datetime-local"
                           value={form.komunikasiTerakhir}
                           onChange={(e) => setForm((prev) => ({ ...prev, komunikasiTerakhir: e.target.value }))}
                           className="field-input"
