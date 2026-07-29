@@ -13,7 +13,7 @@ import {
   STAGE3_FAILED_REASON_OPTIONS,
   resolveStage3DropStatus,
 } from '@/lib/prd-stages'
-import { Clock3, FileText, MessageCircle, Users, X, Loader2, CheckCircle2 } from 'lucide-react'
+import { Clock3, FileText, MessageCircle, Users, X, Loader2, CheckCircle2, Pencil, ExternalLink } from 'lucide-react'
 
 const INITIAL_VISIBLE = 10
 const LOAD_STEP = 10
@@ -380,6 +380,7 @@ function Stage3DetailModal({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [mounted, setMounted] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
 
   useEffect(() => {
     setMounted(true)
@@ -537,12 +538,23 @@ function Stage3DetailModal({
 
   return createPortal(
     <div className="fixed inset-0 z-[200]" style={{ background: 'rgba(27,42,74,0.45)' }}>
+      {saving && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-slate-950/20 backdrop-blur-[1px]">
+          <div className="flex items-center gap-3 rounded-2xl border border-border bg-card px-5 py-4 shadow-xl">
+            <Loader2 size={19} className="animate-spin text-accent" />
+            <div>
+              <p className="text-sm font-semibold text-foreground">Menyimpan perubahan...</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">Status dan catatan sedang diperbarui.</p>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="h-full w-full overflow-y-auto">
         <div className="flex min-h-full items-center justify-center p-4">
           <div
             role="dialog"
             aria-modal="true"
-            className="flex w-full max-w-lg max-h-[min(36rem,calc(100vh-2rem))] flex-col rounded-2xl border border-border bg-card shadow-xl"
+            className="flex w-full max-w-md max-h-[min(36rem,calc(100vh-2rem))] flex-col rounded-2xl border border-border bg-card shadow-xl"
           >
             <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
               <div className="min-w-0">
@@ -556,6 +568,26 @@ function Stage3DetailModal({
 
             <div className="min-h-0 flex-1 overflow-y-auto p-4">
               {error && <div className="mb-3 rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-[11px] font-medium text-destructive">{error}</div>}
+              {!isEditing ? (
+                <div className="space-y-3">
+                  <div className="rounded-xl border border-border bg-secondary/30 p-3">
+                    <p className="text-[11px] font-semibold text-muted-foreground">STATUS PROSES</p>
+                    <p className="mt-1 text-sm font-semibold text-foreground">{lead.current_status}</p>
+                    <p className="mt-2 text-xs text-muted-foreground">Terakhir disentuh: {formatShortDate(lead.last_contacted_date || lead.updated_at || lead.lead_entry_date)}</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <SummaryItem label="Pemetaan" value={pemetaanPayment ? `${formatRupiah(pemetaanPayment.amount)} - ${pemetaanPayment.verification_status}` : 'Belum tercatat'} />
+                    <SummaryItem label="Seat lock" value={seatLockPayment ? `${formatRupiah(seatLockPayment.amount)} - ${seatLockPayment.verification_status}` : 'Belum tercatat'} />
+                  </div>
+                  {(cleanNotePreview(lead.funnel_notes) || cleanNotePreview(lead.notes)) && (
+                    <SummaryItem label="Catatan terakhir" value={cleanNotePreview(lead.funnel_notes) || cleanNotePreview(lead.notes)} wide />
+                  )}
+                  {latestExpertNote(lead) && <SummaryItem label="Catatan expert" value={latestExpertNote(lead)} wide />}
+                  <Link href={`/leads/${lead.id}`} className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-card px-3 py-2.5 text-xs font-semibold text-foreground hover:bg-secondary">
+                    <ExternalLink size={14} /> Lihat detail lead lengkap
+                  </Link>
+                </div>
+              ) : (
               <div className="grid grid-cols-1 gap-3">
                 <Field label="Status proses">
                   <select value={form.status} onChange={(e) => setForm((p) => ({ ...p, status: e.target.value }))} className="field-input">
@@ -668,20 +700,38 @@ function Stage3DetailModal({
                   </Field>
                 )}
               </div>
+              )}
             </div>
 
             <div className="flex shrink-0 items-center justify-between gap-3 border-t border-border bg-secondary/30 px-4 py-3">
-              <button type="button" onClick={onClose} className="text-xs font-semibold text-muted-foreground hover:text-foreground">Batal</button>
-              <button type="button" disabled={saving || !canSave()} onClick={handleSave} className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground disabled:cursor-not-allowed disabled:opacity-50">
-                {saving ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle2 size={15} />}
-                Simpan
+              <button type="button" onClick={isEditing ? () => setIsEditing(false) : onClose} className="text-xs font-semibold text-muted-foreground hover:text-foreground">
+                {isEditing ? 'Kembali' : 'Tutup'}
               </button>
+              {isEditing ? (
+                <button type="button" disabled={saving || !canSave()} onClick={handleSave} className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground disabled:cursor-not-allowed disabled:opacity-50">
+                  {saving ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle2 size={15} />}
+                  Simpan
+                </button>
+              ) : (
+                <button type="button" onClick={() => setIsEditing(true)} className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground">
+                  <Pencil size={15} /> Edit proses
+                </button>
+              )}
             </div>
           </div>
         </div>
       </div>
     </div>,
     document.body
+  )
+}
+
+function SummaryItem({ label, value, wide = false }: { label: string; value: string; wide?: boolean }) {
+  return (
+    <div className={cn('rounded-xl border border-border bg-card p-3', wide && 'col-span-full')}>
+      <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="mt-1 text-xs leading-relaxed text-foreground">{value}</p>
+    </div>
   )
 }
 

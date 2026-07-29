@@ -130,7 +130,7 @@ export function LeadForm({ defaultValues, leadId }: LeadFormProps) {
     }
 
     setLoading(false)
-    setSuccess(leadId ? 'Perubahan tersimpan. Mengalihkan...' : 'Lead tersimpan. Mengalihkan ke Leads...')
+    setSuccess(leadId ? 'Perubahan tersimpan.' : 'Lead tersimpan. Membuka Kerjaan Hari Ini...')
     markLeadsListNeedsRefresh()
 
     const targetLeadId = leadId || result?.id || null
@@ -149,10 +149,9 @@ export function LeadForm({ defaultValues, leadId }: LeadFormProps) {
     await revalidateLeadsListing()
     if (leadId) {
       router.push(`/leads/${leadId}`)
-      router.refresh()
       return
     }
-    window.location.assign('/leads')
+    window.setTimeout(() => router.push('/today'), 450)
   }
 
   const inputClass =
@@ -160,6 +159,17 @@ export function LeadForm({ defaultValues, leadId }: LeadFormProps) {
 
   return (
     <form onSubmit={handleFormSubmit(onSubmit)} className="mx-auto max-w-xl space-y-4">
+      {loading && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-slate-950/35 p-4 backdrop-blur-[2px]" aria-live="polite">
+          <div className="flex items-center gap-3 rounded-2xl border border-border bg-card px-5 py-4 shadow-xl">
+            <Loader2 size={20} className="animate-spin text-accent" />
+            <div>
+              <p className="text-sm font-semibold text-foreground">Menyimpan lead...</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">Data sedang dicatat ke CRM.</p>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="rounded-2xl border border-border bg-card p-5 space-y-4">
         <div>
           <h2 className="font-display text-base font-semibold tracking-tight text-foreground">
