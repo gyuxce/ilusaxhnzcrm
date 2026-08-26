@@ -274,8 +274,8 @@ export default function Stage1Page() {
                       )}
                     >
                       <p className="truncate text-xs font-semibold text-foreground">{lead.full_name}</p>
-                      <p className="mt-0.5 flex items-center gap-1.5">
-                        <span className="truncate text-[10px] text-muted-foreground">{lead.source_campaign}</span>
+                      <p className="mt-0.5 flex min-w-0 items-center gap-1.5">
+                        <span className="min-w-0 truncate text-[10px] text-muted-foreground">{lead.source_campaign}</span>
                         <EntityBadge sourceCampaign={lead.source_campaign} overrides={campaignOverrides} />
                       </p>
                       <span className={cn('mt-1 inline-block rounded px-1.5 py-0.5 text-[9px]', getStageBadgeClasses(lead.current_status))}>
@@ -302,8 +302,8 @@ export default function Stage1Page() {
                       <h2 className="truncate font-display text-lg font-semibold tracking-tight text-foreground">
                         {selectedLead.full_name}
                       </h2>
-                      <p className="flex items-center gap-1.5 truncate text-[11px] text-muted-foreground">
-                        <span className="truncate">{selectedLead.whatsapp_number} · {selectedLead.source_campaign}</span>
+                      <p className="flex min-w-0 items-center gap-1.5 text-[11px] text-muted-foreground">
+                        <span className="min-w-0 truncate">{selectedLead.whatsapp_number} · {selectedLead.source_campaign}</span>
                         <EntityBadge sourceCampaign={selectedLead.source_campaign} overrides={campaignOverrides} />
                       </p>
                     </div>

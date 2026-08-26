@@ -372,8 +372,8 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
                       >
                         {lead.full_name}
                       </Link>
-                      <p className="flex items-center gap-1.5 mt-0.5">
-                        <span className="truncate text-[10px] text-muted-foreground">
+                      <p className="flex min-w-0 items-center gap-1.5 mt-0.5">
+                        <span className="min-w-0 truncate text-[10px] text-muted-foreground">
                           {lead.source_campaign || '—'}
                         </span>
                         <EntityBadge sourceCampaign={lead.source_campaign} overrides={campaignOverrides} />

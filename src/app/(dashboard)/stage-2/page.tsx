@@ -314,8 +314,8 @@ export default function Stage2Page() {
                         <Link href={`/leads/${lead.id}`} className="block truncate text-[12px] font-semibold text-foreground hover:text-accent">
                           {lead.full_name}
                         </Link>
-                        <p className="mt-0.5 flex items-center gap-1.5">
-                          <span className="truncate text-[10px] text-muted-foreground">{lead.source_campaign}</span>
+                        <p className="mt-0.5 flex min-w-0 items-center gap-1.5">
+                          <span className="min-w-0 truncate text-[10px] text-muted-foreground">{lead.source_campaign}</span>
                           <EntityBadge sourceCampaign={lead.source_campaign} overrides={campaignOverrides} />
                         </p>
                       </td>
