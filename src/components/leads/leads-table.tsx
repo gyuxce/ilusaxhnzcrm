@@ -49,20 +49,6 @@ function displayStatus(status: string) {
   return status === STAGE1_LEGACY_NEW_LEAD ? 'Input Manual' : status
 }
 
-function daysSinceLastTouch(lead: LeadWithRelations) {
-  const latestDate = lead.last_contacted_date || lead.updated_at || lead.lead_entry_date
-  if (!latestDate) return 0
-  const diffMs = Date.now() - new Date(latestDate).getTime()
-  return Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)))
-}
-
-function lastTouchLabel(lead: LeadWithRelations) {
-  const days = daysSinceLastTouch(lead)
-  if (days === 0) return 'Hari ini'
-  if (days === 1) return '1 hari lalu'
-  return `${days} hari lalu`
-}
-
 export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -345,9 +331,6 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
                   </div>
                 </th>
                 <th className="px-3 py-2.5 text-[11px] font-semibold text-muted-foreground whitespace-nowrap">
-                  Last Update
-                </th>
-                <th className="px-3 py-2.5 text-[11px] font-semibold text-muted-foreground whitespace-nowrap">
                   Aksi
                 </th>
                 <th className="px-3 py-2.5 text-[11px] font-semibold text-muted-foreground whitespace-nowrap">
@@ -358,7 +341,7 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
             <tbody className="divide-y divide-border">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-16 text-center text-muted-foreground/40 text-sm">
+                  <td colSpan={5} className="px-4 py-16 text-center text-muted-foreground/40 text-sm">
                     Tidak ada data leads yang cocok.
                   </td>
                 </tr>
@@ -390,18 +373,6 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
                         )}
                       >
                         {displayStatus(lead.current_status)}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap">
-                      <span
-                        className={cn(
-                          'text-[11px] font-medium',
-                          daysSinceLastTouch(lead) >= 3
-                            ? 'text-amber-700 dark:text-amber-300'
-                            : 'text-muted-foreground'
-                        )}
-                      >
-                        {lastTouchLabel(lead)}
                       </span>
                     </td>
                     <td className="px-3 py-2.5 whitespace-nowrap">
