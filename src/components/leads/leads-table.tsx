@@ -28,6 +28,7 @@ import {
 } from '@/lib/leads-list-refresh'
 import { readPrdTrialSinceClient } from '@/lib/prd-trial-mode'
 import { STAGE1_LEGACY_NEW_LEAD } from '@/lib/prd-stages'
+import { ENTITIES, resolveEntity, type Entity } from '@/lib/entity'
 
 type LeadWithRelations = Lead & {
   users?: { id: string; name: string } | null
@@ -66,6 +67,8 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
   const [leads, setLeads] = useState<LeadWithRelations[]>(initialLeads)
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState(searchParams.get('status') || 'all')
+  const [filterEntity, setFilterEntity] = useState<'all' | Entity>('all')
+  const [campaignOverrides, setCampaignOverrides] = useState<ReadonlyMap<string, Entity>>(new Map())
   const [sortField, setSortField] = useState<'full_name' | 'lead_entry_date' | 'current_status'>('lead_entry_date')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
   const [csvModalOpen, setCsvModalOpen] = useState(false)
@@ -80,6 +83,16 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
 
   useEffect(() => {
     setMounted(true)
+  }, [])
+
+  useEffect(() => {
+    const supabase = createClient()
+    supabase
+      .from('campaign_entity_overrides')
+      .select('source_campaign, entity')
+      .then(({ data }: { data: { source_campaign: string; entity: string }[] | null }) => {
+        setCampaignOverrides(new Map((data || []).map((o) => [o.source_campaign, o.entity as Entity])))
+      })
   }, [])
 
   useEffect(() => {
@@ -135,6 +148,10 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
       data = data.filter((l) => displayStatus(l.current_status) === filterStatus)
     }
 
+    if (filterEntity !== 'all') {
+      data = data.filter((l) => resolveEntity(l.source_campaign, campaignOverrides) === filterEntity)
+    }
+
     data.sort((a, b) => {
       const av =
         sortField === 'lead_entry_date'
@@ -152,7 +169,7 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
     })
 
     return data
-  }, [leads, search, filterStatus, sortField, sortDir])
+  }, [leads, search, filterStatus, filterEntity, sortField, sortDir, campaignOverrides])
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
   const safeCurrentPage = Math.min(currentPage, totalPages)
@@ -279,13 +296,30 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
           <table className="w-full text-xs text-left">
             <thead>
               <tr className="border-b border-border bg-secondary/40">
-                <th
-                  className="px-3 py-2.5 text-[11px] font-semibold text-muted-foreground whitespace-nowrap cursor-pointer select-none"
-                  onClick={() => toggleSort('full_name')}
-                >
-                  <span className="flex items-center gap-1">
-                    Nama {renderSortIcon('full_name')}
-                  </span>
+                <th className="px-3 py-2.5 text-[11px] font-semibold text-muted-foreground whitespace-nowrap">
+                  <div className="flex flex-col gap-1">
+                    <button
+                      type="button"
+                      className="flex items-center gap-1 cursor-pointer select-none text-left"
+                      onClick={() => toggleSort('full_name')}
+                    >
+                      Nama {renderSortIcon('full_name')}
+                    </button>
+                    <select
+                      value={filterEntity}
+                      onChange={(e) => {
+                        setFilterEntity(e.target.value as 'all' | Entity)
+                        setCurrentPage(1)
+                      }}
+                      className="w-full max-w-[7rem] rounded-md border border-border bg-card px-1.5 py-1 text-[10px] font-medium text-foreground outline-none"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <option value="all">Semua entitas</option>
+                      {ENTITIES.map((e) => (
+                        <option key={e} value={e}>{e}</option>
+                      ))}
+                    </select>
+                  </div>
                 </th>
                 <th className="px-3 py-2.5 text-[11px] font-semibold text-muted-foreground whitespace-nowrap">
                   Nomor WhatsApp
@@ -345,8 +379,20 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
                       >
                         {lead.full_name}
                       </Link>
-                      <p className="truncate text-[10px] text-muted-foreground mt-0.5">
-                        {lead.source_campaign || '—'}
+                      <p className="flex items-center gap-1.5 mt-0.5">
+                        <span className="truncate text-[10px] text-muted-foreground">
+                          {lead.source_campaign || '—'}
+                        </span>
+                        <span
+                          className={cn(
+                            'shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-bold',
+                            resolveEntity(lead.source_campaign, campaignOverrides) === 'KFI'
+                              ? 'bg-violet-500/10 text-violet-600 dark:text-violet-400'
+                              : 'bg-sky-500/10 text-sky-600 dark:text-sky-400'
+                          )}
+                        >
+                          {resolveEntity(lead.source_campaign, campaignOverrides)}
+                        </span>
                       </p>
                     </td>
                     <td className="px-3 py-2.5 font-mono text-[11px] text-muted-foreground whitespace-nowrap">
