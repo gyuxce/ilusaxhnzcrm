@@ -46,6 +46,13 @@ export const PRIMARY_NAV: NavItem[] = [
     hintId: 'Pipeline Kanban: Pemetaan → Closing',
     hintEn: 'Kanban pipeline: Mapping → Closing',
   },
+  {
+    href: '/danacita',
+    labelId: 'Payment via Danacita',
+    labelEn: 'Payment via Danacita',
+    hintId: 'Track pengajuan pendanaan Danacita',
+    hintEn: 'Track Danacita financing applications',
+  },
 ]
 
 /** Tools nested under Antrian / Hari Ini (routes preserved). */
@@ -115,6 +122,13 @@ export const OWNER_PRIMARY_NAV: NavItem[] = [
     labelEn: 'Stage 3',
     hintId: 'Pipeline Kanban: Pemetaan → Closing',
     hintEn: 'Kanban pipeline: Mapping → Closing',
+  },
+  {
+    href: '/danacita',
+    labelId: 'Payment via Danacita',
+    labelEn: 'Payment via Danacita',
+    hintId: 'Track pengajuan pendanaan Danacita',
+    hintEn: 'Track Danacita financing applications',
   },
   {
     href: '/conversions',

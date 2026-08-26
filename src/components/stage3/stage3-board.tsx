@@ -13,9 +13,11 @@ import {
   STAGE3_FAILED_REASON_OPTIONS,
   resolveStage3DropStatus,
 } from '@/lib/prd-stages'
-import { Clock3, FileText, MessageCircle, Users, X, Loader2, CheckCircle2, Pencil, ExternalLink } from 'lucide-react'
+import { Clock3, FileText, MessageCircle, Users, X, Loader2, CheckCircle2, Pencil, ExternalLink, Landmark } from 'lucide-react'
 import { useCampaignOverrides } from '@/lib/use-campaign-overrides'
 import { EntityBadge } from '@/components/leads/entity-badge'
+import { danacitaStatusText } from '@/lib/danacita'
+import type { DanacitaFlow, DanacitaStatus } from '@/lib/supabase/types'
 
 const INITIAL_VISIBLE = 10
 const LOAD_STEP = 10
@@ -412,6 +414,8 @@ function Stage3DetailModal({
   const [error, setError] = useState('')
   const [mounted, setMounted] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
+  const [danacitaApp, setDanacitaApp] = useState<{ id: string; status: DanacitaStatus } | null>(null)
+  const [danacitaLoading, setDanacitaLoading] = useState(false)
 
   useEffect(() => {
     setMounted(true)
@@ -422,11 +426,46 @@ function Stage3DetailModal({
     }
   }, [])
 
+  useEffect(() => {
+    supabase
+      .from('danacita_applications')
+      .select('id, status')
+      .eq('lead_id', lead.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .then(({ data }: { data: { id: string; status: DanacitaStatus }[] | null }) => {
+        setDanacitaApp(data?.[0] || null)
+      })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lead.id])
+
+  async function ajukanKeDanacita() {
+    setDanacitaLoading(true)
+    const { data: auth } = await supabase.auth.getUser()
+    const actor = auth.user?.id || null
+    const flow: DanacitaFlow = lead.current_status === 'Cold Leads' ? 'cold' : 'hot'
+    const { data, error: insertErr } = await supabase
+      .from('danacita_applications')
+      .insert({
+        lead_id: lead.id,
+        flow,
+        label: 'keberangkatan',
+        status: 'sedang_ditinjau',
+        created_by: actor,
+        updated_by: actor,
+      })
+      .select('id, status')
+      .single()
+    setDanacitaLoading(false)
+    if (!insertErr && data) setDanacitaApp(data as { id: string; status: DanacitaStatus })
+  }
+
   const showHasilExpert = form.status === 'Menunggu jadwal expert consultation'
   const showClosing = form.status === 'Closing Seat Lock'
   const showCold = form.status === 'Cold Leads'
   const showFailed = form.status === 'Failed'
   const showAkselerasi = form.status === 'Jalur Akselerasi'
+  const showSeatLockWaiting = form.status === 'Menunggu pembayaran seat-lock'
 
   function canSave() {
     if (!form.status) return false
@@ -710,6 +749,33 @@ function Stage3DetailModal({
                         </Field>
                       </div>
                     </div>
+                  </div>
+                )}
+                {showSeatLockWaiting && (
+                  <div className="rounded-xl border border-border bg-secondary/30 p-3 space-y-2">
+                    <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                      <Landmark size={13} /> Pembiayaan Danacita
+                    </p>
+                    {danacitaApp ? (
+                      <p className="text-[11px] text-muted-foreground">
+                        Sudah diajukan — status: <strong className="text-foreground">{danacitaStatusText(danacitaApp.status)}</strong>.{' '}
+                        <Link href="/danacita" className="text-accent font-semibold">Lihat di Payment via Danacita →</Link>
+                      </p>
+                    ) : (
+                      <>
+                        <p className="text-[11px] text-muted-foreground">
+                          Kalau lead ini mau bayar seat-lock lewat pendanaan Danacita, bukan langsung ke Harunokaze.
+                        </p>
+                        <button
+                          type="button"
+                          disabled={danacitaLoading}
+                          onClick={ajukanKeDanacita}
+                          className="rounded-lg bg-accent px-3 py-1.5 text-[11px] font-semibold text-accent-foreground hover:opacity-90 disabled:opacity-50"
+                        >
+                          {danacitaLoading ? 'Menyimpan...' : 'Ajukan ke Danacita'}
+                        </button>
+                      </>
+                    )}
                   </div>
                 )}
                 {showCold && (

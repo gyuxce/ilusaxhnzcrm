@@ -141,6 +141,39 @@ export type CampaignEntityOverrideInsert = {
 }
 export type CampaignEntityOverrideUpdate = Partial<CampaignEntityOverrideInsert>
 
+// Danacita Application Types
+export type DanacitaFlow = 'hot' | 'cold'
+export type DanacitaLabel = 'pendidikan' | 'keberangkatan' | 'pendidikan_keberangkatan'
+export type DanacitaStatus = 'sedang_ditinjau' | 'tidak_eligible' | 'berhasil' | 'lainnya'
+
+export type DanacitaApplicationRow = {
+  id: string
+  lead_id: string
+  flow: DanacitaFlow
+  label: DanacitaLabel
+  status: DanacitaStatus
+  status_reason: string | null
+  last_status_changed_at: string
+  created_by: string | null
+  updated_by: string | null
+  created_at: string
+  updated_at: string
+}
+export type DanacitaApplicationInsert = {
+  id?: string
+  lead_id: string
+  flow: DanacitaFlow
+  label: DanacitaLabel
+  status?: DanacitaStatus
+  status_reason?: string | null
+  last_status_changed_at?: string
+  created_by?: string | null
+  updated_by?: string | null
+  created_at?: string
+  updated_at?: string
+}
+export type DanacitaApplicationUpdate = Partial<DanacitaApplicationInsert>
+
 // Pemetaan Types
 export type PemetaanRow = {
   id: string
@@ -352,6 +385,11 @@ export type Database = {
         Row: CampaignEntityOverrideRow
         Insert: CampaignEntityOverrideInsert
         Update: CampaignEntityOverrideUpdate
+      }
+      danacita_applications: {
+        Row: DanacitaApplicationRow
+        Insert: DanacitaApplicationInsert
+        Update: DanacitaApplicationUpdate
       }
       pemetaan: {
         Row: PemetaanRow
