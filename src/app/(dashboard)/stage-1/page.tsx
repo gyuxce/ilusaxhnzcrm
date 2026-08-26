@@ -22,6 +22,8 @@ import {
   STAGE1_ALASAN_PENOLAKAN_OPTIONS,
 } from '@/lib/prd-stages'
 import { readPrdTrialSinceClient, PRD_TRIAL_MODE_CHANGED } from '@/lib/prd-trial-mode'
+import { useCampaignOverrides } from '@/lib/use-campaign-overrides'
+import { EntityBadge } from '@/components/leads/entity-badge'
 
 type LeadRow = {
   id: string
@@ -53,6 +55,7 @@ export default function Stage1Page() {
   const [saving, setSaving] = useState(false)
   const [query, setQuery] = useState('')
   const [message, setMessage] = useState<{ type: 'success' | 'error' | ''; text: string }>({ type: '', text: '' })
+  const campaignOverrides = useCampaignOverrides()
 
   const [form, setForm] = useState<Form>({
     currentStatus: 'Bridging',
@@ -271,7 +274,10 @@ export default function Stage1Page() {
                       )}
                     >
                       <p className="truncate text-xs font-semibold text-foreground">{lead.full_name}</p>
-                      <p className="mt-0.5 truncate text-[10px] text-muted-foreground">{lead.source_campaign}</p>
+                      <p className="mt-0.5 flex items-center gap-1.5">
+                        <span className="truncate text-[10px] text-muted-foreground">{lead.source_campaign}</span>
+                        <EntityBadge sourceCampaign={lead.source_campaign} overrides={campaignOverrides} />
+                      </p>
                       <span className={cn('mt-1 inline-block rounded px-1.5 py-0.5 text-[9px]', getStageBadgeClasses(lead.current_status))}>
                         {lead.current_status}
                       </span>
@@ -296,8 +302,9 @@ export default function Stage1Page() {
                       <h2 className="truncate font-display text-lg font-semibold tracking-tight text-foreground">
                         {selectedLead.full_name}
                       </h2>
-                      <p className="truncate text-[11px] text-muted-foreground">
-                        {selectedLead.whatsapp_number} · {selectedLead.source_campaign}
+                      <p className="flex items-center gap-1.5 truncate text-[11px] text-muted-foreground">
+                        <span className="truncate">{selectedLead.whatsapp_number} · {selectedLead.source_campaign}</span>
+                        <EntityBadge sourceCampaign={selectedLead.source_campaign} overrides={campaignOverrides} />
                       </p>
                     </div>
                     <WhatsAppButton

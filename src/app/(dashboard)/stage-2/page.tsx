@@ -14,6 +14,8 @@ import {
   STAGE2_VISIBLE_STATUSES,
 } from '@/lib/prd-stages'
 import { readPrdTrialSinceClient, PRD_TRIAL_MODE_CHANGED } from '@/lib/prd-trial-mode'
+import { useCampaignOverrides } from '@/lib/use-campaign-overrides'
+import { EntityBadge } from '@/components/leads/entity-badge'
 import {
   CheckCircle2,
   Loader2,
@@ -85,6 +87,7 @@ export default function Stage2Page() {
   const [activeLead, setActiveLead] = useState<LeadRow | null>(null)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error' | ''; text: string }>({ type: '', text: '' })
+  const campaignOverrides = useCampaignOverrides()
   const [form, setForm] = useState<Form>({
     statusStaging: '',
     nominalPemetaan: '',
@@ -311,7 +314,10 @@ export default function Stage2Page() {
                         <Link href={`/leads/${lead.id}`} className="block truncate text-[12px] font-semibold text-foreground hover:text-accent">
                           {lead.full_name}
                         </Link>
-                        <p className="truncate text-[10px] text-muted-foreground mt-0.5">{lead.source_campaign}</p>
+                        <p className="mt-0.5 flex items-center gap-1.5">
+                          <span className="truncate text-[10px] text-muted-foreground">{lead.source_campaign}</span>
+                          <EntityBadge sourceCampaign={lead.source_campaign} overrides={campaignOverrides} />
+                        </p>
                       </td>
                       <td className="px-3 py-2.5 font-mono text-[11px] text-muted-foreground whitespace-nowrap">{lead.whatsapp_number}</td>
                       <td className="px-3 py-2.5 whitespace-nowrap">

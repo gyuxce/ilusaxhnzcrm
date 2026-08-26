@@ -29,6 +29,8 @@ import {
 import { readPrdTrialSinceClient } from '@/lib/prd-trial-mode'
 import { STAGE1_LEGACY_NEW_LEAD } from '@/lib/prd-stages'
 import { ENTITIES, resolveEntity, type Entity } from '@/lib/entity'
+import { useCampaignOverrides } from '@/lib/use-campaign-overrides'
+import { EntityBadge } from './entity-badge'
 
 type LeadWithRelations = Lead & {
   users?: { id: string; name: string } | null
@@ -68,7 +70,7 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState(searchParams.get('status') || 'all')
   const [filterEntity, setFilterEntity] = useState<'all' | Entity>('all')
-  const [campaignOverrides, setCampaignOverrides] = useState<ReadonlyMap<string, Entity>>(new Map())
+  const campaignOverrides = useCampaignOverrides()
   const [sortField, setSortField] = useState<'full_name' | 'lead_entry_date' | 'current_status'>('lead_entry_date')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
   const [csvModalOpen, setCsvModalOpen] = useState(false)
@@ -85,15 +87,6 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
     setMounted(true)
   }, [])
 
-  useEffect(() => {
-    const supabase = createClient()
-    supabase
-      .from('campaign_entity_overrides')
-      .select('source_campaign, entity')
-      .then(({ data }: { data: { source_campaign: string; entity: string }[] | null }) => {
-        setCampaignOverrides(new Map((data || []).map((o) => [o.source_campaign, o.entity as Entity])))
-      })
-  }, [])
 
   useEffect(() => {
     setLeads(initialLeads)
@@ -383,16 +376,7 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
                         <span className="truncate text-[10px] text-muted-foreground">
                           {lead.source_campaign || '—'}
                         </span>
-                        <span
-                          className={cn(
-                            'shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-bold',
-                            resolveEntity(lead.source_campaign, campaignOverrides) === 'KFI'
-                              ? 'bg-violet-500/10 text-violet-600 dark:text-violet-400'
-                              : 'bg-sky-500/10 text-sky-600 dark:text-sky-400'
-                          )}
-                        >
-                          {resolveEntity(lead.source_campaign, campaignOverrides)}
-                        </span>
+                        <EntityBadge sourceCampaign={lead.source_campaign} overrides={campaignOverrides} />
                       </p>
                     </td>
                     <td className="px-3 py-2.5 font-mono text-[11px] text-muted-foreground whitespace-nowrap">

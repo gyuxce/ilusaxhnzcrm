@@ -14,6 +14,8 @@ import {
   resolveStage3DropStatus,
 } from '@/lib/prd-stages'
 import { Clock3, FileText, MessageCircle, Users, X, Loader2, CheckCircle2, Pencil, ExternalLink } from 'lucide-react'
+import { useCampaignOverrides } from '@/lib/use-campaign-overrides'
+import { EntityBadge } from '@/components/leads/entity-badge'
 
 const INITIAL_VISIBLE = 10
 const LOAD_STEP = 10
@@ -127,6 +129,7 @@ export function Stage3Board({ initialLeads }: Props) {
   const [moveError, setMoveError] = useState('')
   const [focusColumn, setFocusColumn] = useState<string | null>(null)
   const [detailLead, setDetailLead] = useState<Stage3Lead | null>(null)
+  const campaignOverrides = useCampaignOverrides()
 
   const filtered = useMemo(
     () =>
@@ -245,6 +248,7 @@ export function Stage3Board({ initialLeads }: Props) {
                   </div>
                   <div className="mt-2 flex flex-wrap items-center gap-1.5">
                     <span className="inline-block rounded-md border border-border px-1.5 py-0.5 text-[10px] text-foreground">{lead.current_status}</span>
+                    <EntityBadge sourceCampaign={lead.source_campaign} overrides={campaignOverrides} />
                     {lead.users?.name && <span className="truncate text-[10px] text-muted-foreground">PIC: {lead.users.name.split(' ')[0]}</span>}
                   </div>
                   <div className="mt-2 grid gap-1 rounded-lg bg-secondary/35 px-2 py-1.5 text-[10px] text-muted-foreground">
