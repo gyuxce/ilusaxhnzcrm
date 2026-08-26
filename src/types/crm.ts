@@ -7,7 +7,6 @@ import type {
   LeadActivityRow,
   FollowUpRow,
   LeadInterventionRow,
-  FuType,
 } from '@/lib/supabase/types'
 
 export type UserSummary = Pick<UserRow, 'id' | 'name'>
@@ -62,12 +61,3 @@ export function isJsonRecord(value: unknown): value is JsonRecord {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-export function getFuTypeLabel(fuType: string): string {
-  const labels: Record<FuType, string> = {
-    whatsapp: '🟢 WhatsApp',
-    chat: '💬 Chat',
-    call: '📞 Telepon',
-    meeting: '🤝 Meeting',
-  }
-  return labels[fuType as FuType] ?? fuType
-}

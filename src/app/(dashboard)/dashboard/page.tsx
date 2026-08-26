@@ -21,21 +21,22 @@ import {
   STAGE2_VISIBLE_STATUSES,
   STAGE3_STATUS_OPTIONS,
   STAGE3_BOARD_COLUMNS,
+  STAGE3_ATTENTION_STATUSES,
+  STAGE3_ATTENTION_STALE_DAYS,
   isStage3WonStatus,
 } from '@/lib/prd-stages'
 import { readPrdTrialSinceClient, PRD_TRIAL_MODE_CHANGED } from '@/lib/prd-trial-mode'
+import { getEntityForCampaign, ENTITIES, type Entity } from '@/lib/entity'
+import { isLostOutcomeStatus } from '@/lib/brand'
 import type { LeadRow, PaymentRow } from '@/lib/supabase/types'
 
-type LeadSummary = Pick<LeadRow, 'id' | 'full_name' | 'current_status' | 'updated_at' | 'lead_entry_date' | 'last_contacted_date'>
+type LeadSummary = Pick<LeadRow, 'id' | 'full_name' | 'current_status' | 'updated_at' | 'lead_entry_date' | 'last_contacted_date' | 'source_campaign'>
 
 type StalePreview = { id: string; name: string; status: string; days: number }
 
-const EXIT_STATUSES = ['Not Interested', 'Not Eligible', 'Cold Leads', 'Failed']
-const ATTENTION_STAGE3_STATUSES = [
-  'Menunggu hasil pemetaan',
-  'Menunggu jadwal expert consultation',
-  'Menunggu pembayaran seat-lock',
-]
+function emptyByEntity<T>(value: () => T): Record<Entity, T> {
+  return Object.fromEntries(ENTITIES.map((e) => [e, value()])) as Record<Entity, T>
+}
 
 function includes(list: readonly string[], value: string) {
   return list.includes(value as never)
@@ -47,6 +48,9 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [leads, setLeads] = useState<LeadSummary[]>([])
   const [revenue, setRevenue] = useState({ map: 0, seat: 0, total: 0 })
+  const [revenueByEntity, setRevenueByEntity] = useState<Record<Entity, { map: number; seat: number; total: number }>>(
+    () => emptyByEntity(() => ({ map: 0, seat: 0, total: 0 }))
+  )
   const [stalePreview, setStalePreview] = useState<StalePreview[]>([])
 
   const fetchStats = useCallback(async () => {
@@ -54,7 +58,7 @@ export default function DashboardPage() {
 
     let leadsQuery = supabase
       .from('leads')
-      .select('id, full_name, current_status, updated_at, lead_entry_date, last_contacted_date')
+      .select('id, full_name, current_status, updated_at, lead_entry_date, last_contacted_date, source_campaign')
       .limit(5000)
     const trialSince = readPrdTrialSinceClient()
     if (trialSince) leadsQuery = leadsQuery.gte('created_at', trialSince)
@@ -71,24 +75,45 @@ export default function DashboardPage() {
     const leadRows = (leadsRes.data || []) as LeadSummary[]
     setLeads(leadRows)
 
+    const entityByLeadId = new Map<string, Entity>(
+      leadRows.map((l) => [l.id, getEntityForCampaign(l.source_campaign)])
+    )
+
     let map = 0
     let seat = 0
+    const byEntity: Record<Entity, { map: number; seat: number; total: number }> = emptyByEntity(() => ({
+      map: 0,
+      seat: 0,
+      total: 0,
+    }))
     ;((paymentsRes.data || []) as Pick<PaymentRow, 'lead_id' | 'payment_type' | 'amount'>[]).forEach((p) => {
       const amt = Number(p.amount) || 0
-      if (p.payment_type === 'pemetaan' || p.payment_type === 'roadmap_session') map += amt
-      else if (p.payment_type === 'seat_lock') seat += amt
+      const bucket = p.payment_type === 'pemetaan' || p.payment_type === 'roadmap_session' ? 'map'
+        : p.payment_type === 'seat_lock' ? 'seat'
+        : null
+      if (!bucket) return
+      if (bucket === 'map') map += amt
+      else seat += amt
+      // Skip entity attribution when the lead isn't in the current (possibly
+      // trial-scoped) leadRows set — defaulting to HNZ here would silently
+      // misattribute KFI revenue whenever a lead falls outside that scope.
+      const entity = entityByLeadId.get(p.lead_id)
+      if (!entity) return
+      byEntity[entity][bucket] += amt
+      byEntity[entity].total += amt
     })
     setRevenue({ map, seat, total: map + seat })
+    setRevenueByEntity(byEntity)
 
     const now = Date.now()
     const nextStale = leadRows
-      .filter((l) => ATTENTION_STAGE3_STATUSES.includes(l.current_status))
+      .filter((l) => (STAGE3_ATTENTION_STATUSES as readonly string[]).includes(l.current_status))
       .map((l) => {
         const last = l.last_contacted_date || l.updated_at || l.lead_entry_date
         const days = last ? Math.floor((now - new Date(last).getTime()) / 86400000) : 0
         return { id: l.id, name: l.full_name, status: l.current_status, days }
       })
-      .filter((row) => row.days > 3)
+      .filter((row) => row.days > STAGE3_ATTENTION_STALE_DAYS)
       .sort((a, b) => b.days - a.days)
       .slice(0, 6)
     setStalePreview(nextStale)
@@ -105,16 +130,20 @@ export default function DashboardPage() {
     return () => window.removeEventListener(PRD_TRIAL_MODE_CHANGED, onTrialChange)
   }, [fetchStats])
 
-  const counts = useMemo(() => {
-    const stage1 = leads.filter(
+  const countsFor = useCallback((rows: LeadSummary[]) => {
+    const stage1 = rows.filter(
       (l) => includes(STAGE1_CURRENT_STATUS_OPTIONS, l.current_status) || l.current_status === 'New Lead'
     ).length
-    const stage2 = leads.filter((l) => includes(STAGE2_VISIBLE_STATUSES, l.current_status)).length
-    const stage3 = leads.filter((l) => includes(STAGE3_STATUS_OPTIONS, l.current_status)).length
-    const won = leads.filter((l) => isStage3WonStatus(l.current_status)).length
-    const exit = leads.filter((l) => EXIT_STATUSES.includes(l.current_status)).length
+    const stage2 = rows.filter((l) => includes(STAGE2_VISIBLE_STATUSES, l.current_status)).length
+    const stage3 = rows.filter((l) => includes(STAGE3_STATUS_OPTIONS, l.current_status)).length
+    const won = rows.filter((l) => isStage3WonStatus(l.current_status)).length
+    const exit = rows.filter((l) => isLostOutcomeStatus(l.current_status)).length
     const today = getTodayInWIB()
-    const newToday = leads.filter((l) => (l.lead_entry_date || '').slice(0, 10) === today).length
+    const newToday = rows.filter((l) => (l.lead_entry_date || '').slice(0, 10) === today).length
+    return { stage1, stage2, stage3, won, exit, newToday }
+  }, [])
+
+  const counts = useMemo(() => {
     const byColumn = STAGE3_BOARD_COLUMNS.map((col) => ({
       key: col.key,
       label: col.label,
@@ -122,8 +151,18 @@ export default function DashboardPage() {
       soft: col.soft,
       count: leads.filter((l) => (col.statuses as readonly string[]).includes(l.current_status)).length,
     }))
-    return { stage1, stage2, stage3, won, exit, newToday, byColumn }
-  }, [leads])
+    return { ...countsFor(leads), byColumn }
+  }, [leads, countsFor])
+
+  const entityCounts: Record<Entity, ReturnType<typeof countsFor>> = useMemo(() => {
+    const leadsByEntity = emptyByEntity<LeadSummary[]>(() => [])
+    for (const l of leads) {
+      leadsByEntity[getEntityForCampaign(l.source_campaign)].push(l)
+    }
+    return Object.fromEntries(
+      ENTITIES.map((e) => [e, countsFor(leadsByEntity[e])])
+    ) as Record<Entity, ReturnType<typeof countsFor>>
+  }, [leads, countsFor])
 
   const kpis = [
     { key: 'today', labelId: 'Lead masuk hari ini', labelEn: 'New leads today', value: counts.newToday, href: '/leads', icon: Users },
@@ -159,6 +198,47 @@ export default function DashboardPage() {
                   </p>
                 )}
               </Link>
+            )
+          })}
+        </div>
+
+        {/* Per entitas: HNZ vs KFI */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {ENTITIES.map((entity) => {
+            const ec = entityCounts[entity]
+            const er = revenueByEntity[entity]
+            return (
+              <section key={entity} className="rounded-2xl border border-border bg-card p-4">
+                <h3 className="font-display text-sm font-semibold tracking-tight text-foreground mb-3">
+                  {entity}
+                </h3>
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div>
+                    <p className="text-[10px] font-medium text-muted-foreground">Stage 1</p>
+                    <p className="font-display text-lg font-semibold text-foreground tabular-nums">{loading ? '–' : ec.stage1}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-medium text-muted-foreground">Stage 2</p>
+                    <p className="font-display text-lg font-semibold text-foreground tabular-nums">{loading ? '–' : ec.stage2}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-medium text-muted-foreground">Stage 3</p>
+                    <p className="font-display text-lg font-semibold text-foreground tabular-nums">{loading ? '–' : ec.stage3}</p>
+                  </div>
+                </div>
+                <div className="mt-3 flex items-center justify-between rounded-xl border border-border bg-secondary/30 px-3 py-2">
+                  <div>
+                    <p className="text-[10px] font-medium text-muted-foreground">Closing</p>
+                    <p className="text-sm font-semibold text-foreground tabular-nums">{loading ? '–' : ec.won}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[10px] font-medium text-muted-foreground">{isId ? 'Pendapatan' : 'Revenue'}</p>
+                    <p className="text-sm font-semibold text-foreground tabular-nums">
+                      {loading ? '–' : `Rp ${er.total.toLocaleString('id-ID')}`}
+                    </p>
+                  </div>
+                </div>
+              </section>
             )
           })}
         </div>

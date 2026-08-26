@@ -7,6 +7,7 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useLanguage } from '@/lib/language'
 import { getStageBadgeClasses } from '@/lib/brand'
+import { STAGE3_ATTENTION_STATUSES, STAGE3_ATTENTION_STALE_DAYS } from '@/lib/prd-stages'
 import { cn } from '@/lib/utils'
 
 import type { LeadRow } from '@/lib/supabase/types'
@@ -28,12 +29,6 @@ type AttentionLead = Pick<
   LeadRow,
   'id' | 'full_name' | 'current_status' | 'last_contacted_date' | 'updated_at' | 'lead_entry_date'
 >
-
-const ATTENTION_STAGE3_STATUSES = [
-  'Menunggu hasil pemetaan',
-  'Menunggu jadwal expert consultation',
-  'Menunggu pembayaran seat-lock',
-]
 
 const HEADER_COPY = {
   en: {
@@ -128,7 +123,7 @@ export function Header({ title, subtitle, backUrl }: HeaderProps) {
       const { data: stage3Leads } = await supabase
         .from('leads')
         .select('id, full_name, current_status, last_contacted_date, updated_at, lead_entry_date')
-        .in('current_status', ATTENTION_STAGE3_STATUSES)
+        .in('current_status', STAGE3_ATTENTION_STATUSES)
         .limit(5000)
 
       let dismissed: string[] = []
@@ -150,7 +145,7 @@ export function Header({ title, subtitle, backUrl }: HeaderProps) {
           const days = lastTouched ? Math.floor((now - new Date(lastTouched).getTime()) / 86400000) : 0
           return { ...lead, days }
         })
-        .filter((lead) => lead.days > 3)
+        .filter((lead) => lead.days > STAGE3_ATTENTION_STALE_DAYS)
         .sort((a, b) => b.days - a.days)
         .slice(0, 10)
         .forEach((lead) => {

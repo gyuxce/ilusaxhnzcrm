@@ -144,7 +144,12 @@ export function LeadDetailClient({
       p_current_status: editStatus,
       p_assigned_cro_id: lead.assigned_cro_id || null,
       p_notes: editNotes || null,
-      p_lost_reason: LOST_STATUSES.includes(editStatus) ? editLostReason : null,
+      // editLostReason sudah selalu mencerminkan lead.lost_reason saat ini
+      // (di-set sekali di useState, hanya diubah lewat dropdown yang cuma
+      // tampil untuk LOST_STATUSES) — kirim apa adanya, jangan dipaksa null
+      // untuk status lain (Cold Leads/Failed sudah punya alasannya sendiri
+      // dari Stage 3 dan tidak boleh ikut ketimpa di sini).
+      p_lost_reason: editLostReason || null,
     })
     setSaving(false)
 
@@ -167,7 +172,7 @@ export function LeadDetailClient({
       source_campaign: editSource,
       current_status: editStatus,
       notes: editNotes || null,
-      lost_reason: LOST_STATUSES.includes(editStatus) ? editLostReason || null : null,
+      lost_reason: editLostReason || null,
       updated_at: updatedAt,
       updated_by: actorId,
     })

@@ -5,24 +5,14 @@
  * Stage 1–6 is a stable UI/reporting mapping — no destructive migrations.
  */
 
+import { STAGE3_EXIT_STATUSES } from './prd-stages'
+
 export const PRODUCT = {
   name: 'CRM Harunokaze',
   shortName: 'Harunokaze',
   partnership: 'HNZ × Wiwitan',
   taglineId: 'Sistem kerja CRO — jelas, tenang, siap dipakai tim',
   taglineEn: 'CRO workspace — clear, calm, built for the team',
-} as const
-
-/** Official daily language for the team (explain in ~30 seconds). */
-export const VOCAB = {
-  lead: 'Lead',
-  pic: 'PIC',
-  stage: 'Tahap',
-  nextAction: 'Next Action',
-  followUp: 'Follow-Up',
-  payment: 'Pembayaran',
-  lost: 'Tidak lanjut',
-  workToday: 'Hari Ini',
 } as const
 
 export type UserRole = 'admin' | 'owner' | 'cro'
@@ -52,7 +42,18 @@ export const FUNNEL_STAGES = [
     color: 'var(--stage-2)',
     soft: 'var(--stage-2-soft)',
     defaultStatus: 'Pitching',
-    statuses: ['Pitching', 'Bridging', 'Interested'],
+    statuses: [
+      'Pitching',
+      'Bridging',
+      'Interested',
+      // PRD V3 (prd-stages.ts) — hasil follow-up & staging Stage 2:
+      'Interested to Pemetaan',
+      'Interested to Interview',
+      'Interested in Webinar',
+      'In-doubt',
+      'No Response',
+      'Menunggu arahan selanjutnya',
+    ],
   },
   {
     id: 3 as const,
@@ -71,6 +72,9 @@ export const FUNNEL_STAGES = [
       'Sent Result Pemetaan',
       'Placement Test Scheduled',
       'Placement Test Done',
+      // PRD V3 (prd-stages.ts) — Stage 3 board, kolom pemetaan:
+      'Menunggu jadwal pemetaan',
+      'Menunggu hasil pemetaan',
     ],
   },
   {
@@ -82,7 +86,12 @@ export const FUNNEL_STAGES = [
     color: 'var(--stage-4)',
     soft: 'var(--stage-4-soft)',
     defaultStatus: 'Expert Consultation Scheduled',
-    statuses: ['Expert Consultation Scheduled', 'Expert Consultation Done'],
+    statuses: [
+      'Expert Consultation Scheduled',
+      'Expert Consultation Done',
+      // PRD V3 (prd-stages.ts) — Stage 3 board, kolom expert:
+      'Menunggu jadwal expert consultation',
+    ],
   },
   {
     id: 5 as const,
@@ -93,7 +102,13 @@ export const FUNNEL_STAGES = [
     color: 'var(--stage-5)',
     soft: 'var(--stage-5-soft)',
     defaultStatus: 'Seat Lock Offered',
-    statuses: ['Seat Lock Offered', 'Belum Berhasil Closing'],
+    statuses: [
+      'Seat Lock Offered',
+      'Belum Berhasil Closing',
+      // PRD V3 (prd-stages.ts) — Stage 3 board, menunggu seat-lock / jalur cepat:
+      'Menunggu pembayaran seat-lock',
+      'Jalur Akselerasi',
+    ],
   },
   {
     id: 6 as const,
@@ -105,17 +120,27 @@ export const FUNNEL_STAGES = [
     soft: 'var(--stage-6-soft)',
     defaultStatus: 'Seat Lock Paid',
     /** Stage 6 = win only. "Tidak lanjut" is an exit, not tahap 6. */
-    statuses: ['Seat Lock Paid', 'Onboarding', 'Class Started'],
+    statuses: [
+      'Seat Lock Paid',
+      'Onboarding',
+      'Class Started',
+      // PRD V3 (prd-stages.ts) — Stage 3 board, kolom closing:
+      'Closing Seat Lock',
+    ],
   },
 ] as const
 
 export type FunnelStageId = (typeof FUNNEL_STAGES)[number]['id']
 
 /** Terminal win outcomes (= tahap 6). */
-export const WON_STATUSES = ['Seat Lock Paid', 'Onboarding', 'Class Started'] as const
+export const WON_STATUSES = ['Seat Lock Paid', 'Onboarding', 'Class Started', 'Closing Seat Lock'] as const
 
-/** Exit outcomes — bukan tahap bernomor; lead berhenti di tengah jalan. */
-export const LOST_OUTCOME_STATUSES = ['Not Interested', 'Not Eligible'] as const
+/**
+ * Exit outcomes — bukan tahap bernomor; lead berhenti di tengah jalan.
+ * Union Stage 1 exit ('Not Interested'/'Not Eligible') + Stage 3 exit PRD V3
+ * (STAGE3_EXIT_STATUSES) — satu sumber, tidak diketik ulang di dua tempat.
+ */
+export const LOST_OUTCOME_STATUSES = ['Not Interested', 'Not Eligible', ...STAGE3_EXIT_STATUSES] as const
 
 /**
  * Simple funnel story for team & clients (keep language plain).
@@ -149,73 +174,30 @@ export const SIMPLE_FUNNEL_FLOW = {
     'CRO desk: pick lead → WhatsApp → fill chat steps 1–5 → Save. Pipeline is for monitoring only.',
 } as const
 
+/** Board-only column key per tahap — beda dari FUNNEL_STAGES.key (istilah UI kanban). */
+const PIPELINE_KEY_BY_STAGE_ID = {
+  1: 'baru',
+  2: 'diskusi',
+  3: 'pemetaan',
+  4: 'expert',
+  5: 'closing',
+  6: 'menang',
+} as const
+
 /**
- * Pipeline board columns — tahap 1–6 + kolom keluar terpisah
- * (Tidak lanjut tidak memakai nomor 6).
+ * Pipeline board columns — tahap 1–6 (statuses diturunkan dari FUNNEL_STAGES,
+ * satu sumber kebenaran) + kolom keluar terpisah (Tidak lanjut tidak memakai nomor 6).
  */
 export const PIPELINE_BOARD_COLUMNS = [
-  {
-    key: 'baru',
-    stageId: 1 as FunnelStageId,
-    label: '1 · Baru',
-    color: 'var(--stage-1)',
-    soft: 'var(--stage-1-soft)',
-    defaultStatus: 'Input Manual',
-    statuses: ['Input Manual', 'New Lead', 'Contacted'] as string[],
-  },
-  {
-    key: 'diskusi',
-    stageId: 2 as FunnelStageId,
-    label: '2 · Diskusi',
-    color: 'var(--stage-2)',
-    soft: 'var(--stage-2-soft)',
-    defaultStatus: 'Pitching',
-    statuses: ['Pitching', 'Bridging', 'Interested'] as string[],
-  },
-  {
-    key: 'pemetaan',
-    stageId: 3 as FunnelStageId,
-    label: '3 · Pemetaan',
-    color: 'var(--stage-3)',
-    soft: 'var(--stage-3-soft)',
-    defaultStatus: 'Pemetaan Scheduled',
-    statuses: [
-      'Pemetaan Scheduled',
-      'Pemetaan Done',
-      'Waiting Result',
-      'Result Ready',
-      'Sent Result Pemetaan',
-      'Placement Test Scheduled',
-      'Placement Test Done',
-    ] as string[],
-  },
-  {
-    key: 'expert',
-    stageId: 4 as FunnelStageId,
-    label: '4 · Expert',
-    color: 'var(--stage-4)',
-    soft: 'var(--stage-4-soft)',
-    defaultStatus: 'Expert Consultation Scheduled',
-    statuses: ['Expert Consultation Scheduled', 'Expert Consultation Done'] as string[],
-  },
-  {
-    key: 'closing',
-    stageId: 5 as FunnelStageId,
-    label: '5 · Closing',
-    color: 'var(--stage-5)',
-    soft: 'var(--stage-5-soft)',
-    defaultStatus: 'Seat Lock Offered',
-    statuses: ['Seat Lock Offered', 'Belum Berhasil Closing'] as string[],
-  },
-  {
-    key: 'menang',
-    stageId: 6 as FunnelStageId,
-    label: '6 · Closing berhasil',
-    color: 'var(--stage-6)',
-    soft: 'var(--stage-6-soft)',
-    defaultStatus: 'Seat Lock Paid',
-    statuses: [...WON_STATUSES] as string[],
-  },
+  ...FUNNEL_STAGES.map((stage) => ({
+    key: PIPELINE_KEY_BY_STAGE_ID[stage.id],
+    stageId: stage.id as FunnelStageId,
+    label: `${stage.id} · ${stage.labelId}`,
+    color: stage.color,
+    soft: stage.soft,
+    defaultStatus: stage.defaultStatus,
+    statuses: [...stage.statuses] as string[],
+  })),
   {
     key: 'lost',
     /** No stageId number — exit lane, not "tahap 6". */
@@ -285,8 +267,4 @@ export function countLeadsByFunnelStage(
 
 export function isOwnerLikeRole(role?: string | null): boolean {
   return role === 'owner' || role === 'admin'
-}
-
-export function isCroRole(role?: string | null): boolean {
-  return role === 'cro' || !role
 }

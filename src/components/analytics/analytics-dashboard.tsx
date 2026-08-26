@@ -2,8 +2,7 @@
 
 import { useMemo } from 'react'
 import { Award, DollarSign, Target, TrendingUp, Users } from 'lucide-react'
-import { FUNNEL_STAGES, countLeadsByFunnelStage, isWonStatus } from '@/lib/brand'
-import { LOST_STATUSES } from '@/lib/lost-reasons'
+import { FUNNEL_STAGES, countLeadsByFunnelStage, isWonStatus, isLostOutcomeStatus } from '@/lib/brand'
 import { FunnelStageStrip } from '@/components/reports/funnel-stage-strip'
 import { RankedStatList } from '@/components/reports/ranked-stat-list'
 import { cn } from '@/lib/utils'
@@ -32,7 +31,7 @@ export function AnalyticsDashboard({ allLeads, payments, users }: AnalyticsDashb
     const inbound = allLeads.filter((l) => l.lead_type === 'inbound').length
     const outbound = allLeads.filter((l) => l.lead_type === 'outbound').length
     const seatLockPaid = allLeads.filter((l) => isWonStatus(l.current_status)).length
-    const lost = allLeads.filter((l) => LOST_STATUSES.includes(l.current_status)).length
+    const lost = allLeads.filter((l) => isLostOutcomeStatus(l.current_status)).length
     const convRate = total > 0 ? ((seatLockPaid / total) * 100).toFixed(1) : '0.0'
 
     let revPemetaan = 0

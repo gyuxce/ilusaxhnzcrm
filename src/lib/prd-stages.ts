@@ -126,6 +126,20 @@ export const STAGE3_EXIT_STATUSES = ['Cold Leads', 'Failed'] as const
 /** Status yang dianggap sudah closing berhasil. */
 export const STAGE3_WON_STATUSES = ['Closing Seat Lock'] as const
 
+/**
+ * Status Stage 3 yang perlu "butuh perhatian" kalau lama tidak disentuh.
+ * Dipakai bareng oleh dashboard (widget) dan header (notifikasi bell) —
+ * satu sumber supaya keduanya tidak diam-diam beda hitungan.
+ */
+export const STAGE3_ATTENTION_STATUSES = [
+  'Menunggu hasil pemetaan',
+  'Menunggu jadwal expert consultation',
+  'Menunggu pembayaran seat-lock',
+] as const
+
+/** Ambang hari "belum disentuh" sebelum dianggap butuh perhatian. */
+export const STAGE3_ATTENTION_STALE_DAYS = 3
+
 /** C.1 — Kolom Kanban Stage 3. */
 export const STAGE3_BOARD_COLUMNS = [
   {
@@ -206,19 +220,6 @@ export function resolveStage3DropStatus(
   if (!col) return null
   if (col.statuses.includes(currentStatus)) return currentStatus
   return col.statuses[0] ?? null
-}
-
-/** Badge classes for a PRD stage 3 status. */
-export function getStage3BadgeClasses(status: string): string {
-  const key = getStage3Column(status)
-  const col = STAGE3_BOARD_COLUMNS.find((c) => c.key === key)
-  if (!col) return 'bg-muted text-muted-foreground border border-border'
-  return 'border border-transparent text-foreground'
-}
-
-/** Apakah status termasuk exit Stage 3 (Cold/Failed). */
-export function isStage3ExitStatus(status: string): boolean {
-  return (STAGE3_EXIT_STATUSES as readonly string[]).includes(status)
 }
 
 /** Apakah status termasuk won Stage 3. */

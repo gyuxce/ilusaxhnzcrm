@@ -10,7 +10,8 @@ import { CheckCircle2, Loader2, Phone, User, MessageSquare, TrendingUp, AlertCir
 import { LOST_REASON_OPTIONS, LOST_STATUSES } from '@/lib/lost-reasons'
 import {
   STAGE1_CURRENT_STATUS_OPTIONS,
-  STAGE2_ENTRY_STATUSES,
+  STAGE1_LEGACY_NEW_LEAD,
+  STAGE2_VISIBLE_STATUSES,
   STAGE3_STATUS_OPTIONS,
 } from '@/lib/prd-stages'
 import { parseRpcResult, type RpcResult } from '@/lib/rpc'
@@ -36,14 +37,19 @@ interface LeadFormProps {
   leadId?: string
 }
 
+/**
+ * Semua current_status yang bisa muncul pada lead nyata harus ada di sini —
+ * <select> tanpa <option> yang cocok akan diam-diam reset ke opsi pertama
+ * saat form disimpan (lihat insiden EDIT_STATUS_OPTIONS yang kelewat
+ * 'Menunggu arahan selanjutnya').
+ */
 const EDIT_STATUS_OPTIONS = [
   ...STAGE1_CURRENT_STATUS_OPTIONS,
-  ...STAGE2_ENTRY_STATUSES,
+  STAGE1_LEGACY_NEW_LEAD,
+  ...STAGE2_VISIBLE_STATUSES,
   ...STAGE3_STATUS_OPTIONS,
   'Not Interested',
   'Not Eligible',
-  'Cold Leads',
-  'Failed',
 ]
 
 export function LeadForm({ defaultValues, leadId }: LeadFormProps) {
@@ -107,7 +113,13 @@ export function LeadForm({ defaultValues, leadId }: LeadFormProps) {
       ? await supabase.rpc('update_lead_core_fast_v2', {
           p_lead_id: leadId,
           ...params,
-          p_lost_reason: LOST_STATUSES.includes(status) ? dataValues.lost_reason : null,
+          // Status seperti Cold Leads/Failed punya alasan sendiri yang diisi
+          // lewat Stage 3 (STAGE3_FAILED_REASON_OPTIONS) — form ini tidak
+          // menampilkan/mengedit field itu untuk status tsb, jadi jangan
+          // ikut menimpanya jadi null saat CRO cuma edit field lain.
+          p_lost_reason: LOST_STATUSES.includes(status)
+            ? dataValues.lost_reason
+            : defaultValues?.lost_reason || null,
           p_lead_entry_date: dataValues.lead_entry_date ? new Date(dataValues.lead_entry_date).toISOString() : null,
         })
       : await supabase.rpc('create_lead_fast', {

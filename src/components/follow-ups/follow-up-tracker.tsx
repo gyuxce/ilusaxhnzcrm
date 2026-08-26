@@ -9,6 +9,7 @@ import {
 import { createClient } from '@/lib/supabase/client'
 import { WhatsAppModal } from '../leads/WhatsAppModal'
 import { cn, getTodayInWIB } from '@/lib/utils'
+import { getStageBadgeClasses } from '@/lib/brand'
 import type { FuType } from '@/lib/supabase/types'
 
 interface FUWithRelations {
@@ -27,16 +28,6 @@ interface FUWithRelations {
     source_campaign: string
   } | null
   users?: { name: string } | null
-}
-
-const STATUS_COLORS: Record<string, { color: string; bg: string }> = {
-  'New Lead': { color: '#64748b', bg: 'rgba(100,116,139,0.1)' },
-  'Interested': { color: '#3b82f6', bg: 'rgba(59,130,246,0.1)' },
-  'Pemetaan Scheduled': { color: '#8b5cf6', bg: 'rgba(139,92,246,0.1)' },
-  'Sent Result Pemetaan': { color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' },
-  'Expert Consultation Done': { color: '#10b981', bg: 'rgba(16,185,129,0.1)' },
-  'Seat Lock Paid': { color: '#22c55e', bg: 'rgba(34,197,94,0.1)' },
-  'Not Interested': { color: '#ef4444', bg: 'rgba(239,68,68,0.1)' },
 }
 
 const FU_TYPE_LABELS: Record<string, { label: string; color: string }> = {
@@ -117,7 +108,7 @@ export function FollowUpTracker({ dueFUs: initialDueFUs, upcomingFUs: initialUpc
   function FUCard({ fu, isOverdue }: { fu: FUWithRelations; isOverdue?: boolean }) {
     const isCompleting = completingId === fu.id
     const lead = fu.leads
-    const statusStyle = STATUS_COLORS[lead?.current_status || ''] || { color: '#64748b', bg: 'rgba(100,116,139,0.1)' }
+    const statusBadgeClass = getStageBadgeClasses(lead?.current_status || '')
     const fuLabel = FU_TYPE_LABELS[fu.fu_type] || { label: fu.fu_type, color: '#64748b' }
 
     return (
@@ -142,7 +133,7 @@ export function FollowUpTracker({ dueFUs: initialDueFUs, upcomingFUs: initialUpc
                 OVERDUE
               </span>
             )}
-            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: statusStyle.bg, color: statusStyle.color }}>
+            <span className={cn('text-[9px] px-1.5 py-0.5 rounded-full', statusBadgeClass)}>
               {lead?.current_status?.split(' ').slice(0, 2).join(' ') || '-'}
             </span>
           </div>
