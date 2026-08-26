@@ -144,12 +144,17 @@ export default function DashboardPage() {
       (l) => includes(STAGE1_CURRENT_STATUS_OPTIONS, l.current_status) || l.current_status === 'New Lead'
     ).length
     const stage2 = rows.filter((l) => includes(STAGE2_VISIBLE_STATUSES, l.current_status)).length
-    const stage3 = rows.filter((l) => includes(STAGE3_STATUS_OPTIONS, l.current_status)).length
+    // Cold Leads/Failed are part of STAGE3_STATUS_OPTIONS (Stage 3 kanban
+    // has its own exit columns) but are also exit outcomes — exclude them
+    // here so a lead isn't double-counted as both "in Stage 3" and "keluar".
+    const stage3 = rows.filter(
+      (l) => includes(STAGE3_STATUS_OPTIONS, l.current_status) && !isLostOutcomeStatus(l.current_status)
+    ).length
     const won = rows.filter((l) => isStage3WonStatus(l.current_status)).length
     const exit = rows.filter((l) => isLostOutcomeStatus(l.current_status)).length
     const today = getTodayInWIB()
     const newToday = rows.filter((l) => (l.lead_entry_date || '').slice(0, 10) === today).length
-    return { stage1, stage2, stage3, won, exit, newToday }
+    return { total: rows.length, stage1, stage2, stage3, won, exit, newToday }
   }, [])
 
   const counts = useMemo(() => {
@@ -218,9 +223,14 @@ export default function DashboardPage() {
             const er = revenueByEntity[entity]
             return (
               <section key={entity} className="rounded-2xl border border-border bg-card p-4">
-                <h3 className="font-display text-sm font-semibold tracking-tight text-foreground mb-3">
-                  {entity}
-                </h3>
+                <div className="flex items-baseline justify-between mb-3">
+                  <h3 className="font-display text-sm font-semibold tracking-tight text-foreground">
+                    {entity}
+                  </h3>
+                  <span className="text-[10px] text-muted-foreground tabular-nums">
+                    {loading ? '–' : ec.total} {isId ? 'total lead' : 'total leads'}
+                  </span>
+                </div>
                 <div className="grid grid-cols-3 gap-2 text-center">
                   <div>
                     <p className="text-[10px] font-medium text-muted-foreground">Stage 1</p>
@@ -239,6 +249,10 @@ export default function DashboardPage() {
                   <div>
                     <p className="text-[10px] font-medium text-muted-foreground">Closing</p>
                     <p className="text-sm font-semibold text-foreground tabular-nums">{loading ? '–' : ec.won}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-medium text-muted-foreground">{isId ? 'Keluar' : 'Exited'}</p>
+                    <p className="text-sm font-semibold text-foreground tabular-nums">{loading ? '–' : ec.exit}</p>
                   </div>
                   <div className="text-right">
                     <p className="text-[10px] font-medium text-muted-foreground">{isId ? 'Pendapatan' : 'Revenue'}</p>
