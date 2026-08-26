@@ -158,14 +158,41 @@ export function Stage3Board({ initialLeads }: Props) {
     if (!lead) return
     const newStatus = resolveStage3DropStatus(lead.current_status, columnKey)
     if (!newStatus || lead.current_status === newStatus) return
+
+    // Closing needs a nominal (unless already paid) and Failed needs a reason
+    // — the detail modal enforces both via canSave(), but a raw drag has no
+    // form to collect them. Open the modal instead of silently committing a
+    // Closing/Failed with no nominal/reason.
+    if (columnKey === 'closing' && !latestPayment(lead, 'seat_lock')) {
+      setMoveError('Isi nominal seat lock dulu lewat form detail sebelum pindah ke Closing.')
+      setDetailLead(lead)
+      return
+    }
+    if (columnKey === 'failed') {
+      setMoveError('Isi alasan Failed dulu lewat form detail sebelum pindah kartu ini.')
+      setDetailLead(lead)
+      return
+    }
+
     const prev = leads
     setMoveError('')
     setLeads((p) => p.map((l) => (l.id === leadId ? { ...l, current_status: newStatus } : l)))
     try {
       const { data: auth } = await supabase.auth.getUser()
       const actor = auth.user?.id || null
+      // Leaving Cold Leads/Failed for any other column clears the stale
+      // failed reason — it no longer applies once the lead is active again.
+      const leavingExit = lead.current_status === 'Cold Leads' || lead.current_status === 'Failed'
       const [u, a] = await Promise.all([
-        supabase.from('leads').update({ current_status: newStatus, updated_at: new Date().toISOString(), updated_by: actor }).eq('id', leadId),
+        supabase
+          .from('leads')
+          .update({
+            current_status: newStatus,
+            updated_at: new Date().toISOString(),
+            updated_by: actor,
+            ...(leavingExit ? { lost_reason: null } : {}),
+          })
+          .eq('id', leadId),
         supabase.from('lead_activities').insert({ lead_id: leadId, activity_type: 'Stage 3', description: `Stage 3 -> ${newStatus} (geser kartu)`, created_by: actor }),
       ])
       if (u.error || a.error) throw u.error || a.error
@@ -421,7 +448,9 @@ function Stage3DetailModal({
 
     const payload = {
       lead_id: lead.id,
-      payment_type: type,
+      // Preserve a legacy 'roadmap_session' row's type on update instead of
+      // silently collapsing it back to 'pemetaan'.
+      payment_type: existing?.payment_type || type,
       amount: nominal,
       payment_method: existing?.payment_method || 'Transfer',
       payment_date: existing?.payment_date || getTodayInWIB(),

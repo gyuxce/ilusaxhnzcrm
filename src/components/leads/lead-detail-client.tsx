@@ -7,13 +7,10 @@ import { Clock, Edit, ClipboardCheck, ListChecks, KanbanSquare, X, Loader2, Doll
 import { cn } from '@/lib/utils'
 import { getStageBadgeClasses } from '@/lib/brand'
 import {
-  STAGE1_CURRENT_STATUS_OPTIONS,
-  STAGE2_VISIBLE_STATUSES,
-  STAGE3_STATUS_OPTIONS,
   ALL_PRD_STATUSES,
   STAGE1_LEGACY_NEW_LEAD,
-  getStage3Column,
-  isStage2EntryStatus,
+  resolvePrdLane,
+  PRD_LANE_LABEL,
 } from '@/lib/prd-stages'
 import type { LeadDetailProps, LeadWithUsers, ActivityWithUser, UserSummary } from '@/types/crm'
 import { LOST_REASON_OPTIONS, LOST_STATUSES } from '@/lib/lost-reasons'
@@ -22,25 +19,6 @@ import type { PaymentRow } from '@/lib/supabase/types'
 
 function displayStatus(status: string) {
   return status === STAGE1_LEGACY_NEW_LEAD ? 'Input Manual' : status
-}
-
-function resolvePrdLane(status: string): 'stage1' | 'stage2' | 'stage3' | 'exit' | 'other' {
-  const s = displayStatus(status)
-  if ((STAGE1_CURRENT_STATUS_OPTIONS as readonly string[]).includes(s) || status === STAGE1_LEGACY_NEW_LEAD) {
-    return 'stage1'
-  }
-  if ((STAGE2_VISIBLE_STATUSES as readonly string[]).includes(status) || isStage2EntryStatus(status)) return 'stage2'
-  if ((STAGE3_STATUS_OPTIONS as readonly string[]).includes(status) || getStage3Column(status)) return 'stage3'
-  if (LOST_STATUSES.includes(status) || status === 'Cold Leads' || status === 'Failed') return 'exit'
-  return 'other'
-}
-
-const LANE_LABEL: Record<string, string> = {
-  stage1: 'Stage 1 · Leads',
-  stage2: 'Stage 2 · Interested',
-  stage3: 'Stage 3 · Pipeline',
-  exit: 'Keluar',
-  other: 'Lainnya',
 }
 
 export function LeadDetailClient({
@@ -147,8 +125,9 @@ export function LeadDetailClient({
       // editLostReason sudah selalu mencerminkan lead.lost_reason saat ini
       // (di-set sekali di useState, hanya diubah lewat dropdown yang cuma
       // tampil untuk LOST_STATUSES) — kirim apa adanya, jangan dipaksa null
-      // untuk status lain (Cold Leads/Failed sudah punya alasannya sendiri
-      // dari Stage 3 dan tidak boleh ikut ketimpa di sini).
+      // untuk status lain (Failed punya alasannya sendiri dari Stage 3,
+      // lost_reason itu tidak boleh ikut ketimpa null di sini. Cold Leads
+      // beda lagi — alasannya disimpan di funnel_notes, bukan lost_reason).
       p_lost_reason: editLostReason || null,
     })
     setSaving(false)
@@ -300,7 +279,7 @@ export function LeadDetailClient({
               </p>
               <div className="flex flex-wrap items-center gap-2 mt-2">
                 <span className={cn('text-[10px] px-2 py-0.5 rounded-md', getStageBadgeClasses(lead.current_status))}>
-                  {LANE_LABEL[lane]}
+                  {PRD_LANE_LABEL[lane]}
                 </span>
                 <span className="text-[10px] text-muted-foreground">{displayStatus(lead.current_status)}</span>
               </div>
@@ -353,7 +332,7 @@ export function LeadDetailClient({
           Leads → Stage 1 → Stage 2 → Stage 3.
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
-          <InfoCard label="Lane" value={LANE_LABEL[lane]} />
+          <InfoCard label="Lane" value={PRD_LANE_LABEL[lane]} />
           <InfoCard label="Status" value={displayStatus(lead.current_status)} />
         </div>
         {lead.funnel_notes && (

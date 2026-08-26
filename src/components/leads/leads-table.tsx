@@ -27,7 +27,7 @@ import {
   fetchLeadsListingClient,
 } from '@/lib/leads-list-refresh'
 import { readPrdTrialSinceClient } from '@/lib/prd-trial-mode'
-import { STAGE1_LEGACY_NEW_LEAD } from '@/lib/prd-stages'
+import { STAGE1_LEGACY_NEW_LEAD, resolvePrdLane } from '@/lib/prd-stages'
 import { ENTITIES, resolveEntity, type Entity } from '@/lib/entity'
 import { useCampaignOverrides } from '@/lib/use-campaign-overrides'
 import { EntityBadge } from './entity-badge'
@@ -435,13 +435,28 @@ export function LeadsTable({ initialLeads, pics }: LeadsTableProps) {
                       </div>
                     </td>
                     <td className="px-3 py-2.5 whitespace-nowrap">
-                      <Link
-                        href={`/stage-1?lead=${lead.id}`}
-                        className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-[11px] font-semibold text-accent-foreground hover:opacity-90"
-                      >
-                        <ClipboardCheck size={13} />
-                        Kerjakan
-                      </Link>
+                      {(() => {
+                        const lane = resolvePrdLane(lead.current_status)
+                        // Only Stage 1 has a lead-specific "Kerjakan" form.
+                        // Routing an already-advanced/exited lead there would
+                        // let a CRO save with zero edits and silently revert
+                        // current_status back to Bridging (see lead-form.tsx
+                        // EDIT_STATUS_OPTIONS incident).
+                        const href =
+                          lane === 'stage1' ? `/stage-1?lead=${lead.id}`
+                          : lane === 'stage2' ? '/stage-2'
+                          : lane === 'stage3' ? '/stage-3'
+                          : `/leads/${lead.id}`
+                        return (
+                          <Link
+                            href={href}
+                            className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-[11px] font-semibold text-accent-foreground hover:opacity-90"
+                          >
+                            <ClipboardCheck size={13} />
+                            {lane === 'stage1' ? 'Kerjakan' : lane === 'stage2' ? 'Buka Stage 2' : lane === 'stage3' ? 'Buka Stage 3' : 'Lihat detail'}
+                          </Link>
+                        )
+                      })()}
                     </td>
                   </tr>
                 ))

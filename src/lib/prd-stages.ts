@@ -239,3 +239,32 @@ export const ALL_PRD_STATUSES = [
   ...STAGE2_UPDATE_STATUS_OPTIONS,
   ...STAGE3_STATUS_OPTIONS,
 ] as const
+
+export type PrdLane = 'stage1' | 'stage2' | 'stage3' | 'exit' | 'other'
+
+export const PRD_LANE_LABEL: Record<PrdLane, string> = {
+  stage1: 'Stage 1 · Leads',
+  stage2: 'Stage 2 · Interested',
+  stage3: 'Stage 3 · Pipeline',
+  exit: 'Keluar',
+  other: 'Lainnya',
+}
+
+/**
+ * Which "Kerjakan" flow a lead's current_status actually belongs to.
+ * A lead not in stage1 no longer has a valid Stage 1 form (only Bridging
+ * is settable there) — routing it to /stage-1 anyway would let a CRO save
+ * with zero edits and silently revert the lead to Bridging.
+ */
+export function resolvePrdLane(status: string): PrdLane {
+  const s = status === STAGE1_LEGACY_NEW_LEAD ? 'Input Manual' : status
+  if ((STAGE1_CURRENT_STATUS_OPTIONS as readonly string[]).includes(s) || status === STAGE1_LEGACY_NEW_LEAD) {
+    return 'stage1'
+  }
+  if ((STAGE2_VISIBLE_STATUSES as readonly string[]).includes(status) || isStage2EntryStatus(status)) return 'stage2'
+  if ((STAGE3_STATUS_OPTIONS as readonly string[]).includes(status) || getStage3Column(status)) return 'stage3'
+  if (status === 'Not Interested' || status === 'Not Eligible' || status === 'Cold Leads' || status === 'Failed') {
+    return 'exit'
+  }
+  return 'other'
+}

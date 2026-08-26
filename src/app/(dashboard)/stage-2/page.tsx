@@ -187,7 +187,9 @@ export default function Stage2Page() {
       if (!Number.isNaN(nominal) && nominal > 0) {
         const paymentPayload = {
           lead_id: activeLead.id,
-          payment_type: 'pemetaan',
+          // Preserve a legacy 'roadmap_session' row's type on update instead
+          // of silently collapsing it back to 'pemetaan'.
+          payment_type: existingPayment?.payment_type || 'pemetaan',
           amount: nominal,
           payment_method: existingPayment?.payment_method || 'Transfer',
           payment_date: existingPayment?.payment_date || getTodayInWIB(),
