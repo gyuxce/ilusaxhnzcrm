@@ -126,6 +126,21 @@ export type PaymentInsert = {
 }
 export type PaymentUpdate = Partial<PaymentInsert>
 
+// Campaign Entity Override Types
+export type CampaignEntityOverrideRow = {
+  source_campaign: string
+  entity: string
+  updated_by: string | null
+  updated_at: string
+}
+export type CampaignEntityOverrideInsert = {
+  source_campaign: string
+  entity: string
+  updated_by?: string | null
+  updated_at?: string
+}
+export type CampaignEntityOverrideUpdate = Partial<CampaignEntityOverrideInsert>
+
 // Pemetaan Types
 export type PemetaanRow = {
   id: string
@@ -332,6 +347,11 @@ export type Database = {
         Row: PaymentRow
         Insert: PaymentInsert
         Update: PaymentUpdate
+      }
+      campaign_entity_overrides: {
+        Row: CampaignEntityOverrideRow
+        Insert: CampaignEntityOverrideInsert
+        Update: CampaignEntityOverrideUpdate
       }
       pemetaan: {
         Row: PemetaanRow

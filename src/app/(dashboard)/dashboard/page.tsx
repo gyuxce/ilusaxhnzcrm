@@ -26,9 +26,9 @@ import {
   isStage3WonStatus,
 } from '@/lib/prd-stages'
 import { readPrdTrialSinceClient, PRD_TRIAL_MODE_CHANGED } from '@/lib/prd-trial-mode'
-import { getEntityForCampaign, ENTITIES, type Entity } from '@/lib/entity'
+import { resolveEntity, ENTITIES, type Entity } from '@/lib/entity'
 import { isLostOutcomeStatus } from '@/lib/brand'
-import type { LeadRow, PaymentRow } from '@/lib/supabase/types'
+import type { LeadRow, PaymentRow, CampaignEntityOverrideRow } from '@/lib/supabase/types'
 
 type LeadSummary = Pick<LeadRow, 'id' | 'full_name' | 'current_status' | 'updated_at' | 'lead_entry_date' | 'last_contacted_date' | 'source_campaign'>
 
@@ -52,6 +52,7 @@ export default function DashboardPage() {
     () => emptyByEntity(() => ({ map: 0, seat: 0, total: 0 }))
   )
   const [stalePreview, setStalePreview] = useState<StalePreview[]>([])
+  const [campaignOverrides, setCampaignOverrides] = useState<ReadonlyMap<string, Entity>>(new Map())
 
   const fetchStats = useCallback(async () => {
     setLoading(true)
@@ -63,20 +64,28 @@ export default function DashboardPage() {
     const trialSince = readPrdTrialSinceClient()
     if (trialSince) leadsQuery = leadsQuery.gte('created_at', trialSince)
 
-    const [leadsRes, paymentsRes] = await Promise.all([
+    const [leadsRes, paymentsRes, overridesRes] = await Promise.all([
       leadsQuery,
       supabase
         .from('payments')
         .select('lead_id, payment_type, amount')
         .eq('verification_status', 'verified')
         .limit(5000),
+      supabase.from('campaign_entity_overrides').select('source_campaign, entity'),
     ])
+
+    const overrides = new Map<string, Entity>(
+      ((overridesRes.data || []) as Pick<CampaignEntityOverrideRow, 'source_campaign' | 'entity'>[]).map(
+        (o) => [o.source_campaign, o.entity as Entity]
+      )
+    )
+    setCampaignOverrides(overrides)
 
     const leadRows = (leadsRes.data || []) as LeadSummary[]
     setLeads(leadRows)
 
     const entityByLeadId = new Map<string, Entity>(
-      leadRows.map((l) => [l.id, getEntityForCampaign(l.source_campaign)])
+      leadRows.map((l) => [l.id, resolveEntity(l.source_campaign, overrides)])
     )
 
     let map = 0
@@ -157,12 +166,12 @@ export default function DashboardPage() {
   const entityCounts: Record<Entity, ReturnType<typeof countsFor>> = useMemo(() => {
     const leadsByEntity = emptyByEntity<LeadSummary[]>(() => [])
     for (const l of leads) {
-      leadsByEntity[getEntityForCampaign(l.source_campaign)].push(l)
+      leadsByEntity[resolveEntity(l.source_campaign, campaignOverrides)].push(l)
     }
     return Object.fromEntries(
       ENTITIES.map((e) => [e, countsFor(leadsByEntity[e])])
     ) as Record<Entity, ReturnType<typeof countsFor>>
-  }, [leads, countsFor])
+  }, [leads, countsFor, campaignOverrides])
 
   const kpis = [
     { key: 'today', labelId: 'Lead masuk hari ini', labelEn: 'New leads today', value: counts.newToday, href: '/leads', icon: Users },
