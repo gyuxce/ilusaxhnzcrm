@@ -17,17 +17,13 @@ import { createClient } from '@/lib/supabase/client'
 import { useLanguage } from '@/lib/language'
 import { getTodayInWIB } from '@/lib/utils'
 import {
-  STAGE1_CURRENT_STATUS_OPTIONS,
-  STAGE2_VISIBLE_STATUSES,
-  STAGE3_STATUS_OPTIONS,
   STAGE3_BOARD_COLUMNS,
   STAGE3_ATTENTION_STATUSES,
   STAGE3_ATTENTION_STALE_DAYS,
-  isStage3WonStatus,
 } from '@/lib/prd-stages'
 import { readPrdTrialSinceClient, PRD_TRIAL_MODE_CHANGED } from '@/lib/prd-trial-mode'
 import { resolveEntity, ENTITIES, type Entity } from '@/lib/entity'
-import { isLostOutcomeStatus } from '@/lib/brand'
+import { countLeadFunnel } from '@/lib/lead-funnel-counts'
 import type { LeadRow, PaymentRow, CampaignEntityOverrideRow } from '@/lib/supabase/types'
 
 type LeadSummary = Pick<LeadRow, 'id' | 'full_name' | 'current_status' | 'updated_at' | 'lead_entry_date' | 'last_contacted_date' | 'source_campaign'>
@@ -36,10 +32,6 @@ type StalePreview = { id: string; name: string; status: string; days: number }
 
 function emptyByEntity<T>(value: () => T): Record<Entity, T> {
   return Object.fromEntries(ENTITIES.map((e) => [e, value()])) as Record<Entity, T>
-}
-
-function includes(list: readonly string[], value: string) {
-  return list.includes(value as never)
 }
 
 export default function DashboardPage() {
@@ -140,21 +132,9 @@ export default function DashboardPage() {
   }, [fetchStats])
 
   const countsFor = useCallback((rows: LeadSummary[]) => {
-    const stage1 = rows.filter(
-      (l) => includes(STAGE1_CURRENT_STATUS_OPTIONS, l.current_status) || l.current_status === 'New Lead'
-    ).length
-    const stage2 = rows.filter((l) => includes(STAGE2_VISIBLE_STATUSES, l.current_status)).length
-    // Cold Leads/Failed are part of STAGE3_STATUS_OPTIONS (Stage 3 kanban
-    // has its own exit columns) but are also exit outcomes — exclude them
-    // here so a lead isn't double-counted as both "in Stage 3" and "keluar".
-    const stage3 = rows.filter(
-      (l) => includes(STAGE3_STATUS_OPTIONS, l.current_status) && !isLostOutcomeStatus(l.current_status)
-    ).length
-    const won = rows.filter((l) => isStage3WonStatus(l.current_status)).length
-    const exit = rows.filter((l) => isLostOutcomeStatus(l.current_status)).length
     const today = getTodayInWIB()
     const newToday = rows.filter((l) => (l.lead_entry_date || '').slice(0, 10) === today).length
-    return { total: rows.length, stage1, stage2, stage3, won, exit, newToday }
+    return { ...countLeadFunnel(rows), newToday }
   }, [])
 
   const counts = useMemo(() => {

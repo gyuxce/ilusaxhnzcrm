@@ -137,6 +137,13 @@ export const OWNER_PRIMARY_NAV: NavItem[] = [
     hintId: 'Uang masuk verified',
     hintEn: 'Verified payments',
   },
+  {
+    href: '/laporan-bulanan',
+    labelId: 'Laporan Bulanan',
+    labelEn: 'Monthly Report',
+    hintId: 'Ringkasan buat dibagikan ke partner',
+    hintEn: 'Summary to share with partners',
+  },
 ]
 
 export function isNavActive(pathname: string, href: string): boolean {
