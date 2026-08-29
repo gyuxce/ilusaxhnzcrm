@@ -359,36 +359,33 @@ export default function DashboardPage() {
             <Link href="/conversions" className="mt-3 inline-flex items-center gap-1 text-[11px] font-semibold text-accent hover:opacity-80">
               {isId ? 'Buka pembayaran' : 'View payments'} <ArrowRight size={11} />
             </Link>
+
+            <div className="mt-5 border-t border-border/70 pt-4">
+              <h4 className="text-xs font-semibold text-foreground">{isId ? 'Jenis closing' : 'Closing channel'}</h4>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                {isId ? 'Seat lock terverifikasi, dikelompokkan cara bayarnya.' : 'Verified seat locks, grouped by how they were paid.'}
+              </p>
+              <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {PAYMENT_CHANNEL_OPTIONS.map((opt) => {
+                  const c = closingByChannel[opt.value]
+                  return (
+                    <div key={opt.value} className="rounded-xl border border-border bg-card px-4 py-3">
+                      <p className="text-[11px] text-muted-foreground font-medium">{paymentChannelLabel(opt.value)}</p>
+                      {loading ? (
+                        <div className="mt-1 h-6 w-20 animate-pulse rounded bg-muted" />
+                      ) : (
+                        <>
+                          <p className="text-lg font-semibold text-foreground mt-1 tabular-nums">{c.count} closing</p>
+                          <p className="text-[11px] text-muted-foreground tabular-nums">Rp {c.amount.toLocaleString('id-ID')}</p>
+                        </>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
           </section>
         </div>
-
-        {/* Jenis closing (seat lock) */}
-        <section className="rounded-2xl border border-border bg-card p-5">
-          <h3 className="font-display text-base font-semibold tracking-tight text-foreground">
-            {isId ? 'Jenis closing' : 'Closing channel'}
-          </h3>
-          <p className="text-xs text-muted-foreground mt-1">
-            {isId ? 'Seat lock yang sudah diverifikasi, dikelompokkan cara bayarnya.' : 'Verified seat locks, grouped by how they were paid.'}
-          </p>
-          <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {PAYMENT_CHANNEL_OPTIONS.map((opt) => {
-              const c = closingByChannel[opt.value]
-              return (
-                <div key={opt.value} className="rounded-xl border border-border px-4 py-3">
-                  <p className="text-[11px] text-muted-foreground font-medium">{paymentChannelLabel(opt.value)}</p>
-                  {loading ? (
-                    <div className="mt-1 h-6 w-20 animate-pulse rounded bg-muted" />
-                  ) : (
-                    <>
-                      <p className="text-lg font-semibold text-foreground mt-1 tabular-nums">{c.count} closing</p>
-                      <p className="text-[11px] text-muted-foreground tabular-nums">Rp {c.amount.toLocaleString('id-ID')}</p>
-                    </>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        </section>
 
         <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
           <Clock size={12} />
