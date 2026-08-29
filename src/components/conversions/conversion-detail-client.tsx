@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
-import { CheckCircle2, CreditCard, DollarSign, ReceiptText } from 'lucide-react'
+import { CreditCard, DollarSign, Download, ReceiptText } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export type PaymentWithLead = {
@@ -98,6 +98,36 @@ export function ConversionDetailClient({
     window.history.replaceState(null, '', url)
   }
 
+  const exportCsv = () => {
+    const rows = visiblePayments.map((payment) => ({
+      tanggal: payment.payment_date ? new Date(payment.payment_date).toLocaleDateString('id-ID') : '',
+      nama_lead: payment.leads?.full_name || '',
+      whatsapp: payment.leads?.whatsapp_number || '',
+      campaign: payment.leads?.source_campaign || '',
+      tipe_pembayaran: paymentLabel(payment.payment_type),
+      nominal: Number(payment.amount || 0),
+      metode: payment.payment_method || '',
+      status_verifikasi: payment.verification_status,
+      catatan: payment.notes || '',
+    }))
+    const headers = ['tanggal', 'nama_lead', 'whatsapp', 'campaign', 'tipe_pembayaran', 'nominal', 'metode', 'status_verifikasi', 'catatan']
+    const escapeCsv = (value: unknown) => `"${String(value ?? '').replace(/"/g, '""')}"`
+    const csv = [
+      headers.join(','),
+      ...rows.map((row) => headers.map((header) => escapeCsv(row[header as keyof typeof row])).join(',')),
+    ].join('\n')
+
+    const blob = new Blob([`﻿${csv}`], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `pembayaran-${selectedType}-${new Date().toISOString().slice(0, 10)}.csv`
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(url)
+  }
+
   return (
     <div className="w-full p-6 space-y-6 animate-fade-in">
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -180,7 +210,15 @@ export function ConversionDetailClient({
               {visiblePayments.length} transaksi ditampilkan.
             </p>
           </div>
-          <CheckCircle2 size={18} className="text-emerald-600 dark:text-emerald-400" />
+          <button
+            type="button"
+            onClick={exportCsv}
+            disabled={visiblePayments.length === 0}
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-xs font-bold text-foreground transition-all hover:bg-secondary/70 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <Download size={15} />
+            Export CSV
+          </button>
         </div>
 
         <div className="overflow-x-auto">
