@@ -24,6 +24,7 @@ import {
 import { readPrdTrialSinceClient, PRD_TRIAL_MODE_CHANGED } from '@/lib/prd-trial-mode'
 import { resolveEntity, ENTITIES, type Entity } from '@/lib/entity'
 import { countLeadFunnel } from '@/lib/lead-funnel-counts'
+import { PAYMENT_CHANNEL_OPTIONS, paymentChannelLabel, type PaymentChannel } from '@/lib/payment-channel'
 import type { LeadRow, PaymentRow, CampaignEntityOverrideRow } from '@/lib/supabase/types'
 
 type LeadSummary = Pick<LeadRow, 'id' | 'full_name' | 'current_status' | 'updated_at' | 'lead_entry_date' | 'last_contacted_date' | 'source_campaign'>
@@ -44,6 +45,9 @@ export default function DashboardPage() {
     () => emptyByEntity(() => ({ map: 0, seat: 0, total: 0 }))
   )
   const [stalePreview, setStalePreview] = useState<StalePreview[]>([])
+  const [closingByChannel, setClosingByChannel] = useState<Record<PaymentChannel, { count: number; amount: number }>>(
+    () => Object.fromEntries(PAYMENT_CHANNEL_OPTIONS.map((o) => [o.value, { count: 0, amount: 0 }])) as Record<PaymentChannel, { count: number; amount: number }>
+  )
   const [campaignOverrides, setCampaignOverrides] = useState<ReadonlyMap<string, Entity>>(new Map())
 
   const fetchStats = useCallback(async () => {
@@ -60,7 +64,7 @@ export default function DashboardPage() {
       leadsQuery,
       supabase
         .from('payments')
-        .select('lead_id, payment_type, amount')
+        .select('lead_id, payment_type, amount, payment_method')
         .eq('verification_status', 'verified')
         .limit(5000),
       supabase.from('campaign_entity_overrides').select('source_campaign, entity'),
@@ -87,7 +91,10 @@ export default function DashboardPage() {
       seat: 0,
       total: 0,
     }))
-    ;((paymentsRes.data || []) as Pick<PaymentRow, 'lead_id' | 'payment_type' | 'amount'>[]).forEach((p) => {
+    const byChannel: Record<PaymentChannel, { count: number; amount: number }> = Object.fromEntries(
+      PAYMENT_CHANNEL_OPTIONS.map((o) => [o.value, { count: 0, amount: 0 }])
+    ) as Record<PaymentChannel, { count: number; amount: number }>
+    ;((paymentsRes.data || []) as Pick<PaymentRow, 'lead_id' | 'payment_type' | 'amount' | 'payment_method'>[]).forEach((p) => {
       const amt = Number(p.amount) || 0
       const bucket = p.payment_type === 'pemetaan' || p.payment_type === 'roadmap_session' ? 'map'
         : p.payment_type === 'seat_lock' ? 'seat'
@@ -95,6 +102,10 @@ export default function DashboardPage() {
       if (!bucket) return
       if (bucket === 'map') map += amt
       else seat += amt
+      if (bucket === 'seat' && byChannel[p.payment_method as PaymentChannel]) {
+        byChannel[p.payment_method as PaymentChannel].count += 1
+        byChannel[p.payment_method as PaymentChannel].amount += amt
+      }
       // Skip entity attribution when the lead isn't in the current (possibly
       // trial-scoped) leadRows set — defaulting to HNZ here would silently
       // misattribute KFI revenue whenever a lead falls outside that scope.
@@ -105,6 +116,7 @@ export default function DashboardPage() {
     })
     setRevenue({ map, seat, total: map + seat })
     setRevenueByEntity(byEntity)
+    setClosingByChannel(byChannel)
 
     const now = Date.now()
     const nextStale = leadRows
@@ -349,6 +361,34 @@ export default function DashboardPage() {
             </Link>
           </section>
         </div>
+
+        {/* Jenis closing (seat lock) */}
+        <section className="rounded-2xl border border-border bg-card p-5">
+          <h3 className="font-display text-base font-semibold tracking-tight text-foreground">
+            {isId ? 'Jenis closing' : 'Closing channel'}
+          </h3>
+          <p className="text-xs text-muted-foreground mt-1">
+            {isId ? 'Seat lock yang sudah diverifikasi, dikelompokkan cara bayarnya.' : 'Verified seat locks, grouped by how they were paid.'}
+          </p>
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {PAYMENT_CHANNEL_OPTIONS.map((opt) => {
+              const c = closingByChannel[opt.value]
+              return (
+                <div key={opt.value} className="rounded-xl border border-border px-4 py-3">
+                  <p className="text-[11px] text-muted-foreground font-medium">{paymentChannelLabel(opt.value)}</p>
+                  {loading ? (
+                    <div className="mt-1 h-6 w-20 animate-pulse rounded bg-muted" />
+                  ) : (
+                    <>
+                      <p className="text-lg font-semibold text-foreground mt-1 tabular-nums">{c.count} closing</p>
+                      <p className="text-[11px] text-muted-foreground tabular-nums">Rp {c.amount.toLocaleString('id-ID')}</p>
+                    </>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </section>
 
         <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
           <Clock size={12} />

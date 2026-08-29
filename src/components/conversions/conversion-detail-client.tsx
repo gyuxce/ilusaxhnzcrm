@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { CreditCard, DollarSign, Download, ReceiptText } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { paymentChannelLabel } from '@/lib/payment-channel'
 
 export type PaymentWithLead = {
   id: string
@@ -106,7 +107,7 @@ export function ConversionDetailClient({
       campaign: payment.leads?.source_campaign || '',
       tipe_pembayaran: paymentLabel(payment.payment_type),
       nominal: Number(payment.amount || 0),
-      metode: payment.payment_method || '',
+      metode: payment.payment_method ? paymentChannelLabel(payment.payment_method) : '',
       status_verifikasi: payment.verification_status,
       catatan: payment.notes || '',
     }))
@@ -279,7 +280,7 @@ export function ConversionDetailClient({
                         {payment.verification_status === 'verified' ? 'Terverifikasi' : payment.verification_status}
                       </span>
                     </td>
-                    <td className="px-5 py-4 text-muted-foreground">{payment.payment_method || '-'}</td>
+                    <td className="px-5 py-4 text-muted-foreground">{payment.payment_method ? paymentChannelLabel(payment.payment_method) : '-'}</td>
                     <td className="px-5 py-4 text-muted-foreground">{payment.leads?.source_campaign || '-'}</td>
                     <td className="px-5 py-4">
                       {payment.leads?.id ? (

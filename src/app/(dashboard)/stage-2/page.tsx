@@ -191,7 +191,7 @@ export default function Stage2Page() {
           // of silently collapsing it back to 'pemetaan'.
           payment_type: existingPayment?.payment_type || 'pemetaan',
           amount: nominal,
-          payment_method: existingPayment?.payment_method || 'Transfer',
+          payment_method: existingPayment?.payment_method || 'manual',
           payment_date: existingPayment?.payment_date || getTodayInWIB(),
           verification_status: existingPayment?.verification_status || 'verified',
           verified_by: user?.id ?? null,

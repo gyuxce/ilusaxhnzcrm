@@ -17,6 +17,7 @@ import { Clock3, FileText, MessageCircle, Users, X, Loader2, CheckCircle2, Penci
 import { useCampaignOverrides } from '@/lib/use-campaign-overrides'
 import { EntityBadge } from '@/components/leads/entity-badge'
 import { danacitaStatusText } from '@/lib/danacita'
+import { PAYMENT_CHANNEL_OPTIONS } from '@/lib/payment-channel'
 import type { DanacitaFlow, DanacitaStatus } from '@/lib/supabase/types'
 
 const INITIAL_VISIBLE = 10
@@ -376,6 +377,7 @@ type DetailForm = {
   croFollowUp: string
   leadResponse: string
   closingNominal: string
+  closingChannel: string
   coldLeadsNote: string
   failedReason: string
   akselerasiNote: string
@@ -406,6 +408,7 @@ function Stage3DetailModal({
     croFollowUp: '',
     leadResponse: '',
     closingNominal: seatLockPayment ? String(Number(seatLockPayment.amount || 0)) : '',
+    closingChannel: seatLockPayment?.payment_method || 'manual',
     coldLeadsNote: '',
     failedReason: lead.lost_reason || '',
     akselerasiNote: '',
@@ -479,7 +482,8 @@ function Stage3DetailModal({
     nominalValue: string,
     existing: Stage3Payment | null,
     actor: string | null,
-    notes: string
+    notes: string,
+    channel?: string
   ): Promise<Stage3Payment | null> {
     if (!nominalValue.trim()) return existing
     const nominal = Number(nominalValue.replace(/[^\d]/g, ''))
@@ -491,7 +495,7 @@ function Stage3DetailModal({
       // silently collapsing it back to 'pemetaan'.
       payment_type: existing?.payment_type || type,
       amount: nominal,
-      payment_method: existing?.payment_method || 'Transfer',
+      payment_method: channel || existing?.payment_method || 'manual',
       payment_date: existing?.payment_date || getTodayInWIB(),
       verification_status: existing?.verification_status || 'verified',
       verified_by: actor,
@@ -547,7 +551,7 @@ function Stage3DetailModal({
     let savedSeatLock: Stage3Payment | null = seatLockPayment
     try {
       savedPemetaan = await savePayment('pemetaan', form.pemetaanNominal, pemetaanPayment, actor, 'Input pemetaan dari Stage 3')
-      savedSeatLock = await savePayment('seat_lock', form.closingNominal, seatLockPayment, actor, 'Input seat lock dari Stage 3')
+      savedSeatLock = await savePayment('seat_lock', form.closingNominal, seatLockPayment, actor, 'Input seat lock dari Stage 3', form.closingChannel)
     } catch (paymentError) {
       setSaving(false)
       setError(paymentError instanceof Error ? paymentError.message : 'Gagal menyimpan pembayaran.')
@@ -720,6 +724,17 @@ function Stage3DetailModal({
                         placeholder="Isi nominal seat lock"
                         className="field-input"
                       />
+                    </Field>
+                    <Field label="Jenis closing (seat lock)">
+                      <select
+                        value={form.closingChannel}
+                        onChange={(e) => setForm((p) => ({ ...p, closingChannel: e.target.value }))}
+                        className="field-input"
+                      >
+                        {PAYMENT_CHANNEL_OPTIONS.map((opt) => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </select>
                     </Field>
                   </div>
                 </div>

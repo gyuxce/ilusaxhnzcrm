@@ -14,6 +14,7 @@ import {
 } from '@/lib/prd-stages'
 import type { LeadDetailProps, LeadWithUsers, ActivityWithUser, UserSummary } from '@/types/crm'
 import { LOST_REASON_OPTIONS, LOST_STATUSES } from '@/lib/lost-reasons'
+import { PAYMENT_CHANNEL_OPTIONS } from '@/lib/payment-channel'
 import { isJsonRecord } from '@/types/crm'
 import type { PaymentRow } from '@/lib/supabase/types'
 
@@ -36,7 +37,7 @@ export function LeadDetailClient({
   const [paymentType, setPaymentType] = useState('pemetaan')
   const [paymentAmount, setPaymentAmount] = useState('')
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0])
-  const [paymentMethod, setPaymentMethod] = useState('Transfer')
+  const [paymentMethod, setPaymentMethod] = useState('manual')
   const [paymentStatus, setPaymentStatus] = useState('verified')
   const [paymentNotes, setPaymentNotes] = useState('')
   const [paymentError, setPaymentError] = useState('')
@@ -166,7 +167,7 @@ export function LeadDetailClient({
     setPaymentType(payment?.payment_type || 'pemetaan')
     setPaymentAmount(payment ? String(Number(payment.amount || 0)) : '')
     setPaymentDate(payment?.payment_date?.split('T')[0] || new Date().toISOString().split('T')[0])
-    setPaymentMethod(payment?.payment_method || 'Transfer')
+    setPaymentMethod(payment?.payment_method || 'manual')
     setPaymentStatus(payment?.verification_status || 'verified')
     setPaymentNotes(payment?.notes || '')
     setIsEditingPayment(true)
@@ -190,7 +191,7 @@ export function LeadDetailClient({
       lead_id: lead.id,
       payment_type: paymentType,
       amount: nominal,
-      payment_method: paymentMethod || 'Transfer',
+      payment_method: paymentMethod || 'manual',
       payment_date: paymentDate,
       verification_status: paymentStatus,
       verified_by: paymentStatus === 'verified' ? actorId : null,
@@ -585,8 +586,12 @@ export function LeadDetailClient({
                     <input type="date" value={paymentDate} onChange={(e) => setPaymentDate(e.target.value)} className="detail-input" />
                   </label>
                   <label className="block space-y-1">
-                    <span className="text-[11px] font-semibold text-muted-foreground">Metode</span>
-                    <input value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} className="detail-input" />
+                    <span className="text-[11px] font-semibold text-muted-foreground">Jenis closing</span>
+                    <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} className="detail-input">
+                      {PAYMENT_CHANNEL_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
+                    </select>
                   </label>
                   <label className="block space-y-1">
                     <span className="text-[11px] font-semibold text-muted-foreground">Status verifikasi</span>
