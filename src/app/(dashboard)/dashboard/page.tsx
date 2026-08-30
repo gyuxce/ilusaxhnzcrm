@@ -45,7 +45,7 @@ export default function DashboardPage() {
     () => emptyByEntity(() => ({ map: 0, seat: 0, total: 0 }))
   )
   const [stalePreview, setStalePreview] = useState<StalePreview[]>([])
-  const [closingByChannel, setClosingByChannel] = useState<Record<PaymentChannel, { count: number; amount: number }>>(
+  const [paymentsByChannel, setPaymentsByChannel] = useState<Record<PaymentChannel, { count: number; amount: number }>>(
     () => Object.fromEntries(PAYMENT_CHANNEL_OPTIONS.map((o) => [o.value, { count: 0, amount: 0 }])) as Record<PaymentChannel, { count: number; amount: number }>
   )
   const [campaignOverrides, setCampaignOverrides] = useState<ReadonlyMap<string, Entity>>(new Map())
@@ -102,7 +102,7 @@ export default function DashboardPage() {
       if (!bucket) return
       if (bucket === 'map') map += amt
       else seat += amt
-      if (bucket === 'seat' && byChannel[p.payment_method as PaymentChannel]) {
+      if (byChannel[p.payment_method as PaymentChannel]) {
         byChannel[p.payment_method as PaymentChannel].count += 1
         byChannel[p.payment_method as PaymentChannel].amount += amt
       }
@@ -116,7 +116,7 @@ export default function DashboardPage() {
     })
     setRevenue({ map, seat, total: map + seat })
     setRevenueByEntity(byEntity)
-    setClosingByChannel(byChannel)
+    setPaymentsByChannel(byChannel)
 
     const now = Date.now()
     const nextStale = leadRows
@@ -361,13 +361,13 @@ export default function DashboardPage() {
             </Link>
 
             <div className="mt-5 border-t border-border/70 pt-4">
-              <h4 className="text-xs font-semibold text-foreground">{isId ? 'Jenis closing' : 'Closing channel'}</h4>
+              <h4 className="text-xs font-semibold text-foreground">{isId ? 'Jenis pembayaran' : 'Payment channel'}</h4>
               <p className="text-[11px] text-muted-foreground mt-0.5">
-                {isId ? 'Seat lock terverifikasi, dikelompokkan cara bayarnya.' : 'Verified seat locks, grouped by how they were paid.'}
+                {isId ? 'Semua pembayaran terverifikasi (pemetaan + seat lock), dikelompokkan cara bayarnya.' : 'All verified payments (pemetaan + seat lock), grouped by how they were paid.'}
               </p>
               <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {PAYMENT_CHANNEL_OPTIONS.map((opt) => {
-                  const c = closingByChannel[opt.value]
+                  const c = paymentsByChannel[opt.value]
                   return (
                     <div key={opt.value} className="rounded-xl border border-border bg-card px-4 py-3">
                       <p className="text-[11px] text-muted-foreground font-medium">{paymentChannelLabel(opt.value)}</p>
@@ -375,7 +375,7 @@ export default function DashboardPage() {
                         <div className="mt-1 h-6 w-20 animate-pulse rounded bg-muted" />
                       ) : (
                         <>
-                          <p className="text-lg font-semibold text-foreground mt-1 tabular-nums">{c.count} closing</p>
+                          <p className="text-lg font-semibold text-foreground mt-1 tabular-nums">{c.count} {isId ? 'transaksi' : 'payments'}</p>
                           <p className="text-[11px] text-muted-foreground tabular-nums">Rp {c.amount.toLocaleString('id-ID')}</p>
                         </>
                       )}
